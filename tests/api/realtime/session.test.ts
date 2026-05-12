@@ -68,4 +68,27 @@ describe("POST /api/realtime/session", () => {
     expect(serialized).not.toContain(PRIMARY_API_KEY);
     expect(serialized).not.toContain("OPENAI_API_KEY");
   });
+
+  it("fails safely when server OpenAI configuration is missing", async () => {
+    const fetchImpl = vi.fn();
+    vi.stubGlobal("fetch", fetchImpl);
+
+    const response = await POST(
+      new Request("http://localhost/api/realtime/session", {
+        method: "POST",
+        body: JSON.stringify({ lessonId: "lesson-route" }),
+      }),
+    );
+    const body = await response.json();
+    const serialized = JSON.stringify(body);
+
+    expect(response.status).toBe(502);
+    expect(body.error).toEqual({
+      code: "realtime-session-failed",
+      message: "Voice session could not start. Please retry.",
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(serialized).not.toContain("OPENAI_API_KEY");
+    expect(serialized).not.toContain(".env");
+  });
 });
