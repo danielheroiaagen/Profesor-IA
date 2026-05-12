@@ -1,4 +1,4 @@
-﻿export type LessonState = "idle" | "starting" | "active" | "feedback" | "completed" | "failed";
+export type LessonState = "idle" | "starting" | "active" | "feedback" | "completed" | "failed";
 export type CompletionReason = "completed" | "insufficient-participation" | "unverified";
 export type LessonFailureReason =
   | "start-failed"
