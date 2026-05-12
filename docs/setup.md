@@ -27,7 +27,14 @@ npm run lint
 npm run build
 ```
 
-Verified on 2026-05-12: all four commands passed after `npm install`.
+Verified on 2026-05-13 after Phase 5 hardening:
+
+- `npm test` — Vitest unit, route integration, and jsdom UI smoke coverage.
+- `npm run typecheck` — TypeScript no-emit check.
+- `npm run lint` — ESLint project scan.
+- `npm run build` — Next.js production build.
+
+Playwright is not installed in this slice. Browser smoke coverage uses the existing Vitest/jsdom stack to keep the PR small; add Playwright later only when the team is ready to own browser binaries and audio permission mocks.
 
 ## Security Checklist
 
@@ -38,4 +45,4 @@ Verified on 2026-05-12: all four commands passed after `npm install`.
 
 ## Current Slice
 
-This foundation slice creates tooling, safe server configuration, and review/security docs only. Domain logic, API routes, voice UI, and HeyGen integration belong to later PR slices.
+The current SDD chain has foundation, domain/API, Realtime voice, and HeyGen fallback slices. The next production hardening step is real browser/audio validation with provider credentials configured server-side.
