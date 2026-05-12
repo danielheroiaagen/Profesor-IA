@@ -42,8 +42,8 @@ Chain strategy: feature-branch-chain
 
 ## Phase 3: OpenAI Realtime Voice MVP
 
-- [ ] 3.1 Create `src/integrations/openai/realtime.ts` to mint `gpt-realtime-2` ephemeral sessions server-side.
-- [ ] 3.2 Create `app/api/realtime/session/route.ts`; test mocked mint success/failure and assert primary keys never appear in responses.
+- [x] 3.1 Create `src/integrations/openai/realtime.ts` to mint `gpt-realtime-2` ephemeral sessions server-side.
+- [x] 3.2 Create `app/api/realtime/session/route.ts`; test mocked mint success/failure and assert primary keys never appear in responses.
 - [ ] 3.3 Create `app/page.tsx` and `app/lesson/page.tsx` with start, mic/error states, visible correction summary, completion, and XP result.
 
 ## Phase 4: HeyGen Avatar Spike / Fallback
