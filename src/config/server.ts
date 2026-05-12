@@ -16,6 +16,8 @@ export type ServerConfig = {
   };
 };
 
+export type HeyGenServerConfig = ServerConfig["heygen"];
+
 export class SafeConfigError extends Error {
   constructor(message: string) {
     super(message);
@@ -39,7 +41,8 @@ export function getServerConfig(env: Env = process.env): ServerConfig {
   return {
     openai: {
       apiKey: env.OPENAI_API_KEY as string,
-      realtimeModel: env.OPENAI_REALTIME_MODEL?.trim() || DEFAULT_OPENAI_REALTIME_MODEL,
+      realtimeModel:
+        env.OPENAI_REALTIME_MODEL?.trim() || DEFAULT_OPENAI_REALTIME_MODEL,
     },
     heygen: {
       apiKey: optionalSecret(env.HEYGEN_API_KEY),
@@ -48,11 +51,23 @@ export function getServerConfig(env: Env = process.env): ServerConfig {
   };
 }
 
+export function getHeyGenServerConfig(
+  env: Env = process.env,
+): HeyGenServerConfig {
+  assertServerRuntime();
+
+  return {
+    apiKey: optionalSecret(env.HEYGEN_API_KEY),
+    avatarId: env.HEYGEN_AVATAR_ID?.trim() || DEFAULT_HEYGEN_AVATAR_ID,
+  };
+}
+
 export function getSafeConfigStatus(env: Env = process.env) {
   return {
     openaiApiKeyConfigured: Boolean(env.OPENAI_API_KEY?.trim()),
     heygenApiKeyConfigured: Boolean(env.HEYGEN_API_KEY?.trim()),
-    openaiRealtimeModel: env.OPENAI_REALTIME_MODEL?.trim() || DEFAULT_OPENAI_REALTIME_MODEL,
+    openaiRealtimeModel:
+      env.OPENAI_REALTIME_MODEL?.trim() || DEFAULT_OPENAI_REALTIME_MODEL,
     heygenAvatarId: env.HEYGEN_AVATAR_ID?.trim() || DEFAULT_HEYGEN_AVATAR_ID,
   };
 }
