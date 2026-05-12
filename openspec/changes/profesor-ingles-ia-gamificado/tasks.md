@@ -54,6 +54,6 @@ Chain strategy: feature-branch-chain
 
 ## Phase 5: Verification
 
-- [ ] 5.1 Add route integration tests for safe lesson start, token mint failure, completion awarding, and no award before participation.
-- [ ] 5.2 Add Playwright smoke if feasible: start lesson, avatar fallback visible, safe retry message on audio/session failure.
-- [ ] 5.3 Run `npm test`, typecheck, lint, build; update `docs/setup.md` with exact verified commands.
+- [x] 5.1 Add route integration tests for safe lesson start, token mint failure, completion awarding, and no award before participation.
+- [x] 5.2 Add browser smoke with existing Vitest/jsdom because Playwright is not yet installed: start lesson, avatar fallback visible, safe retry message on audio/session failure.
+- [x] 5.3 Run `npm test`, typecheck, lint, build; update `docs/setup.md` with exact verified commands.
