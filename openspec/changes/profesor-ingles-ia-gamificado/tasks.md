@@ -34,11 +34,11 @@ Chain strategy: feature-branch-chain
 
 ## Phase 2: Domain and API Contracts
 
-- [ ] 2.1 Create `src/domain/lesson.ts` with lesson states, completion qualification, and failure states.
-- [ ] 2.2 Create `src/domain/gamification.ts` with XP rules: award only after meaningful participation and feedback.
-- [ ] 2.3 Create `src/integrations/avatar/avatar-adapter.ts` contract returning live/generated/static/voice-only status.
-- [ ] 2.4 Create `app/api/lessons/start/route.ts` and `app/api/lessons/complete/route.ts` using domain rules and safe client responses.
-- [ ] 2.5 Test `tests/domain/*.test.ts` for transitions, unearned XP denial, verified completion, and interrupted completion.
+- [x] 2.1 Create `src/domain/lesson.ts` with lesson states, completion qualification, and failure states.
+- [x] 2.2 Create `src/domain/gamification.ts` with XP rules: award only after meaningful participation and feedback.
+- [x] 2.3 Create `src/integrations/avatar/avatar-adapter.ts` contract returning live/generated/static/voice-only status.
+- [x] 2.4 Create `app/api/lessons/start/route.ts` and `app/api/lessons/complete/route.ts` using domain rules and safe client responses.
+- [x] 2.5 Test `tests/domain/*.test.ts` for transitions, unearned XP denial, verified completion, and interrupted completion.
 
 ## Phase 3: OpenAI Realtime Voice MVP
 
