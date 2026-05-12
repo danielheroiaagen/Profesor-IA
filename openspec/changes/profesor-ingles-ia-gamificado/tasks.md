@@ -48,9 +48,9 @@ Chain strategy: feature-branch-chain
 
 ## Phase 4: HeyGen Avatar Spike / Fallback
 
-- [ ] 4.1 Create `src/integrations/avatar/heygen.ts` validating avatar `552426f4e4584a24871c5ffad2a97f73` behind server-mediated config.
-- [ ] 4.2 Wire lesson UI to avatar status; show static/voice-only fallback without blocking Realtime voice.
-- [ ] 4.3 Test provider rejection, disabled avatar, slow/unavailable adapter, and no primary HeyGen key leakage.
+- [x] 4.1 Create `src/integrations/avatar/heygen.ts` validating avatar `552426f4e4584a24871c5ffad2a97f73` behind server-mediated config.
+- [x] 4.2 Wire lesson UI to avatar status; show static/voice-only fallback without blocking Realtime voice.
+- [x] 4.3 Test provider rejection, disabled avatar, slow/unavailable adapter, and no primary HeyGen key leakage.
 
 ## Phase 5: Verification
 

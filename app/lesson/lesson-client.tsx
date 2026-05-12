@@ -12,6 +12,7 @@ type AvatarStatus = {
   mode: "live" | "generated" | "static" | "voice-only";
   available: boolean;
   reason?: string;
+  avatarId?: string;
 };
 
 type RealtimeSession = {
@@ -158,7 +159,10 @@ export default function LessonClient() {
           <dt>Voice connection</dt>
           <dd>{connectionStatus}</dd>
           <dt>Avatar</dt>
-          <dd>{avatar ? `${avatar.mode}${avatar.reason ? ` (${avatar.reason})` : ""}` : "not started"}</dd>
+          <dd>
+            {avatar ? `${avatar.mode}${avatar.reason ? ` (${avatar.reason})` : ""}` : "not started"}
+            {avatar?.avatarId ? ` · ${avatar.avatarId}` : ""}
+          </dd>
           <dt>Realtime model</dt>
           <dd>{realtime?.model ?? "not minted yet"}</dd>
           <dt>Ephemeral credential expires</dt>
