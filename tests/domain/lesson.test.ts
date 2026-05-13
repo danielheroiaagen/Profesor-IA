@@ -24,7 +24,11 @@ describe("lesson domain", () => {
     expect(withFeedback.state).toBe("feedback");
     expect(withFeedback.metrics.feedbackEvents).toBe(1);
 
-    const completion = completeLesson(withFeedback, {}, new Date("2026-05-12T10:05:00.000Z"));
+    const completion = completeLesson(
+      withFeedback,
+      {},
+      new Date("2026-05-12T10:05:00.000Z"),
+    );
 
     expect(completion.qualification).toEqual({
       qualified: true,

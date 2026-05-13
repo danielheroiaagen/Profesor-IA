@@ -8,7 +8,9 @@ export type XPResult = {
   reason: "completed" | "insufficient-participation" | "unverified";
 };
 
-export function awardLessonXp(qualification: CompletionQualification): XPResult {
+export function awardLessonXp(
+  qualification: CompletionQualification,
+): XPResult {
   if (!qualification.qualified) {
     return {
       awarded: false,

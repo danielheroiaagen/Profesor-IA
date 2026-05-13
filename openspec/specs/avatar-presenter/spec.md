@@ -11,12 +11,14 @@ Defines the teacher visual surface while keeping avatar availability non-blockin
 The system SHOULD use the configured HeyGen avatar ID when live or generated avatar presentation is supported. Browser clients MUST NOT receive primary HeyGen API keys.
 
 #### Scenario: Avatar provider is available
+
 - GIVEN avatar presentation is enabled and supported
 - WHEN a lesson starts
 - THEN the teacher surface uses the configured avatar identity
 - AND any browser credential is limited or server-mediated.
 
 #### Scenario: Avatar provider rejects or lacks support
+
 - GIVEN the configured avatar cannot be used
 - WHEN the learner starts or continues a lesson
 - THEN the lesson remains usable without live avatar video
@@ -27,6 +29,7 @@ The system SHOULD use the configured HeyGen avatar ID when live or generated ava
 The system MUST preserve the lesson experience when avatar live integration is unavailable, slow, over quota, or disabled.
 
 #### Scenario: Fallback presentation is selected
+
 - GIVEN avatar integration is unavailable
 - WHEN the lesson is active
 - THEN the learner sees a static or voice-only teacher presentation

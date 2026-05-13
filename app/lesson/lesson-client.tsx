@@ -29,9 +29,20 @@ type XPResult = {
   reason: string;
 };
 
-type LessonStatus = "idle" | "starting" | "active" | "feedback" | "completed" | "failed";
+type LessonStatus =
+  | "idle"
+  | "starting"
+  | "active"
+  | "feedback"
+  | "completed"
+  | "failed";
 
-type ConnectionStatus = "not-started" | "requesting-mic" | "connected" | "fallback" | "failed";
+type ConnectionStatus =
+  | "not-started"
+  | "requesting-mic"
+  | "connected"
+  | "fallback"
+  | "failed";
 
 type RealtimeConnection = {
   peerConnection: RTCPeerConnection;
@@ -41,13 +52,19 @@ type RealtimeConnection = {
 
 export default function LessonClient() {
   const [status, setStatus] = useState<LessonStatus>("idle");
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("not-started");
+  const [connectionStatus, setConnectionStatus] =
+    useState<ConnectionStatus>("not-started");
   const [lesson, setLesson] = useState<LessonSession | null>(null);
   const [avatar, setAvatar] = useState<AvatarStatus | null>(null);
-  const [realtime, setRealtime] = useState<Omit<RealtimeSession, "clientSecret"> | null>(null);
+  const [realtime, setRealtime] = useState<Omit<
+    RealtimeSession,
+    "clientSecret"
+  > | null>(null);
   const [learnerTurns, setLearnerTurns] = useState(0);
   const [feedbackEvents, setFeedbackEvents] = useState(0);
-  const [feedbackSummary, setFeedbackSummary] = useState("Say: I am practicing English today.");
+  const [feedbackSummary, setFeedbackSummary] = useState(
+    "Say: I am practicing English today.",
+  );
   const [xp, setXp] = useState<XPResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const connectionRef = useRef<RealtimeConnection | null>(null);
@@ -68,10 +85,10 @@ export default function LessonClient() {
     setFeedbackEvents(0);
 
     try {
-      const lessonResponse = await postJson<{ lesson: LessonSession; avatar: AvatarStatus }>(
-        "/api/lessons/start",
-        {},
-      );
+      const lessonResponse = await postJson<{
+        lesson: LessonSession;
+        avatar: AvatarStatus;
+      }>("/api/lessons/start", {});
       setLesson(lessonResponse.lesson);
       setAvatar(lessonResponse.avatar);
 
@@ -87,11 +104,14 @@ export default function LessonClient() {
         connectUrl: realtimeResponse.realtime.connectUrl,
       });
 
-      const connection = await connectRealtime(realtimeResponse.realtime, (message) => {
-        setFeedbackSummary(message);
-        setFeedbackEvents((current) => Math.max(current, 1));
-        setStatus("feedback");
-      });
+      const connection = await connectRealtime(
+        realtimeResponse.realtime,
+        (message) => {
+          setFeedbackSummary(message);
+          setFeedbackEvents((current) => Math.max(current, 1));
+          setStatus("feedback");
+        },
+      );
 
       replaceRealtimeConnection(connection);
       setConnectionStatus("connected");
@@ -99,7 +119,11 @@ export default function LessonClient() {
     } catch (startError) {
       setConnectionStatus("fallback");
       setStatus("active");
-      setError(startError instanceof Error ? startError.message : "Voice setup failed safely.");
+      setError(
+        startError instanceof Error
+          ? startError.message
+          : "Voice setup failed safely.",
+      );
     }
   }
 
@@ -110,7 +134,9 @@ export default function LessonClient() {
 
   function recordVisibleFeedback() {
     setFeedbackEvents((current) => current + 1);
-    setFeedbackSummary("Correction: say 'I am practicing English today' instead of 'I practicing English today'.");
+    setFeedbackSummary(
+      "Correction: say 'I am practicing English today' instead of 'I practicing English today'.",
+    );
     setStatus("feedback");
   }
 
@@ -136,23 +162,47 @@ export default function LessonClient() {
     }
   }
 
-  function replaceRealtimeConnection(nextConnection: RealtimeConnection | null) {
+  function replaceRealtimeConnection(
+    nextConnection: RealtimeConnection | null,
+  ) {
     closeRealtimeConnection(connectionRef.current);
     connectionRef.current = nextConnection;
   }
 
   return (
-    <main style={{ margin: "0 auto", maxWidth: "880px", padding: "3rem 1.5rem", fontFamily: "system-ui" }}>
-      <p style={{ color: "#2563eb", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+    <main
+      style={{
+        margin: "0 auto",
+        maxWidth: "880px",
+        padding: "3rem 1.5rem",
+        fontFamily: "system-ui",
+      }}
+    >
+      <p
+        style={{
+          color: "#2563eb",
+          fontWeight: 700,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+        }}
+      >
         Realtime voice MVP
       </p>
       <h1>Short English lesson</h1>
       <p>
-        The browser receives only an ephemeral Realtime credential. Primary OpenAI and HeyGen keys stay
-        server-side. That distinction matters — shortcuts here leak the keys to the street.
+        The browser receives only an ephemeral Realtime credential. Primary
+        OpenAI and HeyGen keys stay server-side. That distinction matters —
+        shortcuts here leak the keys to the street.
       </p>
 
-      <section style={{ border: "1px solid #d1d5db", borderRadius: "1rem", padding: "1rem", marginTop: "1.5rem" }}>
+      <section
+        style={{
+          border: "1px solid #d1d5db",
+          borderRadius: "1rem",
+          padding: "1rem",
+          marginTop: "1.5rem",
+        }}
+      >
         <h2>Lesson state</h2>
         <dl>
           <dt>Status</dt>
@@ -161,7 +211,9 @@ export default function LessonClient() {
           <dd>{connectionStatus}</dd>
           <dt>Avatar</dt>
           <dd>
-            {avatar ? `${avatar.mode}${avatar.reason ? ` (${avatar.reason})` : ""}` : "not started"}
+            {avatar
+              ? `${avatar.mode}${avatar.reason ? ` (${avatar.reason})` : ""}`
+              : "not started"}
             {avatar?.avatarId ? ` · ${avatar.avatarId}` : ""}
           </dd>
           <dt>Realtime model</dt>
@@ -172,7 +224,15 @@ export default function LessonClient() {
       </section>
 
       {error ? (
-        <p role="alert" style={{ background: "#fef2f2", borderRadius: "0.75rem", color: "#991b1b", padding: "1rem" }}>
+        <p
+          role="alert"
+          style={{
+            background: "#fef2f2",
+            borderRadius: "0.75rem",
+            color: "#991b1b",
+            padding: "1rem",
+          }}
+        >
           {error} You can retry without exposing any secret value.
         </p>
       ) : null}
@@ -181,18 +241,34 @@ export default function LessonClient() {
         <button onClick={startLesson} disabled={status === "starting"}>
           {status === "starting" ? "Starting..." : "Start voice lesson"}
         </button>
-        <button onClick={recordLearnerTurn} disabled={!lesson || status === "completed"}>
+        <button
+          onClick={recordLearnerTurn}
+          disabled={!lesson || status === "completed"}
+        >
           I spoke one answer
         </button>
-        <button onClick={recordVisibleFeedback} disabled={!lesson || status === "completed"}>
+        <button
+          onClick={recordVisibleFeedback}
+          disabled={!lesson || status === "completed"}
+        >
           Show correction feedback
         </button>
-        <button onClick={completeLesson} disabled={!lesson || status === "completed"}>
+        <button
+          onClick={completeLesson}
+          disabled={!lesson || status === "completed"}
+        >
           Complete lesson and calculate XP
         </button>
       </section>
 
-      <section style={{ border: "1px solid #d1d5db", borderRadius: "1rem", padding: "1rem", marginTop: "1.5rem" }}>
+      <section
+        style={{
+          border: "1px solid #d1d5db",
+          borderRadius: "1rem",
+          padding: "1rem",
+          marginTop: "1.5rem",
+        }}
+      >
         <h2>Visible correction</h2>
         <p>{feedbackSummary}</p>
         <p>
@@ -201,7 +277,14 @@ export default function LessonClient() {
       </section>
 
       {xp ? (
-        <section style={{ background: xp.awarded ? "#ecfdf5" : "#fffbeb", borderRadius: "1rem", padding: "1rem", marginTop: "1.5rem" }}>
+        <section
+          style={{
+            background: xp.awarded ? "#ecfdf5" : "#fffbeb",
+            borderRadius: "1rem",
+            padding: "1rem",
+            marginTop: "1.5rem",
+          }}
+        >
           <h2>{xp.awarded ? `XP awarded: ${xp.xp}` : "No XP awarded"}</h2>
           <p>Reason: {xp.reason}</p>
         </section>
@@ -285,14 +368,21 @@ function closeRealtimeConnection(connection: RealtimeConnection | null) {
 
 function readRealtimeFeedback(payload: string): string | null {
   try {
-    const event = JSON.parse(payload) as { type?: string; text?: string; transcript?: string; response?: { output_text?: string } };
+    const event = JSON.parse(payload) as {
+      type?: string;
+      text?: string;
+      transcript?: string;
+      response?: { output_text?: string };
+    };
     const text = event.text ?? event.transcript ?? event.response?.output_text;
 
     if (typeof text === "string" && text.trim()) {
       return text.trim();
     }
 
-    return event.type?.startsWith("response.") ? "Realtime tutor responded. Check the spoken correction." : null;
+    return event.type?.startsWith("response.")
+      ? "Realtime tutor responded. Check the spoken correction."
+      : null;
   } catch {
     return null;
   }

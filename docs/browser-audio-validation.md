@@ -18,11 +18,11 @@ Forbidden: `.env` values, primary API keys, client secret values, SDP payloads, 
 
 ## Outcome categories
 
-| Outcome | Use when |
-|---|---|
-| `passed` | Mic capture, server Realtime session, and WebRTC attempt all worked. |
+| Outcome                  | Use when                                                                           |
+| ------------------------ | ---------------------------------------------------------------------------------- |
+| `passed`                 | Mic capture, server Realtime session, and WebRTC attempt all worked.               |
 | `blocked-by-environment` | Browser permission, device, network, quota, or provider config blocked validation. |
-| `failed-by-product` | Local prerequisites were valid, but the app flow or fallback broke. |
+| `failed-by-product`      | Local prerequisites were valid, but the app flow or fallback broke.                |
 
 Failure category: `microphone`, `network`, `provider`, or `app`.
 
