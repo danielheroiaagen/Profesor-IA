@@ -11,7 +11,8 @@
     "format:write": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "verify": "npm test && npm run typecheck && npm run lint && npm run build"
   },
   "dependencies": {
     "@next/env": "^15.3.0",
