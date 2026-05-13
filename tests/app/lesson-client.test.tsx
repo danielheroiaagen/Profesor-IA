@@ -52,7 +52,9 @@ describe("LessonClient smoke", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Start voice lesson" }));
 
-    expect(await screen.findByText(/voice-only \(avatar-provider-not-configured\)/)).toBeVisible();
+    expect(
+      await screen.findByText(/voice-only \(avatar-provider-not-configured\)/),
+    ).toBeVisible();
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Microphone APIs are unavailable in this browser.",
     );
@@ -107,7 +109,9 @@ describe("LessonClient smoke", () => {
     fireEvent.click(screen.getByRole("button", { name: "Start voice lesson" }));
 
     await waitFor(() => expect(screen.getByText("fallback")).toBeVisible());
-    expect(screen.getByRole("alert")).toHaveTextContent("Microphone permission denied by browser.");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Microphone permission denied by browser.",
+    );
     expect(screen.getByRole("alert")).toHaveTextContent(
       "You can retry without exposing any secret value.",
     );
@@ -120,7 +124,10 @@ describe("LessonClient smoke", () => {
     const connectAttempts: RequestInit[] = [];
     const requestedUrls: string[] = [];
 
-    vi.stubGlobal("Audio", vi.fn(() => ({ autoplay: false, srcObject: null })));
+    vi.stubGlobal(
+      "Audio",
+      vi.fn(() => ({ autoplay: false, srcObject: null })),
+    );
     vi.stubGlobal(
       "RTCPeerConnection",
       vi.fn(() => ({
@@ -184,7 +191,11 @@ describe("LessonClient smoke", () => {
 
     await waitFor(() => expect(screen.getByText("connected")).toBeVisible());
     expect(requestedUrls).toEqual(
-      expect.arrayContaining(["/api/lessons/start", "/api/realtime/session", connectUrl]),
+      expect.arrayContaining([
+        "/api/lessons/start",
+        "/api/realtime/session",
+        connectUrl,
+      ]),
     );
     expect(connectAttempts[0]?.headers).toMatchObject({
       Authorization: "Bearer ek_test_ephemeral",
@@ -246,12 +257,18 @@ describe("LessonClient smoke", () => {
     render(<LessonClient />);
 
     fireEvent.click(screen.getByRole("button", { name: "Start voice lesson" }));
-    expect(await screen.findByText(/voice-only \(avatar-provider-not-configured\)/)).toBeVisible();
+    expect(
+      await screen.findByText(/voice-only \(avatar-provider-not-configured\)/),
+    ).toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: "Complete lesson and calculate XP" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Complete lesson and calculate XP" }),
+    );
 
     await waitFor(() => expect(screen.getByText("failed")).toBeVisible());
-    expect(screen.getByRole("heading", { name: "No XP awarded" })).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "No XP awarded" }),
+    ).toBeVisible();
   });
 
   it("closes the previous realtime connection before starting another one", async () => {
@@ -262,9 +279,15 @@ describe("LessonClient smoke", () => {
       { getTracks: () => [secondTrack] },
     ] as unknown as MediaStream[];
     const peerConnections: Array<{ close: ReturnType<typeof vi.fn> }> = [];
-    const dataChannels: Array<{ close: ReturnType<typeof vi.fn>; onmessage: ((event: MessageEvent) => void) | null }> = [];
+    const dataChannels: Array<{
+      close: ReturnType<typeof vi.fn>;
+      onmessage: ((event: MessageEvent) => void) | null;
+    }> = [];
 
-    vi.stubGlobal("Audio", vi.fn(() => ({ autoplay: false, srcObject: null })));
+    vi.stubGlobal(
+      "Audio",
+      vi.fn(() => ({ autoplay: false, srcObject: null })),
+    );
     vi.stubGlobal(
       "RTCPeerConnection",
       vi.fn(() => {

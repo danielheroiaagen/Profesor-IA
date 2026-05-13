@@ -1,4 +1,9 @@
-export const AVATAR_MODES = ["live", "generated", "static", "voice-only"] as const;
+export const AVATAR_MODES = [
+  "live",
+  "generated",
+  "static",
+  "voice-only",
+] as const;
 
 export type AvatarMode = (typeof AVATAR_MODES)[number];
 
@@ -15,7 +20,9 @@ export type AvatarAdapterContext = {
 };
 
 export type AvatarAdapter = {
-  getStatus(context: AvatarAdapterContext): Promise<AvatarStatus> | AvatarStatus;
+  getStatus(
+    context: AvatarAdapterContext,
+  ): Promise<AvatarStatus> | AvatarStatus;
 };
 
 export function createVoiceOnlyAvatarAdapter(
@@ -32,7 +39,10 @@ export function createVoiceOnlyAvatarAdapter(
   };
 }
 
-export function createStaticAvatarStatus(avatarId: string, reason: string): AvatarStatus {
+export function createStaticAvatarStatus(
+  avatarId: string,
+  reason: string,
+): AvatarStatus {
   return {
     mode: "static",
     available: false,

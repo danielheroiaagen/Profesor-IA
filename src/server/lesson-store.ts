@@ -27,7 +27,9 @@ export function getTrackedLesson(lessonId: string): LessonSession | null {
   return lessons.get(lessonId) ?? null;
 }
 
-export function recordTrustedLearnerTurn(lessonId: string): LessonSession | null {
+export function recordTrustedLearnerTurn(
+  lessonId: string,
+): LessonSession | null {
   return updateTrackedLesson(lessonId, recordLearnerTurn);
 }
 

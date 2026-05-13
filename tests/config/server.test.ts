@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { getSafeConfigStatus, getServerConfig, SafeConfigError } from "@/config/server";
+import {
+  getSafeConfigStatus,
+  getServerConfig,
+  SafeConfigError,
+} from "@/config/server";
 
 describe("server config", () => {
   it("fails safely with variable names only when required secrets are missing", () => {

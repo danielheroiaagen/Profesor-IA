@@ -55,7 +55,9 @@ type ParseResult =
       ok: false;
     };
 
-async function parseCompleteLessonRequest(request: Request): Promise<ParseResult> {
+async function parseCompleteLessonRequest(
+  request: Request,
+): Promise<ParseResult> {
   try {
     const body: unknown = await request.json();
 

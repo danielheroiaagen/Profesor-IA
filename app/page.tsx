@@ -2,14 +2,29 @@ import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <main style={{ margin: "0 auto", maxWidth: "760px", padding: "4rem 1.5rem", fontFamily: "system-ui" }}>
-      <p style={{ color: "#2563eb", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+    <main
+      style={{
+        margin: "0 auto",
+        maxWidth: "760px",
+        padding: "4rem 1.5rem",
+        fontFamily: "system-ui",
+      }}
+    >
+      <p
+        style={{
+          color: "#2563eb",
+          fontWeight: 700,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+        }}
+      >
         Profesor IA
       </p>
       <h1>Practica inglés con una clase corta por voz.</h1>
       <p>
-        El MVP arranca una sesión realtime con credenciales efímeras, muestra correcciones visibles y
-        otorga XP solo cuando hubo participación real y feedback.
+        El MVP arranca una sesión realtime con credenciales efímeras, muestra
+        correcciones visibles y otorga XP solo cuando hubo participación real y
+        feedback.
       </p>
       <Link
         href="/lesson"

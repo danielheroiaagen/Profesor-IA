@@ -1,5 +1,14 @@
-export type LessonState = "idle" | "starting" | "active" | "feedback" | "completed" | "failed";
-export type CompletionReason = "completed" | "insufficient-participation" | "unverified";
+export type LessonState =
+  | "idle"
+  | "starting"
+  | "active"
+  | "feedback"
+  | "completed"
+  | "failed";
+export type CompletionReason =
+  | "completed"
+  | "insufficient-participation"
+  | "unverified";
 export type LessonFailureReason =
   | "start-failed"
   | "interrupted"
@@ -29,7 +38,11 @@ export type CompletionEvidence = Partial<LessonMetrics> & {
 
 export type CompletionQualification =
   | { qualified: true; reason: "completed"; retryable: false }
-  | { qualified: false; reason: Exclude<CompletionReason, "completed">; retryable: boolean };
+  | {
+      qualified: false;
+      reason: Exclude<CompletionReason, "completed">;
+      retryable: boolean;
+    };
 
 const MIN_LEARNER_TURNS = 1;
 const MIN_FEEDBACK_EVENTS = 1;
@@ -55,7 +68,10 @@ export function recordLearnerTurn(lesson: LessonSession): LessonSession {
   return {
     ...lesson,
     state: "active",
-    metrics: { ...lesson.metrics, learnerTurns: lesson.metrics.learnerTurns + 1 },
+    metrics: {
+      ...lesson.metrics,
+      learnerTurns: lesson.metrics.learnerTurns + 1,
+    },
   };
 }
 
@@ -65,11 +81,16 @@ export function recordFeedback(lesson: LessonSession): LessonSession {
   return {
     ...lesson,
     state: "feedback",
-    metrics: { ...lesson.metrics, feedbackEvents: lesson.metrics.feedbackEvents + 1 },
+    metrics: {
+      ...lesson.metrics,
+      feedbackEvents: lesson.metrics.feedbackEvents + 1,
+    },
   };
 }
 
-export function qualifyLessonCompletion(evidence: CompletionEvidence): CompletionQualification {
+export function qualifyLessonCompletion(
+  evidence: CompletionEvidence,
+): CompletionQualification {
   if (evidence.interrupted || evidence.canVerify === false) {
     return { qualified: false, reason: "unverified", retryable: true };
   }
@@ -81,7 +102,11 @@ export function qualifyLessonCompletion(evidence: CompletionEvidence): Completio
 
   return meaningful
     ? { qualified: true, reason: "completed", retryable: false }
-    : { qualified: false, reason: "insufficient-participation", retryable: false };
+    : {
+        qualified: false,
+        reason: "insufficient-participation",
+        retryable: false,
+      };
 }
 
 export function completeLesson(
@@ -126,7 +151,12 @@ export function failLesson(
   failureReason: LessonFailureReason,
   now = new Date(),
 ): LessonSession {
-  return { ...lesson, state: "failed", failedAt: now.toISOString(), failureReason };
+  return {
+    ...lesson,
+    state: "failed",
+    failedAt: now.toISOString(),
+    failureReason,
+  };
 }
 
 export function toSafeLessonResponse(lesson: LessonSession): LessonSession {
@@ -141,7 +171,9 @@ function normalizeMetrics(evidence: Partial<LessonMetrics>): LessonMetrics {
 }
 
 function normalizeCount(value: number | undefined): number {
-  return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? Math.floor(value)
+    : 0;
 }
 
 function toFailureReason(
@@ -149,7 +181,9 @@ function toFailureReason(
   evidence: CompletionEvidence,
 ): LessonFailureReason {
   if (evidence.interrupted) return "interrupted";
-  return reason === "unverified" ? "unverified-completion" : "insufficient-participation";
+  return reason === "unverified"
+    ? "unverified-completion"
+    : "insufficient-participation";
 }
 
 function isTerminalState(state: LessonState): boolean {

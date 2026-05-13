@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import { NextResponse } from "next/server";
 
-import { mintRealtimeSessionFromConfig, RealtimeSessionError } from "@/integrations/openai/realtime";
+import {
+  mintRealtimeSessionFromConfig,
+  RealtimeSessionError,
+} from "@/integrations/openai/realtime";
 
 type RealtimeSessionRequest = {
   lessonId?: string;
@@ -20,7 +23,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ realtime }, { status: 201 });
   } catch (error) {
-    const code = error instanceof RealtimeSessionError ? "realtime-session-unavailable" : "realtime-session-failed";
+    const code =
+      error instanceof RealtimeSessionError
+        ? "realtime-session-unavailable"
+        : "realtime-session-failed";
 
     return NextResponse.json(
       {
@@ -34,7 +40,9 @@ export async function POST(request: Request) {
   }
 }
 
-async function readRequestBody(request: Request): Promise<RealtimeSessionRequest> {
+async function readRequestBody(
+  request: Request,
+): Promise<RealtimeSessionRequest> {
   try {
     const data: unknown = await request.json();
     return isRecord(data) ? data : {};
@@ -44,7 +52,9 @@ async function readRequestBody(request: Request): Promise<RealtimeSessionRequest
 }
 
 function readLessonId(body: RealtimeSessionRequest): string | null {
-  return typeof body.lessonId === "string" && body.lessonId.trim() ? body.lessonId.trim() : null;
+  return typeof body.lessonId === "string" && body.lessonId.trim()
+    ? body.lessonId.trim()
+    : null;
 }
 
 function isRecord(value: unknown): value is RealtimeSessionRequest {

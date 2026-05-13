@@ -1,6 +1,7 @@
 import { getServerConfig } from "@/config/server";
 
-const REALTIME_CLIENT_SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets";
+const REALTIME_CLIENT_SECRETS_URL =
+  "https://api.openai.com/v1/realtime/client_secrets";
 const REALTIME_CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 const DEFAULT_CLIENT_SECRET_TTL_SECONDS = 600;
 const TUTOR_INSTRUCTIONS = `You are Profesor IA, a warm and direct English teacher.
@@ -80,7 +81,9 @@ export async function mintRealtimeSession({
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
-      ...(safetyIdentifier ? { "OpenAI-Safety-Identifier": safetyIdentifier } : {}),
+      ...(safetyIdentifier
+        ? { "OpenAI-Safety-Identifier": safetyIdentifier }
+        : {}),
     },
     body: JSON.stringify({
       expires_after: {
@@ -122,7 +125,9 @@ export async function mintRealtimeSession({
   };
 }
 
-async function readJsonSafely(response: Response): Promise<RealtimeClientSecretApiResponse> {
+async function readJsonSafely(
+  response: Response,
+): Promise<RealtimeClientSecretApiResponse> {
   try {
     const data: unknown = await response.json();
     return isRecord(data) ? data : {};
@@ -131,7 +136,9 @@ async function readJsonSafely(response: Response): Promise<RealtimeClientSecretA
   }
 }
 
-function readClientSecret(data: RealtimeClientSecretApiResponse): string | null {
+function readClientSecret(
+  data: RealtimeClientSecretApiResponse,
+): string | null {
   if (typeof data.session?.client_secret?.value === "string") {
     return data.session.client_secret.value;
   }

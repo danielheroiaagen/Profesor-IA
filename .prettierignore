@@ -1,0 +1,8 @@
+.atl/
+.engram/
+.next/
+coverage/
+dist/
+node_modules/
+openspec/changes/archive/
+package-lock.json

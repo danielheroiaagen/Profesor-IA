@@ -49,7 +49,10 @@ describe("POST /api/realtime/session", () => {
 
   it("fails safely without leaking server secrets", async () => {
     vi.stubEnv("OPENAI_API_KEY", PRIMARY_API_KEY);
-    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: "upstream" }, { status: 500 })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ error: "upstream" }, { status: 500 })),
+    );
 
     const response = await POST(
       new Request("http://localhost/api/realtime/session", {
