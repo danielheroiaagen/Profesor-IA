@@ -8,7 +8,7 @@ import {
   createVoiceOnlyAvatarAdapter,
 } from "@/integrations/avatar/avatar-adapter";
 
-const LIVEAVATAR_API_URL = "https://api.liveavatar.com/v1";
+const HEYGEN_API_URL = "https://api.heygen.com/v2";
 const DEFAULT_TIMEOUT_MS = 1_500;
 
 type FetchLike = typeof fetch;
@@ -40,7 +40,7 @@ export function createHeyGenAvatarAdapter({
   avatarId,
   fetchImpl = fetch,
   timeoutMs = DEFAULT_TIMEOUT_MS,
-  apiBaseUrl = LIVEAVATAR_API_URL,
+  apiBaseUrl = HEYGEN_API_URL,
 }: HeyGenAvatarAdapterOptions): AvatarAdapter {
   const normalizedAvatarId = avatarId.trim();
 
@@ -57,7 +57,7 @@ export function createHeyGenAvatarAdapter({
       try {
         const response = await withTimeout(
           fetchImpl(
-            `${apiBaseUrl}/avatars/${encodeURIComponent(normalizedAvatarId)}`,
+            `${apiBaseUrl}/avatar/${encodeURIComponent(normalizedAvatarId)}/details`,
             {
               method: "GET",
               headers: {
@@ -70,6 +70,15 @@ export function createHeyGenAvatarAdapter({
         );
 
         if (!response.ok) {
+          return createStaticAvatarStatus(
+            normalizedAvatarId,
+            "avatar-provider-rejected",
+          );
+        }
+
+        const payload: unknown = await response.json();
+
+        if (!responseContainsAvatarId(payload, normalizedAvatarId)) {
           return createStaticAvatarStatus(
             normalizedAvatarId,
             "avatar-provider-rejected",
@@ -90,6 +99,24 @@ export function createHeyGenAvatarAdapter({
       }
     },
   };
+}
+
+function responseContainsAvatarId(payload: unknown, avatarId: string): boolean {
+  if (payload === avatarId) {
+    return true;
+  }
+
+  if (Array.isArray(payload)) {
+    return payload.some((item) => responseContainsAvatarId(item, avatarId));
+  }
+
+  if (payload && typeof payload === "object") {
+    return Object.values(payload).some((value) =>
+      responseContainsAvatarId(value, avatarId),
+    );
+  }
+
+  return false;
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {

@@ -17,14 +17,14 @@ describe("POST /api/lessons/start", () => {
       "fetch",
       vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
         expect(String(url)).toBe(
-          "https://api.liveavatar.com/v1/avatars/avatar-route",
+          "https://api.heygen.com/v2/avatar/avatar-route/details",
         );
         expect(init?.headers).toMatchObject({
           "X-API-KEY": HEYGEN_API_KEY,
           Accept: "application/json",
         });
 
-        return Response.json({ data: { id: "avatar-route" } });
+        return Response.json({ data: { avatar_id: "avatar-route" } });
       }),
     );
 

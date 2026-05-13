@@ -25,14 +25,14 @@ describe("HeyGen avatar adapter", () => {
     const fetchImpl = vi.fn(
       async (url: string | URL | Request, init?: RequestInit) => {
         expect(String(url)).toBe(
-          "https://api.liveavatar.com/v1/avatars/avatar-1",
+          "https://api.heygen.com/v2/avatar/avatar-1/details",
         );
         expect(init?.headers).toMatchObject({
           "X-API-KEY": HEYGEN_API_KEY,
           Accept: "application/json",
         });
 
-        return Response.json({ data: { id: "avatar-1" } });
+        return Response.json({ data: { avatar_id: "avatar-1" } });
       },
     ) as typeof fetch;
 
@@ -49,6 +49,25 @@ describe("HeyGen avatar adapter", () => {
       reason: "avatar-validated",
     });
     expect(JSON.stringify(status)).not.toContain(HEYGEN_API_KEY);
+  });
+
+  it("returns a static fallback when the configured avatar is not listed", async () => {
+    const fetchImpl = vi.fn(async () =>
+      Response.json({ data: { avatar_id: "different-avatar" } }),
+    ) as typeof fetch;
+
+    const status = await createHeyGenAvatarAdapter({
+      apiKey: HEYGEN_API_KEY,
+      avatarId: "avatar-1",
+      fetchImpl,
+    }).getStatus({ lessonId: "lesson-1" });
+
+    expect(status).toEqual({
+      mode: "static",
+      available: false,
+      avatarId: "avatar-1",
+      reason: "avatar-provider-rejected",
+    });
   });
 
   it("returns a static fallback when the provider rejects the avatar", async () => {
