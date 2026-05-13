@@ -36,6 +36,10 @@ Verified on 2026-05-13 after Phase 5 hardening:
 
 Playwright is not installed in this slice. Browser smoke coverage uses the existing Vitest/jsdom stack to keep the PR small; add Playwright later only when the team is ready to own browser binaries and audio permission mocks.
 
+## Browser/audio Validation
+
+Use `docs/browser-audio-validation.md` for the local opt-in browser validation workflow. It covers microphone permission, WebRTC connection attempts, Realtime provider dependencies, and share-safe evidence rules.
+
 ## Security Checklist
 
 - Do not inspect or print `.env` contents.

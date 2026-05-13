@@ -37,3 +37,19 @@ The system MUST provide corrective feedback after meaningful learner speech and 
 - WHEN the learner attempts the lesson
 - THEN the system explains the failure safely
 - AND offers retry or non-blocking fallback guidance.
+
+### Requirement: Browser validation of realtime lesson behavior
+
+The realtime tutor MUST have a repeatable validation path that exercises real browser microphone permission, WebRTC setup, server-minted credential retrieval, and safe fallback behavior without sending primary OpenAI keys to the browser.
+
+#### Scenario: Browser connects through server-minted Realtime credentials
+- GIVEN a local lesson page and server-side Realtime configuration are available
+- WHEN the learner starts a voice lesson and grants microphone permission
+- THEN the browser requests a Realtime session from the server
+- AND the connection attempt uses the returned limited credential and connection URL.
+
+#### Scenario: Browser validation covers unavailable audio or provider state
+- GIVEN microphone permission, network access, or Realtime credential minting fails
+- WHEN the learner starts or validates the lesson
+- THEN the UI reports a safe, actionable failure state
+- AND no primary API key, `.env` value, or raw credential is exposed.

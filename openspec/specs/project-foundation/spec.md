@@ -31,3 +31,19 @@ The project SHOULD define implementation and verification guidance so future wor
 - WHEN design and tasks are created
 - THEN voice, avatar, gamification, and foundation work have clear boundaries
 - AND oversized changes are planned as chained review slices.
+
+### Requirement: Documented browser/audio validation workflow
+
+The project MUST document how to validate browser audio behavior locally, including commands, required configuration variable names, expected evidence, and explicit secret-safety constraints.
+
+#### Scenario: Developer follows validation documentation
+- GIVEN a developer opens the project setup or validation documentation
+- WHEN they prepare browser/audio validation
+- THEN they can identify the local command sequence and required variable names
+- AND they are warned not to print, paste, commit, or expose secret values.
+
+#### Scenario: Validation result is reviewable
+- GIVEN browser/audio validation has been attempted
+- WHEN a reviewer inspects the evidence
+- THEN the evidence distinguishes passed, blocked-by-environment, and failed-by-product outcomes
+- AND the evidence is safe to share in a PR or issue.
