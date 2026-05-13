@@ -3,5 +3,6 @@ node_modules/
 coverage/
 dist/
 *.tsbuildinfo
+.atl/.skill-registry.cache.json
 .env*
 !.env.example
