@@ -1,0 +1,78 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+      - labeled
+      - unlabeled
+      - ready_for_review
+
+permissions:
+  issues: read
+  pull-requests: read
+
+jobs:
+  validate:
+    name: Validate PR contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check issue linkage and labels
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const { owner, repo } = context.repo;
+            const errors = [];
+
+            const body = pr.body || "";
+            const issueReference = body.match(/\b(?:Closes|Fixes|Resolves)\s+#(\d+)\b/i);
+
+            if (!issueReference) {
+              errors.push("PR body must include `Closes #N`, `Fixes #N`, or `Resolves #N`.");
+            }
+
+            const typeLabels = pr.labels
+              .map((label) => label.name)
+              .filter((name) => name.startsWith("type:"));
+
+            if (typeLabels.length !== 1) {
+              errors.push(`PR must have exactly one type:* label; found ${typeLabels.length}.`);
+            }
+
+            if (issueReference) {
+              const issueNumber = Number(issueReference[1]);
+
+              if (issueNumber === pr.number) {
+                errors.push("PR must link a separate approved issue, not itself.");
+              } else {
+                const { data: issue } = await github.rest.issues.get({
+                  owner,
+                  repo,
+                  issue_number: issueNumber,
+                });
+
+                if (issue.pull_request) {
+                  errors.push(`#${issueNumber} is a pull request, not an issue.`);
+                }
+
+                const issueLabels = issue.labels.map((label) =>
+                  typeof label === "string" ? label : label.name,
+                );
+
+                if (!issueLabels.includes("status:approved")) {
+                  errors.push(`Linked issue #${issueNumber} must have status:approved.`);
+                }
+              }
+            }
+
+            if (errors.length > 0) {
+              core.setFailed(errors.join("\n"));
+            }
