@@ -20,7 +20,7 @@ export default function HomePage() {
       >
         Profesor IA
       </p>
-      <h1>Practica inglés con una clase corta por voz.</h1>
+      <h1>Practicá inglés con una clase corta por voz.</h1>
       <p>
         El MVP arranca una sesión realtime con credenciales efímeras, muestra
         correcciones visibles y otorga XP solo cuando hubo participación real y
@@ -38,7 +38,7 @@ export default function HomePage() {
           textDecoration: "none",
         }}
       >
-        Empezar lesson MVP
+        Empezar clase de speaking
       </Link>
     </main>
   );

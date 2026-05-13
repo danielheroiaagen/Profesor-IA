@@ -56,14 +56,14 @@ export default function LessonClient() {
     useState<ConnectionStatus>("not-started");
   const [lesson, setLesson] = useState<LessonSession | null>(null);
   const [avatar, setAvatar] = useState<AvatarStatus | null>(null);
-  const [realtime, setRealtime] = useState<Omit<
+  const [realtime, setRealtime] = useState<Pick<
     RealtimeSession,
-    "clientSecret"
+    "model" | "lessonId"
   > | null>(null);
   const [learnerTurns, setLearnerTurns] = useState(0);
   const [feedbackEvents, setFeedbackEvents] = useState(0);
   const [feedbackSummary, setFeedbackSummary] = useState(
-    "Say: I am practicing English today.",
+    "Objetivo: decir con naturalidad 'I am practicing English today.'",
   );
   const [xp, setXp] = useState<XPResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -99,9 +99,7 @@ export default function LessonClient() {
 
       setRealtime({
         model: realtimeResponse.realtime.model,
-        expiresAt: realtimeResponse.realtime.expiresAt,
         lessonId: realtimeResponse.realtime.lessonId,
-        connectUrl: realtimeResponse.realtime.connectUrl,
       });
 
       const connection = await connectRealtime(
@@ -122,7 +120,7 @@ export default function LessonClient() {
       setError(
         startError instanceof Error
           ? startError.message
-          : "Voice setup failed safely.",
+          : "No pudimos preparar el audio de forma segura.",
       );
     }
   }
@@ -135,7 +133,7 @@ export default function LessonClient() {
   function recordVisibleFeedback() {
     setFeedbackEvents((current) => current + 1);
     setFeedbackSummary(
-      "Correction: say 'I am practicing English today' instead of 'I practicing English today'.",
+      "Corrección: decí 'I am practicing English today' en lugar de 'I practicing English today'.",
     );
     setStatus("feedback");
   }
@@ -157,7 +155,7 @@ export default function LessonClient() {
       setLesson(result.lesson);
       setStatus(result.lesson.state === "completed" ? "completed" : "failed");
     } catch {
-      setError("Completion could not be verified. No unearned XP was awarded.");
+      setError("No pudimos verificar la práctica. No se otorgó XP sin ganar.");
       setStatus("failed");
     }
   }
@@ -186,13 +184,12 @@ export default function LessonClient() {
           textTransform: "uppercase",
         }}
       >
-        Realtime voice MVP
+        Clase guiada · Speaking A1
       </p>
-      <h1>Short English lesson</h1>
+      <h1>Practicá inglés con una mini clase de voz.</h1>
       <p>
-        The browser receives only an ephemeral Realtime credential. Primary
-        OpenAI and HeyGen keys stay server-side. That distinction matters —
-        shortcuts here leak the keys to the street.
+        El navegador recibe solo una credencial efímera de Realtime. Las claves
+        principales de OpenAI y HeyGen quedan del lado del servidor.
       </p>
 
       <section
@@ -203,23 +200,23 @@ export default function LessonClient() {
           marginTop: "1.5rem",
         }}
       >
-        <h2>Lesson state</h2>
+        <h2>Tu clase</h2>
         <dl>
-          <dt>Status</dt>
-          <dd>{status}</dd>
-          <dt>Voice connection</dt>
-          <dd>{connectionStatus}</dd>
+          <dt>Momento</dt>
+          <dd>{formatLessonStatus(status)}</dd>
+          <dt>Voz</dt>
+          <dd>{formatConnectionStatus(connectionStatus)}</dd>
           <dt>Avatar</dt>
           <dd>
-            {avatar
-              ? `${avatar.mode}${avatar.reason ? ` (${avatar.reason})` : ""}`
-              : "not started"}
+            {formatAvatarStatus(avatar)}
             {avatar?.avatarId ? ` · ${avatar.avatarId}` : ""}
           </dd>
-          <dt>Realtime model</dt>
-          <dd>{realtime?.model ?? "not minted yet"}</dd>
-          <dt>Ephemeral credential expires</dt>
-          <dd>{realtime?.expiresAt ?? "not minted yet"}</dd>
+          <dt>Sesión protegida</dt>
+          <dd>
+            {realtime
+              ? `${realtime.model} · credencial limitada`
+              : "sin emitir"}
+          </dd>
         </dl>
       </section>
 
@@ -233,31 +230,31 @@ export default function LessonClient() {
             padding: "1rem",
           }}
         >
-          {error} You can retry without exposing any secret value.
+          {error} Podés reintentar sin exponer valores secretos.
         </p>
       ) : null}
 
       <section style={{ display: "grid", gap: "0.75rem", marginTop: "1.5rem" }}>
         <button onClick={startLesson} disabled={status === "starting"}>
-          {status === "starting" ? "Starting..." : "Start voice lesson"}
+          {status === "starting" ? "Preparando clase..." : "Empezar clase"}
         </button>
         <button
           onClick={recordLearnerTurn}
           disabled={!lesson || status === "completed"}
         >
-          I spoke one answer
+          Ya practiqué la frase
         </button>
         <button
           onClick={recordVisibleFeedback}
           disabled={!lesson || status === "completed"}
         >
-          Show correction feedback
+          Ver corrección sugerida
         </button>
         <button
           onClick={completeLesson}
           disabled={!lesson || status === "completed"}
         >
-          Complete lesson and calculate XP
+          Finalizar clase
         </button>
       </section>
 
@@ -269,10 +266,10 @@ export default function LessonClient() {
           marginTop: "1.5rem",
         }}
       >
-        <h2>Visible correction</h2>
+        <h2>Corrección visible</h2>
         <p>{feedbackSummary}</p>
         <p>
-          Learner turns: {learnerTurns} · Feedback events: {feedbackEvents}
+          Prácticas: {learnerTurns} · Feedback: {feedbackEvents}
         </p>
       </section>
 
@@ -285,12 +282,46 @@ export default function LessonClient() {
             marginTop: "1.5rem",
           }}
         >
-          <h2>{xp.awarded ? `XP awarded: ${xp.xp}` : "No XP awarded"}</h2>
-          <p>Reason: {xp.reason}</p>
+          <h2>{xp.awarded ? `+${xp.xp} XP ganados` : "Todavía sin XP"}</h2>
+          <p>
+            {xp.awarded
+              ? "Progreso registrado por práctica y feedback."
+              : `Motivo: ${xp.reason}. Reintentá con una respuesta hablada.`}
+          </p>
         </section>
       ) : null}
     </main>
   );
+}
+
+function formatLessonStatus(status: LessonStatus) {
+  const labels: Record<LessonStatus, string> = {
+    idle: "lista para empezar",
+    starting: "preparando audio",
+    active: "clase activa",
+    feedback: "feedback listo",
+    completed: "clase completada",
+    failed: "reintento recomendado",
+  };
+  return labels[status];
+}
+
+function formatConnectionStatus(status: ConnectionStatus) {
+  const labels: Record<ConnectionStatus, string> = {
+    "not-started": "pendiente",
+    "requesting-mic": "pidiendo micrófono",
+    connected: "voz lista",
+    fallback: "modo voz seguro",
+    failed: "no conectada",
+  };
+  return labels[status];
+}
+
+function formatAvatarStatus(avatar: AvatarStatus | null) {
+  if (!avatar) return "tutor listo para empezar";
+  if (avatar.available) return "tutor visual disponible";
+  if (avatar.mode === "voice-only") return "tutor en modo voz";
+  return "tutor con presencia estática";
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -381,7 +412,7 @@ function readRealtimeFeedback(payload: string): string | null {
     }
 
     return event.type?.startsWith("response.")
-      ? "Realtime tutor responded. Check the spoken correction."
+      ? "El tutor respondi? por voz. Revis? la corrección escuchada."
       : null;
   } catch {
     return null;

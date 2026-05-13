@@ -1,14 +1,14 @@
 change: professional-lesson-experience
 artifact_store: hybrid
 project: profesor-ia
-status: tasks-created
+status: verify-completed
 phases:
   explore: completed
   proposal: completed
   spec: completed
   design: completed
   tasks: completed
-  apply: pending
-  verify: pending
+  apply: completed
+  verify: completed
   archive: pending
 updated_at: 2026-05-14
