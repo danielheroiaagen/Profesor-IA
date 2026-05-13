@@ -1,18 +1,31 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { POST } from "@/../app/api/lessons/complete/route";
+import {
+  createTrackedLesson,
+  recordTrustedFeedback,
+  recordTrustedLearnerTurn,
+  resetTrackedLessonsForTests,
+} from "@/server/lesson-store";
 
 describe("POST /api/lessons/complete", () => {
-  it("awards XP after meaningful participation and feedback", async () => {
+  afterEach(() => {
+    resetTrackedLessonsForTests();
+  });
+
+  it("awards XP after trusted server-side participation and feedback", async () => {
+    createTrackedLesson({
+      lessonId: "lesson-complete",
+      now: new Date("2026-05-13T00:00:00.000Z"),
+    });
+    recordTrustedLearnerTurn("lesson-complete");
+    recordTrustedFeedback("lesson-complete");
+
     const response = await POST(
       new Request("http://localhost/api/lessons/complete", {
         method: "POST",
         body: JSON.stringify({
           lessonId: "lesson-complete",
-          learnerTurns: 1,
-          feedbackEvents: 1,
-          canVerify: true,
-          startedAt: "2026-05-13T00:00:00.000Z",
         }),
       }),
     );
@@ -36,14 +49,19 @@ describe("POST /api/lessons/complete", () => {
     });
   });
 
-  it("does not award XP before participation", async () => {
+  it("does not award XP from fabricated client completion evidence", async () => {
+    createTrackedLesson({
+      lessonId: "lesson-opened-only",
+      now: new Date("2026-05-13T00:00:00.000Z"),
+    });
+
     const response = await POST(
       new Request("http://localhost/api/lessons/complete", {
         method: "POST",
         body: JSON.stringify({
           lessonId: "lesson-opened-only",
-          learnerTurns: 0,
-          feedbackEvents: 0,
+          learnerTurns: 1,
+          feedbackEvents: 1,
           canVerify: true,
         }),
       }),

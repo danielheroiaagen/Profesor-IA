@@ -59,6 +59,7 @@ export default function LessonClient() {
   }, []);
 
   async function startLesson() {
+    replaceRealtimeConnection(null);
     setStatus("starting");
     setConnectionStatus("requesting-mic");
     setError(null);
@@ -92,7 +93,7 @@ export default function LessonClient() {
         setStatus("feedback");
       });
 
-      connectionRef.current = connection;
+      replaceRealtimeConnection(connection);
       setConnectionStatus("connected");
       setStatus("active");
     } catch (startError) {
@@ -123,21 +124,21 @@ export default function LessonClient() {
         "/api/lessons/complete",
         {
           lessonId: lesson.id,
-          learnerTurns,
-          feedbackEvents,
-          canVerify: connectionStatus === "connected" || feedbackEvents > 0,
-          interrupted: connectionStatus === "failed",
-          startedAt: lesson.startedAt,
         },
       );
 
       setXp(result.xp);
       setLesson(result.lesson);
-      setStatus("completed");
+      setStatus(result.lesson.state === "completed" ? "completed" : "failed");
     } catch {
       setError("Completion could not be verified. No unearned XP was awarded.");
       setStatus("failed");
     }
+  }
+
+  function replaceRealtimeConnection(nextConnection: RealtimeConnection | null) {
+    closeRealtimeConnection(connectionRef.current);
+    connectionRef.current = nextConnection;
   }
 
   return (

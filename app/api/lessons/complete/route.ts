@@ -1,15 +1,11 @@
 import { NextResponse } from "next/server";
 
 import { awardLessonXp } from "@/domain/gamification";
-import { completeLesson, createLessonSession, toSafeLessonResponse } from "@/domain/lesson";
+import { toSafeLessonResponse } from "@/domain/lesson";
+import { completeTrackedLesson } from "@/server/lesson-store";
 
 type CompleteLessonRequest = {
   lessonId: string;
-  learnerTurns: number;
-  feedbackEvents: number;
-  canVerify?: boolean;
-  interrupted?: boolean;
-  startedAt?: Date;
 };
 
 export async function POST(request: Request) {
@@ -27,16 +23,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const lesson = createLessonSession({
-    lessonId: parsed.value.lessonId,
-    now: parsed.value.startedAt,
-  });
-  const completion = completeLesson(lesson, {
-    learnerTurns: parsed.value.learnerTurns,
-    feedbackEvents: parsed.value.feedbackEvents,
-    canVerify: parsed.value.canVerify,
-    interrupted: parsed.value.interrupted,
-  });
+  const completion = completeTrackedLesson(parsed.value.lessonId);
+
+  if (!completion) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "lesson-not-found",
+          message: "Completion could not be verified from server lesson state.",
+        },
+      },
+      { status: 404 },
+    );
+  }
+
   const xp = awardLessonXp(completion.qualification);
 
   return NextResponse.json({
@@ -64,11 +64,8 @@ async function parseCompleteLessonRequest(request: Request): Promise<ParseResult
     }
 
     const lessonId = readString(body.lessonId);
-    const learnerTurns = readNonNegativeInteger(body.learnerTurns);
-    const feedbackEvents = readNonNegativeInteger(body.feedbackEvents);
-    const startedAt = readOptionalDate(body.startedAt);
 
-    if (!lessonId || learnerTurns === null || feedbackEvents === null || startedAt === null) {
+    if (!lessonId) {
       return { ok: false };
     }
 
@@ -76,11 +73,6 @@ async function parseCompleteLessonRequest(request: Request): Promise<ParseResult
       ok: true,
       value: {
         lessonId,
-        learnerTurns,
-        feedbackEvents,
-        startedAt,
-        canVerify: readOptionalBoolean(body.canVerify),
-        interrupted: readOptionalBoolean(body.interrupted),
       },
     };
   } catch {
@@ -94,30 +86,4 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function readString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
-}
-
-function readNonNegativeInteger(value: unknown): number | null {
-  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
-    return null;
-  }
-
-  return value;
-}
-
-function readOptionalBoolean(value: unknown): boolean | undefined {
-  return typeof value === "boolean" ? value : undefined;
-}
-
-function readOptionalDate(value: unknown): Date | undefined | null {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const date = new Date(value);
-
-  return Number.isNaN(date.getTime()) ? null : date;
 }

@@ -3,15 +3,16 @@ import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import {
-  createLessonSession,
   failLesson,
+  createLessonSession,
   toSafeLessonResponse,
 } from "@/domain/lesson";
 import { createHeyGenAvatarAdapterFromConfig } from "@/integrations/avatar/heygen";
+import { createTrackedLesson } from "@/server/lesson-store";
 
 export async function POST() {
   try {
-    const lesson = createLessonSession({ lessonId: randomUUID() });
+    const lesson = createTrackedLesson({ lessonId: randomUUID() });
     const avatar = await createHeyGenAvatarAdapterFromConfig().getStatus({
       lessonId: lesson.id,
     });
