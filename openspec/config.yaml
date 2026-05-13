@@ -1,0 +1,71 @@
+schema: spec-driven
+project: profesor ia
+artifact_store:
+  mode: hybrid
+initialized_at: 2026-05-12
+
+context: |
+  Product goal: professional AI English teacher with realtime voice, HeyGen avatar, and gamified learning.
+  Current stack: no application stack detected; repository contains only .env, which was not read.
+  OpenAI realtime target: gpt-realtime-2.
+  HeyGen avatar ID: 552426f4e4584a24871c5ffad2a97f73.
+  Architecture intent: SDD-first, professional PRD/requirements, AGENTS.md-style guidance, not throwaway code.
+  Security: browser access must use server-side environment variables and ephemeral client secrets; never expose .env values.
+
+strict_tdd: false
+strict_tdd_reason: No test runner or application stack exists yet, so strict TDD is unavailable until tooling is created.
+
+testing:
+  detected: 2026-05-12
+  test_runner:
+    available: false
+    framework: null
+    command: null
+  layers:
+    unit:
+      available: false
+      tool: null
+    integration:
+      available: false
+      tool: null
+    e2e:
+      available: false
+      tool: null
+  coverage:
+    available: false
+    command: null
+  quality_tools:
+    linter:
+      available: false
+      command: null
+    type_checker:
+      available: false
+      command: null
+    formatter:
+      available: false
+      command: null
+
+rules:
+  proposal:
+    - Start from product requirements and user outcomes before choosing framework code.
+    - Include rollback or fallback plans for realtime voice, avatar, and auth-sensitive integrations.
+  specs:
+    - Use RFC 2119 keywords and Given/When/Then scenarios.
+    - Keep secrets out of specs; reference environment variable names only when needed.
+  design:
+    - Document boundaries for browser, server, OpenAI Realtime, HeyGen, persistence, and gamification domains.
+    - Require server-side environment variables and ephemeral client secrets for browser access.
+  tasks:
+    - Group work by independently reviewable product capability.
+    - Add testing/tooling setup tasks before claiming strict TDD.
+  apply:
+    tdd: false
+    test_command: ""
+    notes:
+      - Follow detected stack only after it exists; do not invent tooling during implementation.
+  verify:
+    test_command: ""
+    build_command: ""
+    coverage_threshold: 0
+  archive:
+    - Preserve completed change folders as audit history before merging deltas into main specs.
