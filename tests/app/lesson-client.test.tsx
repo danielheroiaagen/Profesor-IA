@@ -338,17 +338,21 @@ describe("LessonClient smoke", () => {
   });
 
   it("shows failed completion state when server denies XP", async () => {
+    const lesson = {
+      id: "lesson-denied",
+      state: "active",
+      startedAt: "2026-05-13T00:00:00.000Z",
+      metrics: { learnerTurns: 0, feedbackEvents: 0 },
+    };
+
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: string | URL | Request) => {
-        if (String(url) === "/api/lessons/start") {
+      vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        const value = String(url);
+
+        if (value === "/api/lessons/start") {
           return Response.json({
-            lesson: {
-              id: "lesson-denied",
-              state: "active",
-              startedAt: "2026-05-13T00:00:00.000Z",
-              metrics: { learnerTurns: 0, feedbackEvents: 0 },
-            },
+            lesson,
             avatar: {
               mode: "voice-only",
               available: false,
@@ -357,7 +361,7 @@ describe("LessonClient smoke", () => {
           });
         }
 
-        if (String(url) === "/api/realtime/session") {
+        if (value === "/api/realtime/session") {
           return Response.json({
             realtime: {
               clientSecret: "ek_test_ephemeral",
@@ -369,19 +373,34 @@ describe("LessonClient smoke", () => {
           });
         }
 
+        if (value === "/api/lessons/evidence") {
+          const body = JSON.parse(String(init?.body)) as {
+            evidence: "learner-turn" | "feedback";
+          };
+
+          if (body.evidence === "learner-turn") {
+            lesson.metrics.learnerTurns += 1;
+          } else {
+            lesson.metrics.feedbackEvents += 1;
+            lesson.state = "feedback";
+          }
+
+          return Response.json({ lesson });
+        }
+
         return Response.json({
           lesson: {
             id: "lesson-denied",
             state: "failed",
             startedAt: "2026-05-13T00:00:00.000Z",
-            metrics: { learnerTurns: 0, feedbackEvents: 0 },
-            failureReason: "insufficient-participation",
-            completionReason: "insufficient-participation",
+            metrics: { learnerTurns: 1, feedbackEvents: 1 },
+            failureReason: "unverified",
+            completionReason: "unverified",
           },
           xp: {
             awarded: false,
             xp: 0,
-            reason: "insufficient-participation",
+            reason: "unverified",
           },
         });
       }),
@@ -391,6 +410,23 @@ describe("LessonClient smoke", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
     expect(await screen.findByText("tutor en modo voz")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Esperando evidencia de voz" }),
+    ).toBeDisabled();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ya practiqué la frase" }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("Prácticas: 1 · Feedback: 0")).toBeVisible(),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ver corrección sugerida" }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("Prácticas: 1 · Feedback: 1")).toBeVisible(),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Finalizar clase" }));
 
@@ -405,7 +441,16 @@ describe("LessonClient smoke", () => {
   it("closes realtime microphone capture when the lesson finishes", async () => {
     const track = { stop: vi.fn() };
     const stream = { getTracks: () => [track] } as unknown as MediaStream;
-    const dataChannel = { close: vi.fn(), onmessage: null };
+    const dataChannel: {
+      close: ReturnType<typeof vi.fn>;
+      onmessage: ((event: MessageEvent) => void) | null;
+    } = { close: vi.fn(), onmessage: null };
+    const lesson = {
+      id: "lesson-finish-closes-mic",
+      state: "active",
+      startedAt: "2026-05-13T00:00:00.000Z",
+      metrics: { learnerTurns: 0, feedbackEvents: 0 },
+    };
     const peerConnection = {
       addTrack: vi.fn(),
       createDataChannel: vi.fn(() => dataChannel),
@@ -432,17 +477,12 @@ describe("LessonClient smoke", () => {
 
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: string | URL | Request) => {
+      vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
         const value = String(url);
 
         if (value === "/api/lessons/start") {
           return Response.json({
-            lesson: {
-              id: "lesson-finish-closes-mic",
-              state: "active",
-              startedAt: "2026-05-13T00:00:00.000Z",
-              metrics: { learnerTurns: 0, feedbackEvents: 0 },
-            },
+            lesson,
             avatar: {
               mode: "voice-only",
               available: false,
@@ -463,20 +503,34 @@ describe("LessonClient smoke", () => {
           });
         }
 
+        if (value === "/api/lessons/evidence") {
+          const body = JSON.parse(String(init?.body)) as {
+            evidence: "learner-turn" | "feedback";
+          };
+
+          if (body.evidence === "learner-turn") {
+            lesson.metrics.learnerTurns += 1;
+          } else {
+            lesson.metrics.feedbackEvents += 1;
+            lesson.state = "feedback";
+          }
+
+          return Response.json({ lesson });
+        }
+
         if (value === "/api/lessons/complete") {
           return Response.json({
             lesson: {
               id: "lesson-finish-closes-mic",
-              state: "failed",
+              state: "completed",
               startedAt: "2026-05-13T00:00:00.000Z",
-              metrics: { learnerTurns: 0, feedbackEvents: 0 },
-              failureReason: "insufficient-participation",
-              completionReason: "insufficient-participation",
+              metrics: { learnerTurns: 1, feedbackEvents: 1 },
+              completionReason: "completed",
             },
             xp: {
-              awarded: false,
-              xp: 0,
-              reason: "insufficient-participation",
+              awarded: true,
+              xp: 50,
+              reason: "completed",
             },
           });
         }
@@ -489,6 +543,26 @@ describe("LessonClient smoke", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
     await waitFor(() => expect(screen.getByText("voz lista")).toBeVisible());
+
+    act(() => {
+      dataChannel.onmessage?.({
+        data: JSON.stringify({
+          type: "conversation.item.input_audio_transcription.completed",
+          transcript: "I am practicing English today.",
+        }),
+      } as MessageEvent);
+    });
+    act(() => {
+      dataChannel.onmessage?.({
+        data: JSON.stringify({
+          type: "response.output_audio_transcript.done",
+          transcript: "Good job.",
+        }),
+      } as MessageEvent);
+    });
+    await waitFor(() =>
+      expect(screen.getByText("Prácticas: 1 · Feedback: 1")).toBeVisible(),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Finalizar clase" }));
     await waitFor(() =>
