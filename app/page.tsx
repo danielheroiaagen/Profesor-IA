@@ -22,9 +22,9 @@ export default function HomePage() {
       </p>
       <h1>Practicá inglés con una clase corta por voz.</h1>
       <p>
-        El MVP arranca una sesión realtime con credenciales efímeras, muestra
-        correcciones visibles y otorga XP solo cuando hubo participación real y
-        feedback.
+        La clase arranca una sesión de voz en tiempo real con credenciales
+        efímeras, muestra correcciones visibles y otorga XP solo cuando hubo
+        participación real y feedback.
       </p>
       <Link
         href="/lesson"
