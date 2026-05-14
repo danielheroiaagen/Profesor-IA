@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
   title: "Profesor IA",
-  description: "AI English teacher MVP foundation",
+  description: "Clase corta de inglés por voz con tutor IA y feedback visible.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
