@@ -95,6 +95,14 @@ export async function mintRealtimeSession({
         model,
         instructions: TUTOR_INSTRUCTIONS,
         audio: {
+          input: {
+            transcription: {
+              model: "gpt-4o-mini-transcribe",
+              language: "en",
+              prompt:
+                "The learner is practicing short A1 English phrases in a guided lesson.",
+            },
+          },
           output: {
             voice: "marin",
           },

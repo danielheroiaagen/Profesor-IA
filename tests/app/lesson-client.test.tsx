@@ -2,7 +2,13 @@
 
 import "@testing-library/jest-dom/vitest";
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import LessonClient from "@/../app/lesson/lesson-client";
@@ -213,6 +219,122 @@ describe("LessonClient smoke", () => {
       "Content-Type": "application/sdp",
     });
     expect(connectAttempts[0]?.body).toBe("offer-sdp");
+  });
+
+  it("records Realtime events as server evidence before awarding XP", async () => {
+    const track = { stop: vi.fn() };
+    const stream = { getTracks: () => [track] } as unknown as MediaStream;
+    const dataChannel: {
+      close: ReturnType<typeof vi.fn>;
+      onmessage: ((event: MessageEvent) => void) | null;
+    } = { close: vi.fn(), onmessage: null };
+    const lesson = {
+      id: "lesson-realtime-evidence",
+      state: "active",
+      startedAt: "2026-05-13T00:00:00.000Z",
+      metrics: { learnerTurns: 0, feedbackEvents: 0 },
+    };
+
+    vi.stubGlobal(
+      "Audio",
+      vi.fn(() => ({ autoplay: false, srcObject: null })),
+    );
+    vi.stubGlobal(
+      "RTCPeerConnection",
+      vi.fn(() => ({
+        addTrack: vi.fn(),
+        createDataChannel: vi.fn(() => dataChannel),
+        createOffer: vi.fn(async () => ({ sdp: "offer-sdp", type: "offer" })),
+        setLocalDescription: vi.fn(async () => undefined),
+        setRemoteDescription: vi.fn(async () => undefined),
+        close: vi.fn(),
+      })),
+    );
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn(async () => stream),
+      },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        const value = String(url);
+
+        if (value === "/api/lessons/start") {
+          return Response.json({
+            lesson,
+            avatar: {
+              mode: "voice-only",
+              available: false,
+              reason: "avatar-provider-not-configured",
+            },
+          });
+        }
+
+        if (value === "/api/realtime/session") {
+          return Response.json({
+            realtime: {
+              clientSecret: "ek_test_ephemeral",
+              model: "gpt-realtime-2",
+              expiresAt: "2026-05-13T00:10:00.000Z",
+              lessonId: "lesson-realtime-evidence",
+              connectUrl: "https://api.openai.com/v1/realtime/calls",
+            },
+          });
+        }
+
+        if (value === "/api/lessons/evidence") {
+          const body = JSON.parse(String(init?.body)) as {
+            evidence: "learner-turn" | "feedback";
+          };
+
+          if (body.evidence === "learner-turn") {
+            lesson.metrics.learnerTurns += 1;
+          } else {
+            lesson.metrics.feedbackEvents += 1;
+            lesson.state = "feedback";
+          }
+
+          return Response.json({ lesson });
+        }
+
+        return new Response("answer-sdp");
+      }),
+    );
+
+    render(<LessonClient />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
+    await waitFor(() => expect(screen.getByText("voz lista")).toBeVisible());
+
+    act(() => {
+      dataChannel.onmessage?.({
+        data: JSON.stringify({
+          type: "conversation.item.input_audio_transcription.completed",
+          transcript: "I am practicing English today.",
+        }),
+      } as MessageEvent);
+    });
+    await waitFor(() =>
+      expect(screen.getByText("Prácticas: 1 · Feedback: 0")).toBeVisible(),
+    );
+
+    act(() => {
+      dataChannel.onmessage?.({
+        data: JSON.stringify({
+          type: "response.output_audio_transcript.done",
+          transcript: "Good job. Say: I am practicing English today.",
+        }),
+      } as MessageEvent);
+    });
+    await waitFor(() =>
+      expect(screen.getByText("Prácticas: 1 · Feedback: 1")).toBeVisible(),
+    );
+    expect(
+      screen.getByText("Good job. Say: I am practicing English today."),
+    ).toBeVisible();
   });
 
   it("shows failed completion state when server denies XP", async () => {

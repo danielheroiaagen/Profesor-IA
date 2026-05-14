@@ -6,6 +6,10 @@ type LessonSession = {
   id: string;
   state: string;
   startedAt: string;
+  metrics: {
+    learnerTurns: number;
+    feedbackEvents: number;
+  };
 };
 
 type AvatarStatus = {
@@ -22,6 +26,8 @@ type RealtimeSession = {
   lessonId: string;
   connectUrl: string;
 };
+
+type LessonEvidence = "learner-turn" | "feedback";
 
 type XPResult = {
   awarded: boolean;
@@ -105,10 +111,8 @@ export default function LessonClient() {
 
       const connection = await connectRealtime(
         realtimeResponse.realtime,
-        (message) => {
-          setFeedbackSummary(message);
-          setFeedbackEvents((current) => Math.max(current, 1));
-          setStatus("feedback");
+        (payload) => {
+          void recordRealtimeEvidence(lessonResponse.lesson.id, payload);
         },
       );
 
@@ -123,6 +127,36 @@ export default function LessonClient() {
           ? startError.message
           : "No pudimos preparar el audio de forma segura.",
       );
+    }
+  }
+
+  async function recordRealtimeEvidence(lessonId: string, payload: string) {
+    const signal = readRealtimeSignal(payload);
+
+    if (!signal) return;
+
+    if (signal.feedbackSummary) {
+      setFeedbackSummary(signal.feedbackSummary);
+      setStatus("feedback");
+    }
+
+    if (!signal.evidence) return;
+
+    try {
+      const result = await postJson<{ lesson: LessonSession }>(
+        "/api/lessons/evidence",
+        {
+          lessonId,
+          evidence: signal.evidence,
+        },
+      );
+
+      setLesson(result.lesson);
+      setLearnerTurns(result.lesson.metrics.learnerTurns);
+      setFeedbackEvents(result.lesson.metrics.feedbackEvents);
+      setStatus(result.lesson.state === "feedback" ? "feedback" : "active");
+    } catch {
+      // Completion remains safe: without server-recorded evidence, XP is denied.
     }
   }
 
@@ -347,7 +381,7 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
 
 async function connectRealtime(
   realtime: RealtimeSession,
-  onFeedback: (message: string) => void,
+  onRealtimeEvent: (payload: string) => void,
 ): Promise<RealtimeConnection> {
   if (!navigator.mediaDevices?.getUserMedia) {
     throw new Error("Microphone APIs are unavailable in this browser.");
@@ -367,8 +401,9 @@ async function connectRealtime(
   };
 
   dataChannel.onmessage = (event) => {
-    const message = readRealtimeFeedback(event.data);
-    if (message) onFeedback(message);
+    if (typeof event.data === "string") {
+      onRealtimeEvent(event.data);
+    }
   };
 
   const offer = await peerConnection.createOffer();
@@ -402,7 +437,10 @@ function closeRealtimeConnection(connection: RealtimeConnection | null) {
   connection?.peerConnection.close();
 }
 
-function readRealtimeFeedback(payload: string): string | null {
+function readRealtimeSignal(payload: string): {
+  evidence?: LessonEvidence;
+  feedbackSummary?: string;
+} | null {
   try {
     const event = JSON.parse(payload) as {
       type?: string;
@@ -411,15 +449,32 @@ function readRealtimeFeedback(payload: string): string | null {
       response?: { output_text?: string };
     };
     const text = event.text ?? event.transcript ?? event.response?.output_text;
+    const trimmedText =
+      typeof text === "string" && text.trim() ? text.trim() : null;
 
-    if (typeof text === "string" && text.trim()) {
-      return text.trim();
+    if (
+      event.type === "conversation.item.input_audio_transcription.completed" &&
+      trimmedText
+    ) {
+      return { evidence: "learner-turn" };
     }
 
-    return event.type?.startsWith("response.")
-      ? "El tutor respondi? por voz. Revis? la corrección escuchada."
-      : null;
+    if (isTutorFeedbackEvent(event.type) && trimmedText) {
+      return {
+        evidence: "feedback",
+        feedbackSummary: trimmedText,
+      };
+    }
+
+    return null;
   } catch {
     return null;
   }
+}
+
+function isTutorFeedbackEvent(type: string | undefined) {
+  return (
+    type === "response.output_audio_transcript.done" ||
+    type === "response.output_text.done"
+  );
 }
