@@ -280,6 +280,104 @@ describe("LessonClient smoke", () => {
     ).toBeVisible();
   });
 
+  it("closes realtime microphone capture when the lesson finishes", async () => {
+    const track = { stop: vi.fn() };
+    const stream = { getTracks: () => [track] } as unknown as MediaStream;
+    const dataChannel = { close: vi.fn(), onmessage: null };
+    const peerConnection = {
+      addTrack: vi.fn(),
+      createDataChannel: vi.fn(() => dataChannel),
+      createOffer: vi.fn(async () => ({ sdp: "offer-sdp", type: "offer" })),
+      setLocalDescription: vi.fn(async () => undefined),
+      setRemoteDescription: vi.fn(async () => undefined),
+      close: vi.fn(),
+    };
+
+    vi.stubGlobal(
+      "Audio",
+      vi.fn(() => ({ autoplay: false, srcObject: null })),
+    );
+    vi.stubGlobal(
+      "RTCPeerConnection",
+      vi.fn(() => peerConnection),
+    );
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn(async () => stream),
+      },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL | Request) => {
+        const value = String(url);
+
+        if (value === "/api/lessons/start") {
+          return Response.json({
+            lesson: {
+              id: "lesson-finish-closes-mic",
+              state: "active",
+              startedAt: "2026-05-13T00:00:00.000Z",
+              metrics: { learnerTurns: 0, feedbackEvents: 0 },
+            },
+            avatar: {
+              mode: "voice-only",
+              available: false,
+              reason: "avatar-provider-not-configured",
+            },
+          });
+        }
+
+        if (value === "/api/realtime/session") {
+          return Response.json({
+            realtime: {
+              clientSecret: "ek_test_ephemeral",
+              model: "gpt-realtime-2",
+              expiresAt: "2026-05-13T00:10:00.000Z",
+              lessonId: "lesson-finish-closes-mic",
+              connectUrl: "https://api.openai.com/v1/realtime/calls",
+            },
+          });
+        }
+
+        if (value === "/api/lessons/complete") {
+          return Response.json({
+            lesson: {
+              id: "lesson-finish-closes-mic",
+              state: "failed",
+              startedAt: "2026-05-13T00:00:00.000Z",
+              metrics: { learnerTurns: 0, feedbackEvents: 0 },
+              failureReason: "insufficient-participation",
+              completionReason: "insufficient-participation",
+            },
+            xp: {
+              awarded: false,
+              xp: 0,
+              reason: "insufficient-participation",
+            },
+          });
+        }
+
+        return new Response("answer-sdp");
+      }),
+    );
+
+    render(<LessonClient />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
+    await waitFor(() => expect(screen.getByText("voz lista")).toBeVisible());
+
+    fireEvent.click(screen.getByRole("button", { name: "Finalizar clase" }));
+    await waitFor(() =>
+      expect(screen.getByText("sesión cerrada")).toBeVisible(),
+    );
+
+    expect(track.stop).toHaveBeenCalled();
+    expect(dataChannel.close).toHaveBeenCalled();
+    expect(peerConnection.close).toHaveBeenCalled();
+  });
+
   it("closes the previous realtime connection before starting another one", async () => {
     const firstTrack = { stop: vi.fn() };
     const secondTrack = { stop: vi.fn() };

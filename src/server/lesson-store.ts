@@ -8,7 +8,9 @@ import {
   type LessonSession,
 } from "@/domain/lesson";
 
-const lessons = new Map<string, LessonSession>();
+const lessonStoreKey = "__profesorIaLessonStore";
+
+const lessons = getProcessLessonStore();
 
 export function createTrackedLesson({
   lessonId,
@@ -68,4 +70,14 @@ function updateTrackedLesson(
   lessons.set(lessonId, updated);
 
   return updated;
+}
+
+function getProcessLessonStore(): Map<string, LessonSession> {
+  const processGlobal = globalThis as typeof globalThis & {
+    [lessonStoreKey]?: Map<string, LessonSession>;
+  };
+
+  processGlobal[lessonStoreKey] ??= new Map<string, LessonSession>();
+
+  return processGlobal[lessonStoreKey];
 }

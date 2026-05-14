@@ -42,6 +42,7 @@ type ConnectionStatus =
   | "requesting-mic"
   | "connected"
   | "fallback"
+  | "ended"
   | "failed";
 
 type RealtimeConnection = {
@@ -157,6 +158,9 @@ export default function LessonClient() {
     } catch {
       setError("No pudimos verificar la práctica. No se otorgó XP sin ganar.");
       setStatus("failed");
+    } finally {
+      replaceRealtimeConnection(null);
+      setConnectionStatus("ended");
     }
   }
 
@@ -312,6 +316,7 @@ function formatConnectionStatus(status: ConnectionStatus) {
     "requesting-mic": "pidiendo micrófono",
     connected: "voz lista",
     fallback: "modo voz seguro",
+    ended: "sesión cerrada",
     failed: "no conectada",
   };
   return labels[status];
