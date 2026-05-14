@@ -19,6 +19,17 @@ describe("OpenAI realtime integration", () => {
         expect(body.session).toMatchObject({
           type: "realtime",
           model: "gpt-realtime-2",
+          audio: {
+            input: {
+              transcription: {
+                model: "gpt-4o-mini-transcribe",
+                language: "en",
+              },
+            },
+            output: {
+              voice: "marin",
+            },
+          },
         });
 
         return Response.json({
