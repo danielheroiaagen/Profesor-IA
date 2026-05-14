@@ -57,6 +57,11 @@ type RealtimeConnection = {
   stream: MediaStream;
 };
 
+const INITIAL_FEEDBACK_SUMMARY =
+  "Objetivo: decir con naturalidad 'I am practicing English today.'";
+const REQUIRED_LEARNER_TURNS = 1;
+const REQUIRED_FEEDBACK_EVENTS = 1;
+
 export default function LessonClient() {
   const [status, setStatus] = useState<LessonStatus>("idle");
   const [connectionStatus, setConnectionStatus] =
@@ -70,7 +75,7 @@ export default function LessonClient() {
   const [learnerTurns, setLearnerTurns] = useState(0);
   const [feedbackEvents, setFeedbackEvents] = useState(0);
   const [feedbackSummary, setFeedbackSummary] = useState(
-    "Objetivo: decir con naturalidad 'I am practicing English today.'",
+    INITIAL_FEEDBACK_SUMMARY,
   );
   const [xp, setXp] = useState<XPResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +87,15 @@ export default function LessonClient() {
     };
   }, []);
 
+  const hasCompletionEvidence =
+    learnerTurns >= REQUIRED_LEARNER_TURNS &&
+    feedbackEvents >= REQUIRED_FEEDBACK_EVENTS;
+  const canCompleteLesson =
+    Boolean(lesson) &&
+    status !== "completed" &&
+    status !== "failed" &&
+    hasCompletionEvidence;
+
   async function startLesson() {
     replaceRealtimeConnection(null);
     setStatus("starting");
@@ -90,6 +104,7 @@ export default function LessonClient() {
     setXp(null);
     setLearnerTurns(0);
     setFeedbackEvents(0);
+    setFeedbackSummary(INITIAL_FEEDBACK_SUMMARY);
 
     try {
       const lessonResponse = await postJson<{
@@ -142,39 +157,55 @@ export default function LessonClient() {
 
     if (!signal.evidence) return;
 
+    await recordServerEvidence(lessonId, signal.evidence, { silent: true });
+  }
+
+  async function recordServerEvidence(
+    lessonId: string,
+    evidence: LessonEvidence,
+    options: { silent?: boolean } = {},
+  ) {
     try {
       const result = await postJson<{ lesson: LessonSession }>(
         "/api/lessons/evidence",
         {
           lessonId,
-          evidence: signal.evidence,
+          evidence,
         },
       );
 
-      setLesson(result.lesson);
-      setLearnerTurns(result.lesson.metrics.learnerTurns);
-      setFeedbackEvents(result.lesson.metrics.feedbackEvents);
-      setStatus(result.lesson.state === "feedback" ? "feedback" : "active");
+      syncLessonFromServer(result.lesson);
+      return true;
     } catch {
-      // Completion remains safe: without server-recorded evidence, XP is denied.
+      if (!options.silent) {
+        setError(
+          "No pudimos registrar evidencia de práctica. No vamos a otorgar XP sin verificarla.",
+        );
+      }
+
+      return false;
     }
   }
 
-  function recordLearnerTurn() {
-    setLearnerTurns((current) => current + 1);
-    setStatus("active");
+  async function recordLearnerTurn() {
+    if (!lesson) return;
+
+    setError(null);
+    await recordServerEvidence(lesson.id, "learner-turn");
   }
 
-  function recordVisibleFeedback() {
-    setFeedbackEvents((current) => current + 1);
+  async function recordVisibleFeedback() {
+    if (!lesson) return;
+
+    setError(null);
     setFeedbackSummary(
       "Corrección: decí 'I am practicing English today' en lugar de 'I practicing English today'.",
     );
-    setStatus("feedback");
+    await recordServerEvidence(lesson.id, "feedback");
   }
 
   async function completeLesson() {
-    if (!lesson) return;
+    if (!lesson || !hasCompletionEvidence) return;
 
     setError(null);
 
@@ -187,7 +218,7 @@ export default function LessonClient() {
       );
 
       setXp(result.xp);
-      setLesson(result.lesson);
+      syncLessonFromServer(result.lesson);
       setStatus(result.lesson.state === "completed" ? "completed" : "failed");
     } catch {
       setError("No pudimos verificar la práctica. No se otorgó XP sin ganar.");
@@ -196,6 +227,21 @@ export default function LessonClient() {
       replaceRealtimeConnection(null);
       setConnectionStatus("ended");
     }
+  }
+
+  function syncLessonFromServer(nextLesson: LessonSession) {
+    setLesson(nextLesson);
+    setLearnerTurns(nextLesson.metrics.learnerTurns);
+    setFeedbackEvents(nextLesson.metrics.feedbackEvents);
+    setStatus(readClientStatus(nextLesson));
+  }
+
+  function readClientStatus(nextLesson: LessonSession): LessonStatus {
+    if (nextLesson.state === "feedback") return "feedback";
+    if (nextLesson.state === "completed") return "completed";
+    if (nextLesson.state === "failed") return "failed";
+
+    return "active";
   }
 
   function replaceRealtimeConnection(
@@ -288,13 +334,19 @@ export default function LessonClient() {
         >
           Ver corrección sugerida
         </button>
-        <button
-          onClick={completeLesson}
-          disabled={!lesson || status === "completed"}
-        >
-          Finalizar clase
+        <button onClick={completeLesson} disabled={!canCompleteLesson}>
+          {lesson && !hasCompletionEvidence
+            ? "Esperando evidencia de voz"
+            : "Finalizar clase"}
         </button>
       </section>
+
+      {lesson && !hasCompletionEvidence && status !== "completed" ? (
+        <p role="status">
+          Para cerrar la clase con XP, esperá a que el servidor registre una
+          práctica y una corrección.
+        </p>
+      ) : null}
 
       <section
         style={{
