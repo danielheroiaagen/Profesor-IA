@@ -8,6 +8,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import LessonClient from "@/../app/lesson/lesson-client";
 
 describe("LessonClient smoke", () => {
+  it("renders a professional class surface before the lesson starts", () => {
+    render(<LessonClient />);
+
+    expect(
+      screen.getByRole("heading", {
+        name: "Practicá inglés con una mini clase de voz.",
+      }),
+    ).toBeVisible();
+    expect(screen.getByText("Corrección visible")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Empezar clase" })).toBeEnabled();
+  });
   afterEach(() => {
     vi.unstubAllGlobals();
     Object.defineProperty(navigator, "mediaDevices", {
@@ -16,7 +27,7 @@ describe("LessonClient smoke", () => {
     });
   });
 
-  it("shows avatar fallback and a safe retry message when audio setup fails", async () => {
+  it("shows avatar modo voz seguro and a safe retry message when audio setup fails", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string | URL | Request) => {
@@ -50,20 +61,18 @@ describe("LessonClient smoke", () => {
 
     render(<LessonClient />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start voice lesson" }));
+    fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
 
-    expect(
-      await screen.findByText(/voice-only \(avatar-provider-not-configured\)/),
-    ).toBeVisible();
+    expect(await screen.findByText("tutor en modo voz")).toBeVisible();
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Microphone APIs are unavailable in this browser.",
     );
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "You can retry without exposing any secret value.",
+      "Podés reintentar sin exponer valores secretos.",
     );
   });
 
-  it("shows safe fallback when microphone permission is denied", async () => {
+  it("shows safe modo voz seguro when microphone permission is denied", async () => {
     Object.defineProperty(navigator, "mediaDevices", {
       configurable: true,
       value: {
@@ -106,14 +115,16 @@ describe("LessonClient smoke", () => {
 
     render(<LessonClient />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start voice lesson" }));
+    fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
 
-    await waitFor(() => expect(screen.getByText("fallback")).toBeVisible());
+    await waitFor(() =>
+      expect(screen.getByText("modo voz seguro")).toBeVisible(),
+    );
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Microphone permission denied by browser.",
     );
     expect(screen.getByRole("alert")).toHaveTextContent(
-      "You can retry without exposing any secret value.",
+      "Podés reintentar sin exponer valores secretos.",
     );
   });
 
@@ -187,9 +198,9 @@ describe("LessonClient smoke", () => {
 
     render(<LessonClient />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start voice lesson" }));
+    fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
 
-    await waitFor(() => expect(screen.getByText("connected")).toBeVisible());
+    await waitFor(() => expect(screen.getByText("voz lista")).toBeVisible());
     expect(requestedUrls).toEqual(
       expect.arrayContaining([
         "/api/lessons/start",
@@ -256,18 +267,16 @@ describe("LessonClient smoke", () => {
 
     render(<LessonClient />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start voice lesson" }));
-    expect(
-      await screen.findByText(/voice-only \(avatar-provider-not-configured\)/),
-    ).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
+    expect(await screen.findByText("tutor en modo voz")).toBeVisible();
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "Complete lesson and calculate XP" }),
+    fireEvent.click(screen.getByRole("button", { name: "Finalizar clase" }));
+
+    await waitFor(() =>
+      expect(screen.getByText("reintento recomendado")).toBeVisible(),
     );
-
-    await waitFor(() => expect(screen.getByText("failed")).toBeVisible());
     expect(
-      screen.getByRole("heading", { name: "No XP awarded" }),
+      screen.getByRole("heading", { name: "Todavía sin XP" }),
     ).toBeVisible();
   });
 
@@ -324,7 +333,7 @@ describe("LessonClient smoke", () => {
           startCount += 1;
           return Response.json({
             lesson: {
-              id: `lesson-connected-${startCount}`,
+              id: `lesson-voz lista-${startCount}`,
               state: "active",
               startedAt: "2026-05-13T00:00:00.000Z",
               metrics: { learnerTurns: 0, feedbackEvents: 0 },
@@ -343,7 +352,7 @@ describe("LessonClient smoke", () => {
               clientSecret: "ek_test_ephemeral",
               model: "gpt-realtime-2",
               expiresAt: "2026-05-13T00:10:00.000Z",
-              lessonId: "lesson-connected",
+              lessonId: "lesson-voz lista",
               connectUrl: "https://api.openai.com/v1/realtime/calls",
             },
           });
@@ -355,10 +364,10 @@ describe("LessonClient smoke", () => {
 
     render(<LessonClient />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Start voice lesson" }));
-    await waitFor(() => expect(screen.getByText("connected")).toBeVisible());
+    fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
+    await waitFor(() => expect(screen.getByText("voz lista")).toBeVisible());
 
-    fireEvent.click(screen.getByRole("button", { name: "Start voice lesson" }));
+    fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
     await waitFor(() => expect(firstTrack.stop).toHaveBeenCalled());
 
     expect(dataChannels[0]?.close).toHaveBeenCalled();
