@@ -17,6 +17,7 @@
     "smoke:readiness:server": "node scripts/check-readiness-server.mjs"
   },
   "dependencies": {
+    "@heygen/liveavatar-web-sdk": "^0.0.18",
     "@next/env": "^15.3.0",
     "next": "^15.3.0",
     "react": "^19.0.0",

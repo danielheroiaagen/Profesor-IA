@@ -1,5 +1,6 @@
 "use client";
 
+import type { LiveAvatarSession as LiveAvatarSessionType } from "@heygen/liveavatar-web-sdk";
 import { useEffect, useRef, useState } from "react";
 
 type LessonSession = {
@@ -27,6 +28,14 @@ type RealtimeSession = {
   connectUrl: string;
 };
 
+type AvatarLiveSession = {
+  provider: "liveavatar";
+  mode: "live";
+  avatarId: string;
+  sessionId: string;
+  sessionToken: string;
+};
+
 type LessonEvidence = "learner-turn" | "feedback";
 
 type XPResult = {
@@ -51,6 +60,8 @@ type ConnectionStatus =
   | "ended"
   | "failed";
 
+type LiveAvatarStatus = "idle" | "starting" | "ready" | "unavailable";
+
 type RealtimeConnection = {
   peerConnection: RTCPeerConnection;
   dataChannel: RTCDataChannel;
@@ -64,6 +75,7 @@ const REQUIRED_FEEDBACK_EVENTS = 1;
 const LOCAL_XP_STORAGE_KEY = "profesor-ia.total-xp";
 const DEFAULT_HEYGEN_AVATAR_ID = "552426f4e4584a24871c5ffad2a97f73";
 const DEFAULT_OPENAI_REALTIME_MODEL = "gpt-realtime-2";
+const REALTIME_CONNECT_TIMEOUT_MS = 25_000;
 const TUTOR_STATE_LABELS = [
   "Ready",
   "Conectando",
@@ -81,6 +93,8 @@ export default function LessonClient() {
     useState<ConnectionStatus>("not-started");
   const [lesson, setLesson] = useState<LessonSession | null>(null);
   const [avatar, setAvatar] = useState<AvatarStatus | null>(null);
+  const [liveAvatarStatus, setLiveAvatarStatus] =
+    useState<LiveAvatarStatus>("idle");
   const [realtime, setRealtime] = useState<Pick<
     RealtimeSession,
     "model" | "lessonId"
@@ -94,12 +108,15 @@ export default function LessonClient() {
   const [totalXp, setTotalXp] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const connectionRef = useRef<RealtimeConnection | null>(null);
+  const liveAvatarRef = useRef<LiveAvatarSessionType | null>(null);
+  const liveAvatarVideoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     setTotalXp(readSavedTotalXp());
 
     return () => {
       closeRealtimeConnection(connectionRef.current);
+      void stopLiveAvatarSession({ resetState: false });
     };
   }, []);
 
@@ -113,12 +130,14 @@ export default function LessonClient() {
 
   async function startLesson() {
     replaceRealtimeConnection(null);
+    await stopLiveAvatarSession({ resetState: false });
     let lessonStarted = false;
 
     setStatus("starting");
     setConnectionStatus("requesting-mic");
     setLesson(null);
     setAvatar(null);
+    setLiveAvatarStatus("idle");
     setRealtime(null);
     setError(null);
     setXp(null);
@@ -134,6 +153,7 @@ export default function LessonClient() {
       lessonStarted = true;
       setLesson(lessonResponse.lesson);
       setAvatar(lessonResponse.avatar);
+      void startLiveAvatarSession(lessonResponse.avatar);
 
       const realtimeResponse = await postJson<{ realtime: RealtimeSession }>(
         "/api/realtime/session",
@@ -164,6 +184,59 @@ export default function LessonClient() {
           : "No pudimos preparar el audio de forma segura.",
       );
     }
+  }
+
+  async function startLiveAvatarSession(nextAvatar: AvatarStatus) {
+    if (!nextAvatar.available || !nextAvatar.avatarId) return;
+
+    await stopLiveAvatarSession({ resetState: false });
+    setLiveAvatarStatus("starting");
+
+    try {
+      const response = await postJson<{ liveAvatar: AvatarLiveSession }>(
+        "/api/avatar/live-session",
+        {},
+      );
+      const { LiveAvatarSession, SessionEvent } = await import(
+        "@heygen/liveavatar-web-sdk"
+      );
+      const session = new LiveAvatarSession(response.liveAvatar.sessionToken, {
+        voiceChat: false,
+      });
+
+      liveAvatarRef.current = session;
+      session.on(SessionEvent.SESSION_STREAM_READY, () => {
+        if (liveAvatarRef.current !== session) return;
+
+        if (liveAvatarVideoRef.current) {
+          session.attach(liveAvatarVideoRef.current);
+        }
+        setLiveAvatarStatus("ready");
+      });
+      session.on(SessionEvent.SESSION_DISCONNECTED, () => {
+        if (liveAvatarRef.current !== session) return;
+        setLiveAvatarStatus("unavailable");
+      });
+
+      await session.start();
+    } catch {
+      liveAvatarRef.current = null;
+      setLiveAvatarStatus("unavailable");
+    }
+  }
+
+  async function stopLiveAvatarSession(
+    options: { resetState?: boolean } = { resetState: true },
+  ) {
+    const session = liveAvatarRef.current;
+    liveAvatarRef.current = null;
+
+    if (liveAvatarVideoRef.current) {
+      liveAvatarVideoRef.current.srcObject = null;
+    }
+
+    if (options.resetState) setLiveAvatarStatus("idle");
+    await session?.stop().catch(() => undefined);
   }
 
   async function recordRealtimeEvidence(lessonId: string, payload: string) {
@@ -254,6 +327,7 @@ export default function LessonClient() {
       setStatus("failed");
     } finally {
       replaceRealtimeConnection(null);
+      void stopLiveAvatarSession();
       setConnectionStatus("ended");
     }
   }
@@ -287,8 +361,13 @@ export default function LessonClient() {
 
   const lessonStatusLabel = formatLessonStatus(status);
   const voiceStatusLabel = formatConnectionStatus(connectionStatus);
-  const avatarStatusLabel = formatAvatarStatus(avatar);
-  const stage = readTutorStage(status, connectionStatus, avatar);
+  const avatarStatusLabel = formatAvatarStatus(avatar, liveAvatarStatus);
+  const stage = readTutorStage(
+    status,
+    connectionStatus,
+    avatar,
+    liveAvatarStatus,
+  );
   const protectedSessionLabel = realtime
     ? `${realtime.model} · credencial limitada`
     : "sin emitir";
@@ -334,9 +413,20 @@ export default function LessonClient() {
             aria-label={`Escenario del avatar HeyGen configurado ${stage.avatarId}`}
           >
             <div className="avatarAura" aria-hidden="true" />
-            <div className="avatarSilhouette" aria-hidden="true">
-              <span className="avatarFace">IA</span>
-            </div>
+            <video
+              ref={liveAvatarVideoRef}
+              className={
+                stage.isLiveAvatar ? "avatarVideo avatarVideo--ready" : "avatarVideo"
+              }
+              playsInline
+              autoPlay
+              aria-label={`Video live del avatar HeyGen ${stage.avatarId}`}
+            />
+            {!stage.isLiveAvatar ? (
+              <div className="avatarSilhouette" aria-hidden="true">
+                <span className="avatarFace">IA</span>
+              </div>
+            ) : null}
             <div className="voiceWave" aria-hidden="true">
               <span />
               <span />
@@ -546,8 +636,9 @@ function readTutorStage(
   status: LessonStatus,
   connectionStatus: ConnectionStatus,
   avatar: AvatarStatus | null,
+  liveAvatarStatus: LiveAvatarStatus,
 ): TutorStageViewModel {
-  const isLiveAvatar = avatar?.available === true && avatar.mode === "live";
+  const isLiveAvatar = liveAvatarStatus === "ready";
 
   if (status === "completed") {
     return withTutorIdentity({
@@ -587,7 +678,9 @@ function readTutorStage(
       title: "Preparando aula privada",
       stateLabel: "Conectando",
       stateDescription:
-        "Preparando micrófono, WebRTC y sesión protegida para empezar.",
+        avatar?.available === true && avatar.mode === "live"
+          ? "Preparando micrófono, WebRTC, Realtime y sesión live del avatar."
+          : "Preparando micrófono, WebRTC y sesión protegida para empezar.",
       motionCue: "connecting",
       isLiveAvatar,
     });
@@ -783,6 +876,20 @@ const premiumClassroomStyles = `
     border-radius: 999px;
     background: radial-gradient(circle, rgba(139, 92, 246, 0.28), transparent 62%);
     filter: blur(4px);
+  }
+
+  .avatarVideo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 220ms ease;
+  }
+
+  .avatarVideo--ready {
+    opacity: 1;
   }
 
   .avatarSilhouette {
@@ -986,8 +1093,14 @@ function formatCompleteLessonAction(
   return "Finalizar clase";
 }
 
-function formatAvatarStatus(avatar: AvatarStatus | null) {
+function formatAvatarStatus(
+  avatar: AvatarStatus | null,
+  liveAvatarStatus: LiveAvatarStatus,
+) {
   if (!avatar) return "tutor listo para empezar";
+  if (liveAvatarStatus === "ready") return "avatar live conectado";
+  if (liveAvatarStatus === "starting") return "avatar live iniciando";
+  if (liveAvatarStatus === "unavailable") return "avatar live no disponible";
   if (avatar.available) return "tutor visual disponible";
   if (avatar.mode === "voice-only") return "tutor en modo voz";
   return "tutor con presencia estática";
@@ -1039,14 +1152,37 @@ async function connectRealtime(
   const offer = await peerConnection.createOffer();
   await peerConnection.setLocalDescription(offer);
 
-  const response = await fetch(realtime.connectUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${realtime.clientSecret}`,
-      "Content-Type": "application/sdp",
-    },
-    body: offer.sdp,
-  });
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(
+    () => controller.abort(),
+    REALTIME_CONNECT_TIMEOUT_MS,
+  );
+
+  let response: Response;
+
+  try {
+    response = await fetch(realtime.connectUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${realtime.clientSecret}`,
+        "Content-Type": "application/sdp",
+      },
+      body: offer.sdp,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    closeRealtimeConnection({ peerConnection, dataChannel, stream });
+
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(
+        "Realtime tardó demasiado en responder. Activamos modo voz seguro.",
+      );
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     closeRealtimeConnection({ peerConnection, dataChannel, stream });

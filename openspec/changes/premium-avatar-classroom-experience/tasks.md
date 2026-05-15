@@ -42,8 +42,8 @@ Chain strategy: feature-branch-chain
 ## Phase 3: State Coverage
 
 - [ ] 3.1 Map idle, starting, connected, fallback, feedback, completed, and failed states to visible learner copy.
-- [ ] 3.2 Preserve honest fallback: no live-avatar claim when configured HeyGen avatar movement/speech is unavailable.
-- [ ] 3.3 Keep secure-session messaging secondary and never expose raw credentials, SDP, or `.env` values.
+- [x] 3.2 Preserve honest fallback: no live-avatar claim when configured HeyGen avatar movement/speech is unavailable.
+- [x] 3.3 Keep secure-session messaging secondary and never expose raw credentials, SDP, or `.env` values.
 
 ## Phase 4: Tests and Validation
 
