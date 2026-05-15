@@ -62,7 +62,9 @@ microphone hardware or live provider calls.
 - Browser/OS: Brave on macOS
 - App URL: `http://127.0.0.1:3000/lesson`
 - Outcome: `passed`
-- Visible UI state: `clase completada`, `sesión cerrada`, `Prácticas: 1 ·
-Feedback: 1`, `+50 XP ganados`
+- Visible UI state: `clase completada`, `sesión cerrada`, `Prácticas: 2 ·
+Feedback: 4`, `+50 XP ganados`
+- Avatar/HeyGen: `tutor visual disponible`
+- Evidence file: [`docs/release-evidence.md`](release-evidence.md)
 - Safety checked: no `.env`, keys, client secrets, SDP, or raw provider
   responses included.
