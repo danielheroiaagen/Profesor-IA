@@ -1,7 +1,7 @@
 import "server-only";
 
 const DEFAULT_OPENAI_REALTIME_MODEL = "gpt-realtime-2";
-const DEFAULT_HEYGEN_AVATAR_ID = "552426f4e4584a24871c5ffad2a97f73";
+const DEFAULT_HEYGEN_AVATAR_ID = "e29e792a-41e7-4df0-84a8-349e099fb50f";
 
 const REQUIRED_NAMES = ["OPENAI_API_KEY"] as const;
 
@@ -14,9 +14,14 @@ export type ServerConfig = {
     apiKey?: string;
     avatarId: string;
   };
+  liveAvatar: {
+    apiKey?: string;
+    avatarId: string;
+  };
 };
 
 export type HeyGenServerConfig = ServerConfig["heygen"];
+export type LiveAvatarServerConfig = ServerConfig["liveAvatar"];
 
 export class SafeConfigError extends Error {
   constructor(message: string) {
@@ -48,6 +53,10 @@ export function getServerConfig(env: Env = process.env): ServerConfig {
       apiKey: optionalSecret(env.HEYGEN_API_KEY),
       avatarId: env.HEYGEN_AVATAR_ID?.trim() || DEFAULT_HEYGEN_AVATAR_ID,
     },
+    liveAvatar: {
+      apiKey: optionalSecret(env.LIVEAVATAR_API_KEY),
+      avatarId: env.HEYGEN_AVATAR_ID?.trim() || DEFAULT_HEYGEN_AVATAR_ID,
+    },
   };
 }
 
@@ -62,10 +71,22 @@ export function getHeyGenServerConfig(
   };
 }
 
+export function getLiveAvatarServerConfig(
+  env: Env = process.env,
+): LiveAvatarServerConfig {
+  assertServerRuntime();
+
+  return {
+    apiKey: optionalSecret(env.LIVEAVATAR_API_KEY),
+    avatarId: env.HEYGEN_AVATAR_ID?.trim() || DEFAULT_HEYGEN_AVATAR_ID,
+  };
+}
+
 export function getSafeConfigStatus(env: Env = process.env) {
   return {
     openaiApiKeyConfigured: Boolean(env.OPENAI_API_KEY?.trim()),
     heygenApiKeyConfigured: Boolean(env.HEYGEN_API_KEY?.trim()),
+    liveAvatarApiKeyConfigured: Boolean(env.LIVEAVATAR_API_KEY?.trim()),
     openaiRealtimeModel:
       env.OPENAI_REALTIME_MODEL?.trim() || DEFAULT_OPENAI_REALTIME_MODEL,
     heygenAvatarId: env.HEYGEN_AVATAR_ID?.trim() || DEFAULT_HEYGEN_AVATAR_ID,

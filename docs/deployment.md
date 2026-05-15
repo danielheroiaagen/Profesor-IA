@@ -32,8 +32,9 @@ Set these in the deployment provider. Record names only in issues, PRs, docs, sc
 | ----------------------- | ----------- | ----------------------- | ------------------------------------------------------------------------- |
 | `OPENAI_API_KEY`        | Server only | Yes                     | Primary key used only by API routes to mint limited Realtime credentials. |
 | `OPENAI_REALTIME_MODEL` | Server only | No                      | Defaults to `gpt-realtime-2`; set explicitly for release clarity.         |
-| `HEYGEN_API_KEY`        | Server only | No for voice MVP        | Required only when validating live/generated avatar provider behavior.    |
-| `HEYGEN_AVATAR_ID`      | Server only | No                      | Defaults to `552426f4e4584a24871c5ffad2a97f73`.                           |
+| `LIVEAVATAR_API_KEY`    | Server only | No for voice MVP        | Required only when validating live streaming avatar provider behavior.    |
+| `HEYGEN_API_KEY`        | Server only | No for voice MVP        | Required only when validating generated/static HeyGen avatar behavior.    |
+| `HEYGEN_AVATAR_ID`      | Server only | No                      | Defaults to `e29e792a-41e7-4df0-84a8-349e099fb50f`.                       |
 
 Do not create `NEXT_PUBLIC_*` versions of these values. The browser should receive only non-secret status and limited Realtime credentials.
 

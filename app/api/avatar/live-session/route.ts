@@ -20,7 +20,8 @@ export async function POST() {
       {
         error: {
           code,
-          message: "Live avatar session could not start. Voice mode remains available.",
+          message:
+            "Live avatar session could not start. Voice mode remains available.",
         },
       },
       { status: 502 },

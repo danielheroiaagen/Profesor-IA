@@ -12,13 +12,16 @@ export function GET() {
       checks: {
         openaiApiKeyConfigured: config.openaiApiKeyConfigured,
         heygenApiKeyConfigured: config.heygenApiKeyConfigured,
+        liveAvatarApiKeyConfigured: config.liveAvatarApiKeyConfigured,
       },
       realtime: {
         model: config.openaiRealtimeModel,
       },
       avatar: {
         configured: Boolean(config.heygenAvatarId),
-        providerConfigured: config.heygenApiKeyConfigured,
+        providerConfigured:
+          config.heygenApiKeyConfigured || config.liveAvatarApiKeyConfigured,
+        liveProviderConfigured: config.liveAvatarApiKeyConfigured,
       },
     },
     {

@@ -2,21 +2,23 @@ import { describe, expect, it, vi } from "vitest";
 
 import { mintLiveAvatarSessionToken } from "@/integrations/avatar/liveavatar";
 
-const HEYGEN_API_KEY = "heygen-secret-never-returned";
+const LIVEAVATAR_API_KEY = "liveavatar-secret-never-returned";
 
 describe("LiveAvatar session token adapter", () => {
   it("mints a limited browser session token without returning the provider key", async () => {
     const fetchImpl = vi.fn(
       async (url: string | URL | Request, init?: RequestInit) => {
-        expect(String(url)).toBe("https://api.liveavatar.com/v1/sessions/token");
+        expect(String(url)).toBe(
+          "https://api.liveavatar.com/v1/sessions/token",
+        );
         expect(init?.headers).toMatchObject({
-          "X-API-KEY": HEYGEN_API_KEY,
+          "X-API-KEY": LIVEAVATAR_API_KEY,
           Accept: "application/json",
           "Content-Type": "application/json",
         });
         expect(JSON.parse(String(init?.body))).toMatchObject({
           mode: "LITE",
-          avatar_id: "552426f4e4584a24871c5ffad2a97f73",
+          avatar_id: "e29e792a-41e7-4df0-84a8-349e099fb50f",
         });
 
         return Response.json({
@@ -30,8 +32,8 @@ describe("LiveAvatar session token adapter", () => {
     ) as typeof fetch;
 
     const liveAvatar = await mintLiveAvatarSessionToken({
-      apiKey: HEYGEN_API_KEY,
-      avatarId: "552426f4e4584a24871c5ffad2a97f73",
+      apiKey: LIVEAVATAR_API_KEY,
+      avatarId: "e29e792a-41e7-4df0-84a8-349e099fb50f",
       fetchImpl,
     });
 
@@ -40,11 +42,11 @@ describe("LiveAvatar session token adapter", () => {
     expect(liveAvatar).toEqual({
       provider: "liveavatar",
       mode: "live",
-      avatarId: "552426f4e4584a24871c5ffad2a97f73",
+      avatarId: "e29e792a-41e7-4df0-84a8-349e099fb50f",
       sessionId: "live-session-1",
       sessionToken: "live-token-limited",
     });
-    expect(serialized).not.toContain(HEYGEN_API_KEY);
+    expect(serialized).not.toContain(LIVEAVATAR_API_KEY);
   });
 
   it("fails before calling the provider when the server key is missing", async () => {
@@ -52,7 +54,7 @@ describe("LiveAvatar session token adapter", () => {
 
     await expect(
       mintLiveAvatarSessionToken({
-        avatarId: "552426f4e4584a24871c5ffad2a97f73",
+        avatarId: "e29e792a-41e7-4df0-84a8-349e099fb50f",
         fetchImpl,
       }),
     ).rejects.toMatchObject({

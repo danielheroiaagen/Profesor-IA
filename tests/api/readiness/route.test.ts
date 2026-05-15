@@ -4,6 +4,7 @@ import { GET } from "@/../app/api/readiness/route";
 
 const OPENAI_SECRET = "sk-test-primary-key-never-returned";
 const HEYGEN_SECRET = "heygen-test-secret-never-returned";
+const LIVEAVATAR_SECRET = "liveavatar-test-secret-never-returned";
 
 describe("GET /api/readiness", () => {
   afterEach(() => {
@@ -13,7 +14,7 @@ describe("GET /api/readiness", () => {
   it("returns ready status without leaking configured secrets", async () => {
     vi.stubEnv("OPENAI_API_KEY", OPENAI_SECRET);
     vi.stubEnv("OPENAI_REALTIME_MODEL", "gpt-realtime-2");
-    vi.stubEnv("HEYGEN_API_KEY", HEYGEN_SECRET);
+    vi.stubEnv("LIVEAVATAR_API_KEY", LIVEAVATAR_SECRET);
     vi.stubEnv("HEYGEN_AVATAR_ID", "avatar-test-id");
 
     const response = GET();
@@ -26,7 +27,8 @@ describe("GET /api/readiness", () => {
       status: "ready",
       checks: {
         openaiApiKeyConfigured: true,
-        heygenApiKeyConfigured: true,
+        heygenApiKeyConfigured: false,
+        liveAvatarApiKeyConfigured: true,
       },
       realtime: {
         model: "gpt-realtime-2",
@@ -34,12 +36,15 @@ describe("GET /api/readiness", () => {
       avatar: {
         configured: true,
         providerConfigured: true,
+        liveProviderConfigured: true,
       },
     });
     expect(serialized).not.toContain(OPENAI_SECRET);
     expect(serialized).not.toContain(HEYGEN_SECRET);
+    expect(serialized).not.toContain(LIVEAVATAR_SECRET);
     expect(serialized).not.toContain("OPENAI_API_KEY");
     expect(serialized).not.toContain("HEYGEN_API_KEY");
+    expect(serialized).not.toContain("LIVEAVATAR_API_KEY");
     expect(serialized).not.toContain("avatar-test-id");
   });
 
@@ -54,6 +59,7 @@ describe("GET /api/readiness", () => {
       checks: {
         openaiApiKeyConfigured: false,
         heygenApiKeyConfigured: false,
+        liveAvatarApiKeyConfigured: false,
       },
       realtime: {
         model: "gpt-realtime-2",
@@ -61,6 +67,7 @@ describe("GET /api/readiness", () => {
       avatar: {
         configured: true,
         providerConfigured: false,
+        liveProviderConfigured: false,
       },
     });
     expect(serialized).not.toContain(".env");

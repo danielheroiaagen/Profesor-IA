@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/../app/api/avatar/live-session/route";
 
-const HEYGEN_API_KEY = "heygen-secret-never-returned";
+const LIVEAVATAR_API_KEY = "liveavatar-secret-never-returned";
 
 describe("POST /api/avatar/live-session", () => {
   afterEach(() => {
@@ -11,8 +11,8 @@ describe("POST /api/avatar/live-session", () => {
   });
 
   it("returns a limited live avatar session and no primary key", async () => {
-    vi.stubEnv("HEYGEN_API_KEY", HEYGEN_API_KEY);
-    vi.stubEnv("HEYGEN_AVATAR_ID", "552426f4e4584a24871c5ffad2a97f73");
+    vi.stubEnv("LIVEAVATAR_API_KEY", LIVEAVATAR_API_KEY);
+    vi.stubEnv("HEYGEN_AVATAR_ID", "e29e792a-41e7-4df0-84a8-349e099fb50f");
     vi.stubGlobal(
       "fetch",
       vi.fn(async () =>
@@ -34,11 +34,12 @@ describe("POST /api/avatar/live-session", () => {
     expect(body.liveAvatar).toMatchObject({
       provider: "liveavatar",
       mode: "live",
-      avatarId: "552426f4e4584a24871c5ffad2a97f73",
+      avatarId: "e29e792a-41e7-4df0-84a8-349e099fb50f",
       sessionId: "live-session-route",
     });
-    expect(serialized).not.toContain(HEYGEN_API_KEY);
+    expect(serialized).not.toContain(LIVEAVATAR_API_KEY);
     expect(serialized).not.toContain("HEYGEN_API_KEY");
+    expect(serialized).not.toContain("LIVEAVATAR_API_KEY");
   });
 
   it("fails safely without a configured provider key", async () => {
@@ -53,6 +54,7 @@ describe("POST /api/avatar/live-session", () => {
     expect(body.error.code).toBe("avatar-live-provider-not-configured");
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(serialized).not.toContain("HEYGEN_API_KEY");
+    expect(serialized).not.toContain("LIVEAVATAR_API_KEY");
     expect(serialized).not.toContain(".env");
   });
 });

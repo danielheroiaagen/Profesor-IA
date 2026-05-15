@@ -1,4 +1,4 @@
-import { getHeyGenServerConfig } from "@/config/server";
+import { getLiveAvatarServerConfig } from "@/config/server";
 
 const LIVEAVATAR_API_URL = "https://api.liveavatar.com";
 const LIVEAVATAR_MODE = "LITE";
@@ -46,7 +46,7 @@ export async function mintLiveAvatarSessionFromConfig(
     Omit<LiveAvatarSessionTokenOptions, "apiKey" | "avatarId">
   > = {},
 ): Promise<LiveAvatarSessionToken> {
-  const config = getHeyGenServerConfig();
+  const config = getLiveAvatarServerConfig();
 
   return mintLiveAvatarSessionToken({
     apiKey: config.apiKey,

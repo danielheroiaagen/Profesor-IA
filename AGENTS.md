@@ -7,8 +7,8 @@ Build a professional AI English teacher MVP: a short realtime voice lesson, visi
 ## Security Rules
 
 - Never read, print, commit, or expose `.env` values.
-- Reference configuration by name only: `OPENAI_API_KEY`, `OPENAI_REALTIME_MODEL`, `HEYGEN_API_KEY`, `HEYGEN_AVATAR_ID`.
-- Browser code must never receive primary OpenAI or HeyGen API keys.
+- Reference configuration by name only: `OPENAI_API_KEY`, `OPENAI_REALTIME_MODEL`, `LIVEAVATAR_API_KEY`, `HEYGEN_API_KEY`, `HEYGEN_AVATAR_ID`.
+- Browser code must never receive primary OpenAI, LiveAvatar, or HeyGen API keys.
 - Browser access must use ephemeral OpenAI credentials or server-mediated avatar credentials.
 
 ## Review Budget

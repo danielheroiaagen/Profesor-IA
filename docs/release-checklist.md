@@ -33,7 +33,7 @@ Use this checklist before calling a Profesor IA build releasable. The answer is 
 
 Before release, verify artifacts include names only, never values:
 
-- Allowed: `OPENAI_API_KEY`, `OPENAI_REALTIME_MODEL`, `HEYGEN_API_KEY`, `HEYGEN_AVATAR_ID`.
+- Allowed: `OPENAI_API_KEY`, `OPENAI_REALTIME_MODEL`, `LIVEAVATAR_API_KEY`, `HEYGEN_API_KEY`, `HEYGEN_AVATAR_ID`.
 - Forbidden: `.env` values, primary API keys, Realtime client secrets, SDP payloads, raw provider responses, and screenshots containing secrets.
 
 ## Release evidence template

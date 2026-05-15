@@ -17,6 +17,7 @@ describe("server config", () => {
 
       expect(message).toContain("OPENAI_API_KEY");
       expect(message).not.toContain("HEYGEN_API_KEY");
+      expect(message).not.toContain("LIVEAVATAR_API_KEY");
       expect(message).not.toContain("sk-");
       expect(message).not.toContain(".env=");
     }
@@ -26,7 +27,10 @@ describe("server config", () => {
     const config = getServerConfig({ OPENAI_API_KEY: "sk-test-secret" });
 
     expect(config.openai.realtimeModel).toBe("gpt-realtime-2");
-    expect(config.heygen.avatarId).toBe("552426f4e4584a24871c5ffad2a97f73");
+    expect(config.heygen.avatarId).toBe("e29e792a-41e7-4df0-84a8-349e099fb50f");
+    expect(config.liveAvatar.avatarId).toBe(
+      "e29e792a-41e7-4df0-84a8-349e099fb50f",
+    );
     expect(config.openai.apiKey).toBe("sk-test-secret");
   });
 
@@ -34,15 +38,18 @@ describe("server config", () => {
     const status = getSafeConfigStatus({
       OPENAI_API_KEY: "sk-test-secret",
       HEYGEN_API_KEY: "heygen-secret",
+      LIVEAVATAR_API_KEY: "liveavatar-secret",
     });
 
     expect(status).toEqual({
       openaiApiKeyConfigured: true,
       heygenApiKeyConfigured: true,
+      liveAvatarApiKeyConfigured: true,
       openaiRealtimeModel: "gpt-realtime-2",
-      heygenAvatarId: "552426f4e4584a24871c5ffad2a97f73",
+      heygenAvatarId: "e29e792a-41e7-4df0-84a8-349e099fb50f",
     });
     expect(JSON.stringify(status)).not.toContain("sk-test-secret");
     expect(JSON.stringify(status)).not.toContain("heygen-secret");
+    expect(JSON.stringify(status)).not.toContain("liveavatar-secret");
   });
 });

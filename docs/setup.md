@@ -22,8 +22,9 @@ Create local environment variables on the server only. Do not paste values into 
 | ----------------------- | ---------------: | --------------------------------------------------------------------------- |
 | `OPENAI_API_KEY`        |              Yes | Server-only primary OpenAI key used to mint ephemeral Realtime credentials. |
 | `OPENAI_REALTIME_MODEL` |               No | Defaults to `gpt-realtime-2`.                                               |
-| `HEYGEN_API_KEY`        | No for voice MVP | Server-only HeyGen key for avatar spike.                                    |
-| `HEYGEN_AVATAR_ID`      |               No | Defaults to `552426f4e4584a24871c5ffad2a97f73`.                             |
+| `LIVEAVATAR_API_KEY`    | No for voice MVP | Server-only LiveAvatar key for live streaming avatar sessions.              |
+| `HEYGEN_API_KEY`        | No for voice MVP | Server-only HeyGen key for generated/static avatar validation.              |
+| `HEYGEN_AVATAR_ID`      |               No | Defaults to `e29e792a-41e7-4df0-84a8-349e099fb50f`.                         |
 
 ## Expected live result
 
