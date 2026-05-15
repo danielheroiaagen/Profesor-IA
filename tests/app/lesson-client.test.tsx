@@ -9,11 +9,38 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import LessonClient from "@/../app/lesson/lesson-client";
 
+function installLocalStorage(initialEntries: Record<string, string> = {}) {
+  const entries = new Map(Object.entries(initialEntries));
+  const storage = {
+    getItem: vi.fn((key: string) => entries.get(key) ?? null),
+    setItem: vi.fn((key: string, value: string) => {
+      entries.set(key, value);
+    }),
+    removeItem: vi.fn((key: string) => {
+      entries.delete(key);
+    }),
+    clear: vi.fn(() => {
+      entries.clear();
+    }),
+  };
+
+  Object.defineProperty(window, "localStorage", {
+    configurable: true,
+    value: storage,
+  });
+
+  return storage;
+}
+
 describe("LessonClient smoke", () => {
+  beforeEach(() => {
+    installLocalStorage();
+  });
+
   it("renders a professional class surface before the lesson starts", () => {
     render(<LessonClient />);
 
@@ -27,6 +54,7 @@ describe("LessonClient smoke", () => {
   });
   afterEach(() => {
     vi.unstubAllGlobals();
+    installLocalStorage();
     Object.defineProperty(navigator, "mediaDevices", {
       configurable: true,
       value: undefined,
@@ -335,6 +363,101 @@ describe("LessonClient smoke", () => {
     expect(
       screen.getByText("Good job. Say: I am practicing English today."),
     ).toBeVisible();
+  });
+
+  it("persists server-awarded XP as anonymous local progress", async () => {
+    window.localStorage.setItem("profesor-ia.total-xp", "10");
+    const lesson = {
+      id: "lesson-local-progress",
+      state: "active",
+      startedAt: "2026-05-13T00:00:00.000Z",
+      metrics: { learnerTurns: 0, feedbackEvents: 0 },
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        const value = String(url);
+
+        if (value === "/api/lessons/start") {
+          return Response.json({
+            lesson,
+            avatar: {
+              mode: "voice-only",
+              available: false,
+              reason: "avatar-provider-not-configured",
+            },
+          });
+        }
+
+        if (value === "/api/realtime/session") {
+          return Response.json({
+            realtime: {
+              clientSecret: "ek_test_ephemeral",
+              model: "gpt-realtime-2",
+              expiresAt: "2026-05-13T00:10:00.000Z",
+              lessonId: "lesson-local-progress",
+              connectUrl: "https://api.openai.com/v1/realtime/calls",
+            },
+          });
+        }
+
+        if (value === "/api/lessons/evidence") {
+          const body = JSON.parse(String(init?.body)) as {
+            evidence: "learner-turn" | "feedback";
+          };
+
+          if (body.evidence === "learner-turn") {
+            lesson.metrics.learnerTurns += 1;
+          } else {
+            lesson.metrics.feedbackEvents += 1;
+            lesson.state = "feedback";
+          }
+
+          return Response.json({ lesson });
+        }
+
+        return Response.json({
+          lesson: {
+            ...lesson,
+            state: "completed",
+            completionReason: "completed",
+          },
+          xp: {
+            awarded: true,
+            xp: 50,
+            reason: "completed",
+          },
+        });
+      }),
+    );
+
+    render(<LessonClient />);
+
+    expect(await screen.findByText("10 XP guardados")).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
+    await screen.findByText("modo voz seguro");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ya practiqué la frase" }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("Prácticas: 1 · Feedback: 0")).toBeVisible(),
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ver corrección sugerida" }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("Prácticas: 1 · Feedback: 1")).toBeVisible(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Finalizar clase" }));
+
+    expect(await screen.findByText("+50 XP ganados")).toBeVisible();
+    expect(await screen.findByText("Total guardado: 60 XP.")).toBeVisible();
+    expect(window.localStorage.getItem("profesor-ia.total-xp")).toBe("60");
   });
 
   it("shows failed completion state when server denies XP", async () => {

@@ -61,6 +61,7 @@ const INITIAL_FEEDBACK_SUMMARY =
   "Objetivo: decir con naturalidad 'I am practicing English today.'";
 const REQUIRED_LEARNER_TURNS = 1;
 const REQUIRED_FEEDBACK_EVENTS = 1;
+const LOCAL_XP_STORAGE_KEY = "profesor-ia.total-xp";
 
 export default function LessonClient() {
   const [status, setStatus] = useState<LessonStatus>("idle");
@@ -78,10 +79,13 @@ export default function LessonClient() {
     INITIAL_FEEDBACK_SUMMARY,
   );
   const [xp, setXp] = useState<XPResult | null>(null);
+  const [totalXp, setTotalXp] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const connectionRef = useRef<RealtimeConnection | null>(null);
 
   useEffect(() => {
+    setTotalXp(readSavedTotalXp());
+
     return () => {
       closeRealtimeConnection(connectionRef.current);
     };
@@ -220,6 +224,14 @@ export default function LessonClient() {
       setXp(result.xp);
       syncLessonFromServer(result.lesson);
       setStatus(result.lesson.state === "completed" ? "completed" : "failed");
+
+      if (result.xp.awarded && result.xp.xp > 0) {
+        setTotalXp((currentTotal) => {
+          const nextTotal = currentTotal + result.xp.xp;
+          writeSavedTotalXp(nextTotal);
+          return nextTotal;
+        });
+      }
     } catch {
       setError("No pudimos verificar la práctica. No se otorgó XP sin ganar.");
       setStatus("failed");
@@ -301,6 +313,8 @@ export default function LessonClient() {
               ? `${realtime.model} · credencial limitada`
               : "sin emitir"}
           </dd>
+          <dt>Progreso</dt>
+          <dd>{totalXp} XP guardados</dd>
         </dl>
       </section>
 
@@ -378,6 +392,7 @@ export default function LessonClient() {
               ? "Progreso registrado por práctica y feedback."
               : `Motivo: ${xp.reason}. Reintentá con una respuesta hablada.`}
           </p>
+          {xp.awarded ? <p>Total guardado: {totalXp} XP.</p> : null}
         </section>
       ) : null}
     </main>
@@ -487,6 +502,31 @@ function closeRealtimeConnection(connection: RealtimeConnection | null) {
   connection?.stream.getTracks().forEach((track) => track.stop());
   connection?.dataChannel.close();
   connection?.peerConnection.close();
+}
+
+function readSavedTotalXp() {
+  if (typeof window === "undefined") return 0;
+
+  try {
+    const value = Number.parseInt(
+      window.localStorage.getItem(LOCAL_XP_STORAGE_KEY) ?? "0",
+      10,
+    );
+
+    return Number.isFinite(value) && value > 0 ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeSavedTotalXp(totalXp: number) {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.setItem(LOCAL_XP_STORAGE_KEY, String(totalXp));
+  } catch {
+    // Local progress is an enhancement; verified XP still comes from the server.
+  }
 }
 
 function readRealtimeSignal(payload: string): {
