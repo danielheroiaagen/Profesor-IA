@@ -1,11 +1,18 @@
 # Setup
 
-## Quick Start
+Use this guide to run Profesor IA locally without leaking secrets. The current
+MVP has been validated with real browser microphone/WebRTC, server-side
+Realtime evidence, and XP completion.
+
+## Quick start
 
 ```bash
 npm install
 npm run dev
 ```
+
+Open `http://localhost:3000/lesson`, click **Empezar clase**, and speak the
+lesson phrase when the UI shows **voz lista**.
 
 ## Required Configuration Names
 
@@ -18,23 +25,37 @@ Create local environment variables on the server only. Do not paste values into 
 | `HEYGEN_API_KEY`        | No for voice MVP | Server-only HeyGen key for avatar spike.                                    |
 | `HEYGEN_AVATAR_ID`      |               No | Defaults to `552426f4e4584a24871c5ffad2a97f73`.                             |
 
+## Expected live result
+
+A successful browser run shows:
+
+- `clase completada`
+- `sesión cerrada`
+- `Prácticas: 1 · Feedback: 1`
+- `+50 XP ganados`
+
+If any of those are missing, treat it as a product or environment validation
+finding and record it with `docs/browser-audio-validation.md`.
+
 ## Verification Commands
 
 ```bash
-npm test
-npm run typecheck
-npm run lint
-npm run build
+npm run verify
 ```
 
-Verified on 2026-05-13 after Phase 5 hardening:
+`npm run verify` includes:
 
+- `npm run format` — Prettier check.
 - `npm test` — Vitest unit, route integration, and jsdom UI smoke coverage.
 - `npm run typecheck` — TypeScript no-emit check.
 - `npm run lint` — ESLint project scan.
 - `npm run build` — Next.js production build.
 
-Playwright is not installed in this slice. Browser smoke coverage uses the existing Vitest/jsdom stack to keep the PR small; add Playwright later only when the team is ready to own browser binaries and audio permission mocks.
+Verified on 2026-05-15 after real browser/audio validation.
+
+Playwright is not installed. Browser smoke coverage uses the existing
+Vitest/jsdom stack to keep CI deterministic; live audio validation remains an
+opt-in local workflow.
 
 ## Browser/audio Validation
 
@@ -46,7 +67,5 @@ Use `docs/browser-audio-validation.md` for the local opt-in browser validation w
 - Validate missing configuration with variable names only.
 - Never send primary OpenAI or HeyGen keys to the browser.
 - Use voice-only or static-avatar fallback when avatar integration is unavailable.
-
-## Current Slice
-
-The current SDD chain has foundation, domain/API, Realtime voice, and HeyGen fallback slices. The next production hardening step is real browser/audio validation with provider credentials configured server-side.
+- Do not record SDP payloads, Realtime client secrets, or raw provider responses
+  as evidence.
