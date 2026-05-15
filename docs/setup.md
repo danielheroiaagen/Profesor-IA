@@ -37,6 +37,20 @@ A successful browser run shows:
 If any of those are missing, treat it as a product or environment validation
 finding and record it with `docs/browser-audio-validation.md`.
 
+## Readiness check
+
+Use the safe readiness endpoint in deployments and local smoke checks:
+
+```bash
+curl -i http://localhost:3000/api/readiness
+```
+
+It returns `200` with `status: "ready"` when required OpenAI configuration is
+present, or `503` with `status: "degraded"` when voice configuration is missing.
+The response contains only booleans and non-secret metadata; it must never
+include API keys, client secrets, `.env` values, SDP payloads, or raw provider
+responses.
+
 ## Verification Commands
 
 ```bash
