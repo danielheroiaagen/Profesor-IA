@@ -101,8 +101,13 @@ export default function LessonClient() {
 
   async function startLesson() {
     replaceRealtimeConnection(null);
+    let lessonStarted = false;
+
     setStatus("starting");
     setConnectionStatus("requesting-mic");
+    setLesson(null);
+    setAvatar(null);
+    setRealtime(null);
     setError(null);
     setXp(null);
     setLearnerTurns(0);
@@ -114,6 +119,7 @@ export default function LessonClient() {
         lesson: LessonSession;
         avatar: AvatarStatus;
       }>("/api/lessons/start", {});
+      lessonStarted = true;
       setLesson(lessonResponse.lesson);
       setAvatar(lessonResponse.avatar);
 
@@ -139,7 +145,7 @@ export default function LessonClient() {
       setStatus("active");
     } catch (startError) {
       setConnectionStatus("fallback");
-      setStatus("active");
+      setStatus(lessonStarted ? "active" : "failed");
       setError(
         startError instanceof Error
           ? startError.message
