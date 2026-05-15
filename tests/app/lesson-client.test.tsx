@@ -463,6 +463,9 @@ describe("LessonClient smoke", () => {
     expect(await screen.findByText("+50 XP ganados")).toBeVisible();
     expect(await screen.findByText("Total guardado: 60 XP.")).toBeVisible();
     expect(window.localStorage.getItem("profesor-ia.total-xp")).toBe("60");
+    expect(
+      screen.getByRole("button", { name: "Clase cerrada" }),
+    ).toBeDisabled();
   });
 
   it("clears anonymous local XP progress from browser storage", async () => {
@@ -598,6 +601,9 @@ describe("LessonClient smoke", () => {
     expect(
       screen.getByRole("button", { name: "Ver corrección sugerida" }),
     ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Reintento necesario" }),
+    ).toBeDisabled();
   });
 
   it("shows failed completion state when server denies XP", async () => {
@@ -709,7 +715,7 @@ describe("LessonClient smoke", () => {
       screen.getByRole("button", { name: "Ver corrección sugerida" }),
     ).toBeDisabled();
     expect(
-      screen.getByRole("button", { name: "Finalizar clase" }),
+      screen.getByRole("button", { name: "Reintento necesario" }),
     ).toBeDisabled();
   });
 
@@ -855,6 +861,9 @@ describe("LessonClient smoke", () => {
     ).toBeDisabled();
     expect(
       screen.getByRole("button", { name: "Ver corrección sugerida" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Clase cerrada" }),
     ).toBeDisabled();
   });
 

@@ -374,9 +374,11 @@ export default function LessonClient() {
           Ver corrección sugerida
         </button>
         <button onClick={completeLesson} disabled={!canCompleteLesson}>
-          {lesson && !hasCompletionEvidence
-            ? "Esperando evidencia de voz"
-            : "Finalizar clase"}
+          {formatCompleteLessonAction(
+            status,
+            Boolean(lesson),
+            hasCompletionEvidence,
+          )}
         </button>
       </section>
 
@@ -454,6 +456,18 @@ function formatStartLessonAction(status: LessonStatus) {
   if (status === "failed") return "Reintentar clase";
 
   return "Empezar clase";
+}
+
+function formatCompleteLessonAction(
+  status: LessonStatus,
+  hasLesson: boolean,
+  hasCompletionEvidence: boolean,
+) {
+  if (status === "completed") return "Clase cerrada";
+  if (status === "failed") return "Reintento necesario";
+  if (hasLesson && !hasCompletionEvidence) return "Esperando evidencia de voz";
+
+  return "Finalizar clase";
 }
 
 function formatAvatarStatus(avatar: AvatarStatus | null) {
