@@ -59,3 +59,4 @@ Before release, verify artifacts include names only, never values:
 - [`README.md`](../README.md) — project overview and quick path.
 - [`docs/setup.md`](setup.md) — setup, readiness smoke, and verification commands.
 - [`docs/browser-audio-validation.md`](browser-audio-validation.md) — live browser/audio evidence workflow.
+- [`docs/release-evidence.md`](release-evidence.md) — latest share-safe MVP release evidence.
