@@ -241,6 +241,11 @@ export default function LessonClient() {
     }
   }
 
+  function resetLocalProgress() {
+    clearSavedTotalXp();
+    setTotalXp(0);
+  }
+
   function syncLessonFromServer(nextLesson: LessonSession) {
     setLesson(nextLesson);
     setLearnerTurns(nextLesson.metrics.learnerTurns);
@@ -314,7 +319,17 @@ export default function LessonClient() {
               : "sin emitir"}
           </dd>
           <dt>Progreso</dt>
-          <dd>{totalXp} XP guardados</dd>
+          <dd>
+            {totalXp} XP guardados
+            {totalXp > 0 ? (
+              <>
+                {" "}
+                <button type="button" onClick={resetLocalProgress}>
+                  Borrar progreso local
+                </button>
+              </>
+            ) : null}
+          </dd>
         </dl>
       </section>
 
@@ -524,6 +539,16 @@ function writeSavedTotalXp(totalXp: number) {
 
   try {
     window.localStorage.setItem(LOCAL_XP_STORAGE_KEY, String(totalXp));
+  } catch {
+    // Local progress is an enhancement; verified XP still comes from the server.
+  }
+}
+
+function clearSavedTotalXp() {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.localStorage.removeItem(LOCAL_XP_STORAGE_KEY);
   } catch {
     // Local progress is an enhancement; verified XP still comes from the server.
   }

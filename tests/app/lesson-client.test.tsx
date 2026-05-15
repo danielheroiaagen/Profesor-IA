@@ -460,6 +460,24 @@ describe("LessonClient smoke", () => {
     expect(window.localStorage.getItem("profesor-ia.total-xp")).toBe("60");
   });
 
+  it("clears anonymous local XP progress from browser storage", async () => {
+    window.localStorage.setItem("profesor-ia.total-xp", "60");
+
+    render(<LessonClient />);
+
+    expect(await screen.findByText("60 XP guardados")).toBeVisible();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Borrar progreso local" }),
+    );
+
+    expect(await screen.findByText("0 XP guardados")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Borrar progreso local" }),
+    ).not.toBeInTheDocument();
+    expect(window.localStorage.getItem("profesor-ia.total-xp")).toBeNull();
+  });
+
   it("shows failed completion state when server denies XP", async () => {
     const lesson = {
       id: "lesson-denied",
