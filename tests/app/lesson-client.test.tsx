@@ -483,6 +483,122 @@ describe("LessonClient smoke", () => {
     expect(window.localStorage.getItem("profesor-ia.total-xp")).toBeNull();
   });
 
+  it("clears stale lesson state when retry start fails before creating a new lesson", async () => {
+    let startCount = 0;
+    const lesson = {
+      id: "lesson-retry-clears-stale-state",
+      state: "active",
+      startedAt: "2026-05-13T00:00:00.000Z",
+      metrics: { learnerTurns: 0, feedbackEvents: 0 },
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        const value = String(url);
+
+        if (value === "/api/lessons/start") {
+          startCount += 1;
+
+          if (startCount === 2) {
+            return Response.json(
+              {
+                error: {
+                  message: "Could not start a new lesson safely.",
+                },
+              },
+              { status: 503 },
+            );
+          }
+
+          return Response.json({
+            lesson,
+            avatar: {
+              mode: "voice-only",
+              available: false,
+              reason: "avatar-provider-not-configured",
+            },
+          });
+        }
+
+        if (value === "/api/realtime/session") {
+          return Response.json({
+            realtime: {
+              clientSecret: "ek_test_ephemeral",
+              model: "gpt-realtime-2",
+              expiresAt: "2026-05-13T00:10:00.000Z",
+              lessonId: "lesson-retry-clears-stale-state",
+              connectUrl: "https://api.openai.com/v1/realtime/calls",
+            },
+          });
+        }
+
+        if (value === "/api/lessons/evidence") {
+          const body = JSON.parse(String(init?.body)) as {
+            evidence: "learner-turn" | "feedback";
+          };
+
+          if (body.evidence === "learner-turn") {
+            lesson.metrics.learnerTurns += 1;
+          } else {
+            lesson.metrics.feedbackEvents += 1;
+            lesson.state = "feedback";
+          }
+
+          return Response.json({ lesson });
+        }
+
+        return Response.json({
+          lesson: {
+            ...lesson,
+            state: "completed",
+            completionReason: "completed",
+          },
+          xp: {
+            awarded: true,
+            xp: 50,
+            reason: "completed",
+          },
+        });
+      }),
+    );
+
+    render(<LessonClient />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
+    await screen.findByText("tutor en modo voz");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ya practiqué la frase" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ver corrección sugerida" }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("Prácticas: 1 · Feedback: 1")).toBeVisible(),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Finalizar clase" }));
+
+    expect(await screen.findByText("+50 XP ganados")).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Practicar otra vez" }));
+
+    expect(await screen.findByText("reintento recomendado")).toBeVisible();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Could not start a new lesson safely.",
+    );
+    expect(screen.getByText("tutor listo para empezar")).toBeVisible();
+    expect(screen.getByText("sin emitir")).toBeVisible();
+    expect(screen.getByText("Prácticas: 0 · Feedback: 0")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Ya practiqué la frase" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Ver corrección sugerida" }),
+    ).toBeDisabled();
+  });
+
   it("shows failed completion state when server denies XP", async () => {
     const lesson = {
       id: "lesson-denied",
