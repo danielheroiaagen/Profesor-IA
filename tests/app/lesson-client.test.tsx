@@ -49,6 +49,18 @@ describe("LessonClient smoke", () => {
         name: "Practicá inglés con una mini clase de voz.",
       }),
     ).toBeVisible();
+    expect(
+      screen.getByRole("heading", {
+        name: "Avatar configurado para tu clase",
+      }),
+    ).toBeVisible();
+    expect(screen.getByText("552426f4e4584a24871c5ffad2a97f73")).toBeVisible();
+    expect(screen.getByText("gpt-realtime-2")).toBeVisible();
+    expect(
+      screen.getByText(
+        "Escenario premium configurado; no afirmamos movimiento live si HeyGen no está disponible.",
+      ),
+    ).toBeVisible();
     expect(screen.getByText("Corrección visible")).toBeVisible();
     expect(screen.getByRole("button", { name: "Empezar clase" })).toBeEnabled();
   });
@@ -240,6 +252,9 @@ describe("LessonClient smoke", () => {
     fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
 
     await waitFor(() => expect(screen.getByText("voz lista")).toBeVisible());
+    expect(
+      screen.getByText("gpt-realtime-2 · credencial limitada"),
+    ).toBeVisible();
     expect(requestedUrls).toEqual(
       expect.arrayContaining([
         "/api/lessons/start",
