@@ -8,6 +8,8 @@ import {
   type LessonAccessRequest,
 } from "@/server/lesson-access";
 import { completeTrackedLesson } from "@/server/lesson-store";
+import { rateLimitPolicies } from "@/server/rate-limit";
+import { checkRateLimitResponse } from "@/server/rate-limit-response";
 
 type CompleteLessonRequest = LessonAccessRequest;
 
@@ -36,6 +38,16 @@ export async function POST(request: Request) {
       },
       { status: 403 },
     );
+  }
+
+  const rateLimited = checkRateLimitResponse({
+    request,
+    policy: rateLimitPolicies.lessonCompletion,
+    scope: parsed.value.lessonId,
+  });
+
+  if (rateLimited) {
+    return rateLimited;
   }
 
   const completion = completeTrackedLesson(parsed.value.lessonId);

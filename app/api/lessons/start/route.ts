@@ -12,8 +12,19 @@ import {
   createTrackedLesson,
   getTrackedLessonAccessToken,
 } from "@/server/lesson-store";
+import { rateLimitPolicies } from "@/server/rate-limit";
+import { checkRateLimitResponse } from "@/server/rate-limit-response";
 
-export async function POST() {
+export async function POST(request: Request) {
+  const rateLimited = checkRateLimitResponse({
+    request,
+    policy: rateLimitPolicies.lessonStart,
+  });
+
+  if (rateLimited) {
+    return rateLimited;
+  }
+
   try {
     const lesson = createTrackedLesson({ lessonId: randomUUID() });
     const avatar = await createHeyGenAvatarAdapterFromConfig().getStatus({

@@ -8,6 +8,8 @@ import {
   hasLessonAccess,
   parseLessonAccessRequest,
 } from "@/server/lesson-access";
+import { rateLimitPolicies } from "@/server/rate-limit";
+import { checkRateLimitResponse } from "@/server/rate-limit-response";
 
 export async function POST(request: Request) {
   const parsed = await parseLessonAccessRequest(request);
@@ -23,6 +25,16 @@ export async function POST(request: Request) {
       },
       { status: 403 },
     );
+  }
+
+  const rateLimited = checkRateLimitResponse({
+    request,
+    policy: rateLimitPolicies.liveAvatarSession,
+    scope: parsed.value.lessonId,
+  });
+
+  if (rateLimited) {
+    return rateLimited;
   }
 
   try {

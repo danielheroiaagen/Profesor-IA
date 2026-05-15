@@ -6,6 +6,8 @@ import {
   recordTrustedFeedback,
   recordTrustedLearnerTurn,
 } from "@/server/lesson-store";
+import { rateLimitPolicies } from "@/server/rate-limit";
+import { checkRateLimitResponse } from "@/server/rate-limit-response";
 
 type EvidenceType = "learner-turn" | "feedback";
 
@@ -40,6 +42,16 @@ export async function POST(request: Request) {
       },
       { status: 403 },
     );
+  }
+
+  const rateLimited = checkRateLimitResponse({
+    request,
+    policy: rateLimitPolicies.lessonEvidence,
+    scope: parsed.value.lessonId,
+  });
+
+  if (rateLimited) {
+    return rateLimited;
   }
 
   const lesson =

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/../app/api/lessons/start/route";
+import { resetRateLimitsForTests } from "@/server/rate-limit";
 
 const HEYGEN_API_KEY = "heygen-secret-never-returned";
 
@@ -8,6 +9,7 @@ describe("POST /api/lessons/start", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+    resetRateLimitsForTests();
   });
 
   it("starts a lesson with a server-validated avatar status and no key leakage", async () => {
@@ -28,7 +30,7 @@ describe("POST /api/lessons/start", () => {
       }),
     );
 
-    const response = await POST();
+    const response = await POST(startRequest());
     const body = await response.json();
     const serialized = JSON.stringify(body);
 
@@ -50,7 +52,7 @@ describe("POST /api/lessons/start", () => {
     const fetchImpl = vi.fn();
     vi.stubGlobal("fetch", fetchImpl);
 
-    const response = await POST();
+    const response = await POST(startRequest());
     const body = await response.json();
     const serialized = JSON.stringify(body);
 
@@ -66,4 +68,31 @@ describe("POST /api/lessons/start", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(serialized).not.toContain("HEYGEN_API_KEY");
   });
+
+  it("rate limits excessive lesson starts before provider calls", async () => {
+    const fetchImpl = vi.fn();
+    vi.stubGlobal("fetch", fetchImpl);
+
+    let response = await POST(startRequest());
+
+    expect(response.status).toBe(201);
+
+    for (let index = 0; index < 20; index += 1) {
+      response = await POST(startRequest());
+    }
+
+    const body = await response.json();
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBeTruthy();
+    expect(body.error.code).toBe("rate-limit-exceeded");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
 });
+
+function startRequest() {
+  return new Request("http://localhost/api/lessons/start", {
+    method: "POST",
+    headers: { "x-forwarded-for": "203.0.113.10" },
+  });
+}

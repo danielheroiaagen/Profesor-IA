@@ -8,6 +8,8 @@ import {
   hasLessonAccess,
   parseLessonAccessRequest,
 } from "@/server/lesson-access";
+import { rateLimitPolicies } from "@/server/rate-limit";
+import { checkRateLimitResponse } from "@/server/rate-limit-response";
 
 export async function POST(request: Request) {
   const parsed = await parseLessonAccessRequest(request);
@@ -25,6 +27,15 @@ export async function POST(request: Request) {
   }
 
   const { lessonId } = parsed.value;
+  const rateLimited = checkRateLimitResponse({
+    request,
+    policy: rateLimitPolicies.realtimeSession,
+    scope: lessonId,
+  });
+
+  if (rateLimited) {
+    return rateLimited;
+  }
 
   try {
     const realtime = await mintRealtimeSessionFromConfig({
