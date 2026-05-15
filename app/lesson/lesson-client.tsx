@@ -310,6 +310,14 @@ export default function LessonClient() {
           <dd>
             {formatAvatarStatus(avatar)}
             {avatar?.avatarId ? ` · ${avatar.avatarId}` : ""}
+            {avatar && !avatar.available ? (
+              <>
+                {" "}
+                <span>
+                  La clase sigue por voz; el avatar no bloquea la práctica.
+                </span>
+              </>
+            ) : null}
           </dd>
           <dt>Sesión protegida</dt>
           <dd>
