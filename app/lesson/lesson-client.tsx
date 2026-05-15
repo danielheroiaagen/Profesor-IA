@@ -94,11 +94,10 @@ export default function LessonClient() {
   const hasCompletionEvidence =
     learnerTurns >= REQUIRED_LEARNER_TURNS &&
     feedbackEvents >= REQUIRED_FEEDBACK_EVENTS;
+  const lessonEnded = status === "completed" || status === "failed";
   const canCompleteLesson =
-    Boolean(lesson) &&
-    status !== "completed" &&
-    status !== "failed" &&
-    hasCompletionEvidence;
+    Boolean(lesson) && !lessonEnded && hasCompletionEvidence;
+  const practiceControlsDisabled = !lesson || lessonEnded;
 
   async function startLesson() {
     replaceRealtimeConnection(null);
@@ -349,17 +348,14 @@ export default function LessonClient() {
 
       <section style={{ display: "grid", gap: "0.75rem", marginTop: "1.5rem" }}>
         <button onClick={startLesson} disabled={status === "starting"}>
-          {status === "starting" ? "Preparando clase..." : "Empezar clase"}
+          {formatStartLessonAction(status)}
         </button>
-        <button
-          onClick={recordLearnerTurn}
-          disabled={!lesson || status === "completed"}
-        >
+        <button onClick={recordLearnerTurn} disabled={practiceControlsDisabled}>
           Ya practiqué la frase
         </button>
         <button
           onClick={recordVisibleFeedback}
-          disabled={!lesson || status === "completed"}
+          disabled={practiceControlsDisabled}
         >
           Ver corrección sugerida
         </button>
@@ -436,6 +432,14 @@ function formatConnectionStatus(status: ConnectionStatus) {
     failed: "no conectada",
   };
   return labels[status];
+}
+
+function formatStartLessonAction(status: LessonStatus) {
+  if (status === "starting") return "Preparando clase...";
+  if (status === "completed") return "Practicar otra vez";
+  if (status === "failed") return "Reintentar clase";
+
+  return "Empezar clase";
 }
 
 function formatAvatarStatus(avatar: AvatarStatus | null) {

@@ -577,6 +577,18 @@ describe("LessonClient smoke", () => {
     expect(
       screen.getByRole("heading", { name: "Todavía sin XP" }),
     ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Reintentar clase" }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Ya practiqué la frase" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Ver corrección sugerida" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Finalizar clase" }),
+    ).toBeDisabled();
   });
 
   it("closes realtime microphone capture when the lesson finishes", async () => {
@@ -713,6 +725,15 @@ describe("LessonClient smoke", () => {
     expect(track.stop).toHaveBeenCalled();
     expect(dataChannel.close).toHaveBeenCalled();
     expect(peerConnection.close).toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Practicar otra vez" }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Ya practiqué la frase" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Ver corrección sugerida" }),
+    ).toBeDisabled();
   });
 
   it("closes the previous realtime connection before starting another one", async () => {
