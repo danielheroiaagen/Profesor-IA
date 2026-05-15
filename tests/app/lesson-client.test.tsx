@@ -98,6 +98,11 @@ describe("LessonClient smoke", () => {
     fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
 
     expect(await screen.findByText("tutor en modo voz")).toBeVisible();
+    expect(
+      screen.getByText(
+        "La clase sigue por voz; el avatar no bloquea la práctica.",
+      ),
+    ).toBeVisible();
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Microphone APIs are unavailable in this browser.",
     );
