@@ -1,6 +1,7 @@
 # Tasks: Premium Avatar Classroom Experience
 
-GitHub issue: #73
+Planning issue: #73
+Implementation issue: #77
 
 ## Review Workload Forecast
 
@@ -34,8 +35,8 @@ Chain strategy: feature-branch-chain
 
 ## Phase 2: Premium Presentation Scaffold
 
-- [ ] 2.1 Update `app/lesson/lesson-client.tsx` with view model helpers carrying avatar ID `552426f4e4584a24871c5ffad2a97f73` and Realtime model `gpt-realtime-2`.
-- [ ] 2.2 Replace the status-list layout with avatar-first classroom sections and custom accessible buttons.
+- [x] 2.1 Update `app/lesson/lesson-client.tsx` with view model helpers carrying avatar ID `552426f4e4584a24871c5ffad2a97f73` and Realtime model `gpt-realtime-2`.
+- [x] 2.2 Replace the status-list layout with avatar-first classroom sections and custom accessible buttons.
 - [ ] 2.3 Update `app/page.tsx` so the landing CTA matches the premium private-tutor promise.
 
 ## Phase 3: State Coverage
@@ -46,12 +47,12 @@ Chain strategy: feature-branch-chain
 
 ## Phase 4: Tests and Validation
 
-- [ ] 4.1 Update `tests/app/lesson-client.test.tsx` for premium initial surface and accessible state labels.
-- [ ] 4.2 Preserve existing Realtime credential, fallback, evidence, and XP regression assertions.
-- [ ] 4.3 Run `npm run verify`.
-- [ ] 4.4 Validate visually with Browser/Computer Use screenshot.
+- [x] 4.1 Update `tests/app/lesson-client.test.tsx` for premium initial surface and accessible state labels.
+- [x] 4.2 Preserve existing Realtime credential, fallback, evidence, and XP regression assertions.
+- [x] 4.3 Run `npm run verify`.
+- [x] 4.4 Validate visually with Browser/Computer Use screenshot.
 - [ ] 4.5 Run final real browser mic/WebRTC/HeyGen validation proving configured avatar movement/speech or block release with evidence.
-- [ ] 4.6 Add/keep a regression assertion that Realtime sessions return `gpt-realtime-2`.
+- [x] 4.6 Add/keep a regression assertion that Realtime sessions return `gpt-realtime-2`.
 
 ## Phase 5: Evidence
 
