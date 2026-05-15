@@ -144,7 +144,7 @@ export default function LessonClient() {
       setConnectionStatus("connected");
       setStatus("active");
     } catch (startError) {
-      setConnectionStatus("fallback");
+      setConnectionStatus(lessonStarted ? "fallback" : "failed");
       setStatus(lessonStarted ? "active" : "failed");
       setError(
         startError instanceof Error

@@ -588,6 +588,7 @@ describe("LessonClient smoke", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Could not start a new lesson safely.",
     );
+    expect(screen.getByText("no conectada")).toBeVisible();
     expect(screen.getByText("tutor listo para empezar")).toBeVisible();
     expect(screen.getByText("sin emitir")).toBeVisible();
     expect(screen.getByText("Prácticas: 0 · Feedback: 0")).toBeVisible();
