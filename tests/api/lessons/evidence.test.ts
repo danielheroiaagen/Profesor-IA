@@ -4,6 +4,7 @@ import { POST as completeLesson } from "@/../app/api/lessons/complete/route";
 import { POST as recordEvidence } from "@/../app/api/lessons/evidence/route";
 import {
   createTrackedLesson,
+  getTrackedLessonAccessToken,
   resetTrackedLessonsForTests,
 } from "@/server/lesson-store";
 
@@ -51,6 +52,9 @@ describe("POST /api/lessons/evidence", () => {
         method: "POST",
         body: JSON.stringify({
           lessonId: "lesson-realtime-evidence",
+          lessonAccessToken: getTrackedLessonAccessToken(
+            "lesson-realtime-evidence",
+          ),
         }),
       }),
     );
@@ -63,11 +67,33 @@ describe("POST /api/lessons/evidence", () => {
       reason: "completed",
     });
   });
+
+  it("rejects evidence when the lesson access token does not match", async () => {
+    createTrackedLesson({ lessonId: "lesson-realtime-evidence" });
+
+    const response = await recordEvidence(
+      new Request("http://localhost/api/lessons/evidence", {
+        method: "POST",
+        body: JSON.stringify({
+          lessonId: "lesson-realtime-evidence",
+          lessonAccessToken: "wrong-token",
+          evidence: "learner-turn",
+        }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error.code).toBe("lesson-access-denied");
+  });
 });
 
 function evidenceRequest(body: { lessonId: string; evidence: string }) {
   return new Request("http://localhost/api/lessons/evidence", {
     method: "POST",
-    body: JSON.stringify(body),
+    body: JSON.stringify({
+      ...body,
+      lessonAccessToken: getTrackedLessonAccessToken(body.lessonId),
+    }),
   });
 }

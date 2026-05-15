@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 
 import { awardLessonXp } from "@/domain/gamification";
 import { toSafeLessonResponse } from "@/domain/lesson";
+import {
+  hasLessonAccess,
+  parseLessonAccessRequest,
+  type LessonAccessRequest,
+} from "@/server/lesson-access";
 import { completeTrackedLesson } from "@/server/lesson-store";
 
-type CompleteLessonRequest = {
-  lessonId: string;
-};
+type CompleteLessonRequest = LessonAccessRequest;
 
 export async function POST(request: Request) {
   const parsed = await parseCompleteLessonRequest(request);
@@ -20,6 +23,18 @@ export async function POST(request: Request) {
         },
       },
       { status: 400 },
+    );
+  }
+
+  if (!hasLessonAccess(parsed.value)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "lesson-access-denied",
+          message: "Completion could not be verified from your lesson.",
+        },
+      },
+      { status: 403 },
     );
   }
 
@@ -58,34 +73,5 @@ type ParseResult =
 async function parseCompleteLessonRequest(
   request: Request,
 ): Promise<ParseResult> {
-  try {
-    const body: unknown = await request.json();
-
-    if (!isRecord(body)) {
-      return { ok: false };
-    }
-
-    const lessonId = readString(body.lessonId);
-
-    if (!lessonId) {
-      return { ok: false };
-    }
-
-    return {
-      ok: true,
-      value: {
-        lessonId,
-      },
-    };
-  } catch {
-    return { ok: false };
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function readString(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
+  return parseLessonAccessRequest(request);
 }

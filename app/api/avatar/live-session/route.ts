@@ -4,8 +4,27 @@ import {
   LiveAvatarSessionError,
   mintLiveAvatarSessionFromConfig,
 } from "@/integrations/avatar/liveavatar";
+import {
+  hasLessonAccess,
+  parseLessonAccessRequest,
+} from "@/server/lesson-access";
 
-export async function POST() {
+export async function POST(request: Request) {
+  const parsed = await parseLessonAccessRequest(request);
+
+  if (!parsed.ok || !hasLessonAccess(parsed.value)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "lesson-access-denied",
+          message:
+            "Live avatar session could not start. Voice mode remains available.",
+        },
+      },
+      { status: 403 },
+    );
+  }
+
   try {
     const liveAvatar = await mintLiveAvatarSessionFromConfig();
 

@@ -36,6 +36,12 @@ type AvatarLiveSession = {
   sessionToken: string;
 };
 
+type LessonStartResponse = {
+  lesson: LessonSession;
+  lessonAccessToken: string;
+  avatar: AvatarStatus;
+};
+
 type LessonEvidence = "learner-turn" | "feedback";
 
 type XPResult = {
@@ -110,6 +116,7 @@ export default function LessonClient() {
   const [totalXp, setTotalXp] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const connectionRef = useRef<RealtimeConnection | null>(null);
+  const lessonAccessTokenRef = useRef<string | null>(null);
   const liveAvatarRef = useRef<LiveAvatarSessionType | null>(null);
   const liveAvatarVideoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -137,6 +144,7 @@ export default function LessonClient() {
 
     setStatus("starting");
     setConnectionStatus("requesting-mic");
+    lessonAccessTokenRef.current = null;
     setLesson(null);
     setAvatar(null);
     setLiveAvatarStatus("idle");
@@ -148,18 +156,26 @@ export default function LessonClient() {
     setFeedbackSummary(INITIAL_FEEDBACK_SUMMARY);
 
     try {
-      const lessonResponse = await postJson<{
-        lesson: LessonSession;
-        avatar: AvatarStatus;
-      }>("/api/lessons/start", {});
+      const lessonResponse = await postJson<LessonStartResponse>(
+        "/api/lessons/start",
+        {},
+      );
       lessonStarted = true;
+      lessonAccessTokenRef.current = lessonResponse.lessonAccessToken;
       setLesson(lessonResponse.lesson);
       setAvatar(lessonResponse.avatar);
-      void startLiveAvatarSession(lessonResponse.avatar);
+      void startLiveAvatarSession(
+        lessonResponse.avatar,
+        lessonResponse.lesson.id,
+        lessonResponse.lessonAccessToken,
+      );
 
       const realtimeResponse = await postJson<{ realtime: RealtimeSession }>(
         "/api/realtime/session",
-        { lessonId: lessonResponse.lesson.id },
+        {
+          lessonId: lessonResponse.lesson.id,
+          lessonAccessToken: lessonResponse.lessonAccessToken,
+        },
       );
 
       setRealtime({
@@ -188,7 +204,11 @@ export default function LessonClient() {
     }
   }
 
-  async function startLiveAvatarSession(nextAvatar: AvatarStatus) {
+  async function startLiveAvatarSession(
+    nextAvatar: AvatarStatus,
+    lessonId: string,
+    lessonAccessToken: string,
+  ) {
     if (!nextAvatar.available || !nextAvatar.avatarId) return;
 
     await stopLiveAvatarSession({ resetState: false });
@@ -197,7 +217,7 @@ export default function LessonClient() {
     try {
       const response = await postJson<{ liveAvatar: AvatarLiveSession }>(
         "/api/avatar/live-session",
-        {},
+        { lessonId, lessonAccessToken },
       );
       const { LiveAvatarSession, SessionEvent } =
         await import("@heygen/liveavatar-web-sdk");
@@ -265,6 +285,7 @@ export default function LessonClient() {
         "/api/lessons/evidence",
         {
           lessonId,
+          lessonAccessToken: lessonAccessTokenRef.current,
           evidence,
         },
       );
@@ -309,6 +330,7 @@ export default function LessonClient() {
         "/api/lessons/complete",
         {
           lessonId: lesson.id,
+          lessonAccessToken: lessonAccessTokenRef.current,
         },
       );
 

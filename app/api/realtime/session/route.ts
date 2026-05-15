@@ -1,19 +1,30 @@
-import { randomUUID } from "node:crypto";
-
 import { NextResponse } from "next/server";
 
 import {
   mintRealtimeSessionFromConfig,
   RealtimeSessionError,
 } from "@/integrations/openai/realtime";
-
-type RealtimeSessionRequest = {
-  lessonId?: string;
-};
+import {
+  hasLessonAccess,
+  parseLessonAccessRequest,
+} from "@/server/lesson-access";
 
 export async function POST(request: Request) {
-  const body = await readRequestBody(request);
-  const lessonId = readLessonId(body) ?? randomUUID();
+  const parsed = await parseLessonAccessRequest(request);
+
+  if (!parsed.ok || !hasLessonAccess(parsed.value)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "lesson-access-denied",
+          message: "Voice session could not start. Please restart the lesson.",
+        },
+      },
+      { status: 403 },
+    );
+  }
+
+  const { lessonId } = parsed.value;
 
   try {
     const realtime = await mintRealtimeSessionFromConfig({
@@ -38,25 +49,4 @@ export async function POST(request: Request) {
       { status: 502 },
     );
   }
-}
-
-async function readRequestBody(
-  request: Request,
-): Promise<RealtimeSessionRequest> {
-  try {
-    const data: unknown = await request.json();
-    return isRecord(data) ? data : {};
-  } catch {
-    return {};
-  }
-}
-
-function readLessonId(body: RealtimeSessionRequest): string | null {
-  return typeof body.lessonId === "string" && body.lessonId.trim()
-    ? body.lessonId.trim()
-    : null;
-}
-
-function isRecord(value: unknown): value is RealtimeSessionRequest {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

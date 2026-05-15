@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/../app/api/realtime/session/route";
+import {
+  createTrackedLesson,
+  getTrackedLessonAccessToken,
+  resetTrackedLessonsForTests,
+} from "@/server/lesson-store";
 
 const PRIMARY_API_KEY = "sk-test-primary-key-never-returned";
 
@@ -8,6 +13,7 @@ describe("POST /api/realtime/session", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+    resetTrackedLessonsForTests();
   });
 
   it("returns only an ephemeral realtime credential", async () => {
@@ -27,13 +33,9 @@ describe("POST /api/realtime/session", () => {
         }),
       ),
     );
+    createTrackedLesson({ lessonId: "lesson-route" });
 
-    const response = await POST(
-      new Request("http://localhost/api/realtime/session", {
-        method: "POST",
-        body: JSON.stringify({ lessonId: "lesson-route" }),
-      }),
-    );
+    const response = await POST(lessonAccessRequest("lesson-route"));
     const body = await response.json();
     const serialized = JSON.stringify(body);
 
@@ -53,13 +55,9 @@ describe("POST /api/realtime/session", () => {
       "fetch",
       vi.fn(async () => Response.json({ error: "upstream" }, { status: 500 })),
     );
+    createTrackedLesson({ lessonId: "lesson-route" });
 
-    const response = await POST(
-      new Request("http://localhost/api/realtime/session", {
-        method: "POST",
-        body: JSON.stringify({ lessonId: "lesson-route" }),
-      }),
-    );
+    const response = await POST(lessonAccessRequest("lesson-route"));
     const body = await response.json();
     const serialized = JSON.stringify(body);
 
@@ -75,13 +73,9 @@ describe("POST /api/realtime/session", () => {
   it("fails safely when server OpenAI configuration is missing", async () => {
     const fetchImpl = vi.fn();
     vi.stubGlobal("fetch", fetchImpl);
+    createTrackedLesson({ lessonId: "lesson-route" });
 
-    const response = await POST(
-      new Request("http://localhost/api/realtime/session", {
-        method: "POST",
-        body: JSON.stringify({ lessonId: "lesson-route" }),
-      }),
-    );
+    const response = await POST(lessonAccessRequest("lesson-route"));
     const body = await response.json();
     const serialized = JSON.stringify(body);
 
@@ -94,4 +88,36 @@ describe("POST /api/realtime/session", () => {
     expect(serialized).not.toContain("OPENAI_API_KEY");
     expect(serialized).not.toContain(".env");
   });
+
+  it("rejects token minting for lessons without a matching access token", async () => {
+    vi.stubEnv("OPENAI_API_KEY", PRIMARY_API_KEY);
+    const fetchImpl = vi.fn();
+    vi.stubGlobal("fetch", fetchImpl);
+    createTrackedLesson({ lessonId: "lesson-route" });
+
+    const response = await POST(
+      new Request("http://localhost/api/realtime/session", {
+        method: "POST",
+        body: JSON.stringify({
+          lessonId: "lesson-route",
+          lessonAccessToken: "wrong-token",
+        }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error.code).toBe("lesson-access-denied");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
 });
+
+function lessonAccessRequest(lessonId: string) {
+  return new Request("http://localhost/api/realtime/session", {
+    method: "POST",
+    body: JSON.stringify({
+      lessonId,
+      lessonAccessToken: getTrackedLessonAccessToken(lessonId),
+    }),
+  });
+}

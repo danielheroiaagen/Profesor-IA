@@ -40,6 +40,8 @@ describe("POST /api/lessons/start", () => {
       reason: "avatar-validated",
     });
     expect(body.lesson.state).toBe("active");
+    expect(body.lessonAccessToken).toEqual(expect.any(String));
+    expect(body.lessonAccessToken).not.toHaveLength(0);
     expect(serialized).not.toContain(HEYGEN_API_KEY);
     expect(serialized).not.toContain("HEYGEN_API_KEY");
   });
@@ -59,6 +61,8 @@ describe("POST /api/lessons/start", () => {
       reason: "avatar-provider-not-configured",
     });
     expect(body.lesson.state).toBe("active");
+    expect(body.lessonAccessToken).toEqual(expect.any(String));
+    expect(body.lessonAccessToken).not.toHaveLength(0);
     expect(fetchImpl).not.toHaveBeenCalled();
     expect(serialized).not.toContain("HEYGEN_API_KEY");
   });

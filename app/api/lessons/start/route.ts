@@ -8,7 +8,10 @@ import {
   toSafeLessonResponse,
 } from "@/domain/lesson";
 import { createHeyGenAvatarAdapterFromConfig } from "@/integrations/avatar/heygen";
-import { createTrackedLesson } from "@/server/lesson-store";
+import {
+  createTrackedLesson,
+  getTrackedLessonAccessToken,
+} from "@/server/lesson-store";
 
 export async function POST() {
   try {
@@ -20,6 +23,7 @@ export async function POST() {
     return NextResponse.json(
       {
         lesson: toSafeLessonResponse(lesson),
+        lessonAccessToken: getTrackedLessonAccessToken(lesson.id),
         avatar,
       },
       { status: 201 },

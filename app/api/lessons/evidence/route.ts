@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { toSafeLessonResponse } from "@/domain/lesson";
+import { hasLessonAccess, isRecord, readString } from "@/server/lesson-access";
 import {
   recordTrustedFeedback,
   recordTrustedLearnerTurn,
@@ -10,6 +11,7 @@ type EvidenceType = "learner-turn" | "feedback";
 
 type EvidenceRequest = {
   lessonId: string;
+  lessonAccessToken: string;
   evidence: EvidenceType;
 };
 
@@ -25,6 +27,18 @@ export async function POST(request: Request) {
         },
       },
       { status: 400 },
+    );
+  }
+
+  if (!hasLessonAccess(parsed.value)) {
+    return NextResponse.json(
+      {
+        error: {
+          code: "lesson-access-denied",
+          message: "Lesson evidence could not be matched to your lesson.",
+        },
+      },
+      { status: 403 },
     );
   }
 
@@ -67,8 +81,9 @@ async function parseEvidenceRequest(request: Request): Promise<ParseResult> {
 
     const lessonId = readString(body.lessonId);
     const evidence = readEvidence(body.evidence);
+    const lessonAccessToken = readString(body.lessonAccessToken);
 
-    if (!lessonId || !evidence) {
+    if (!lessonId || !lessonAccessToken || !evidence) {
       return { ok: false };
     }
 
@@ -76,6 +91,7 @@ async function parseEvidenceRequest(request: Request): Promise<ParseResult> {
       ok: true,
       value: {
         lessonId,
+        lessonAccessToken,
         evidence,
       },
     };
@@ -86,12 +102,4 @@ async function parseEvidenceRequest(request: Request): Promise<ParseResult> {
 
 function readEvidence(value: unknown): EvidenceType | null {
   return value === "learner-turn" || value === "feedback" ? value : null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function readString(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
 }

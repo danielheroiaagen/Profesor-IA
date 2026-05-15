@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { POST } from "@/../app/api/lessons/complete/route";
 import {
   createTrackedLesson,
+  getTrackedLessonAccessToken,
   recordTrustedFeedback,
   recordTrustedLearnerTurn,
   resetTrackedLessonsForTests,
@@ -21,14 +22,7 @@ describe("POST /api/lessons/complete", () => {
     recordTrustedLearnerTurn("lesson-complete");
     recordTrustedFeedback("lesson-complete");
 
-    const response = await POST(
-      new Request("http://localhost/api/lessons/complete", {
-        method: "POST",
-        body: JSON.stringify({
-          lessonId: "lesson-complete",
-        }),
-      }),
-    );
+    const response = await POST(lessonAccessRequest("lesson-complete"));
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -60,6 +54,7 @@ describe("POST /api/lessons/complete", () => {
         method: "POST",
         body: JSON.stringify({
           lessonId: "lesson-opened-only",
+          lessonAccessToken: getTrackedLessonAccessToken("lesson-opened-only"),
           learnerTurns: 1,
           feedbackEvents: 1,
           canVerify: true,
@@ -86,4 +81,32 @@ describe("POST /api/lessons/complete", () => {
       reason: "insufficient-participation",
     });
   });
+
+  it("rejects completion when the lesson access token does not match", async () => {
+    createTrackedLesson({ lessonId: "lesson-complete" });
+
+    const response = await POST(
+      new Request("http://localhost/api/lessons/complete", {
+        method: "POST",
+        body: JSON.stringify({
+          lessonId: "lesson-complete",
+          lessonAccessToken: "wrong-token",
+        }),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error.code).toBe("lesson-access-denied");
+  });
 });
+
+function lessonAccessRequest(lessonId: string) {
+  return new Request("http://localhost/api/lessons/complete", {
+    method: "POST",
+    body: JSON.stringify({
+      lessonId,
+      lessonAccessToken: getTrackedLessonAccessToken(lessonId),
+    }),
+  });
+}
