@@ -37,26 +37,61 @@ A successful browser run shows:
 If any of those are missing, treat it as a product or environment validation
 finding and record it with `docs/browser-audio-validation.md`.
 
-## Readiness check
+## Readiness checks
 
-Use the safe readiness endpoint in deployments and local smoke checks:
+Use readiness smoke commands to prove the voice runtime without exposing
+secrets. Pick the smallest command that matches the environment:
+
+| Command                          | What it proves                                        | Prerequisite                       |
+| -------------------------------- | ----------------------------------------------------- | ---------------------------------- |
+| `npm run smoke:readiness`        | A running app or deployed URL answers ready.          | App already running.               |
+| `npm run smoke:readiness:server` | The built production server starts and answers ready. | `npm run build` already completed. |
+
+### Running app or deployed URL
+
+The command expects a running app at `http://localhost:3000/api/readiness` by
+default:
 
 ```bash
 npm run smoke:readiness
 ```
 
-The command expects a running app at `http://localhost:3000/api/readiness` by
-default. To check a deployed environment:
+To check a deployed environment:
 
 ```bash
 READINESS_URL="https://your-app.example/api/readiness" npm run smoke:readiness
 ```
 
-The underlying endpoint returns `200` with `status: "ready"` when required
-OpenAI configuration is present, or `503` with `status: "degraded"` when voice
-configuration is missing. The response and smoke command output contain only
-booleans or non-secret metadata; they must never include API keys, client
-secrets, `.env` values, SDP payloads, or raw provider responses.
+### Production server smoke
+
+CI runs this after `npm run verify`. Locally, run the same path after a build:
+
+```bash
+npm run build
+OPENAI_API_KEY=ci-readiness-placeholder npm run smoke:readiness:server
+```
+
+The placeholder key is safe only for readiness smoke because `/api/readiness`
+checks whether the required server variable is present. Do not use placeholder
+keys for real Realtime lessons.
+
+Useful overrides:
+
+| Variable                | Purpose                      | Default                                              |
+| ----------------------- | ---------------------------- | ---------------------------------------------------- |
+| `READINESS_HOST`        | Host passed to `next start`. | `127.0.0.1`                                          |
+| `READINESS_PORT`        | Port passed to `next start`. | `3000`                                               |
+| `READINESS_URL`         | Exact endpoint to poll.      | `http://READINESS_HOST:READINESS_PORT/api/readiness` |
+| `READINESS_RETRIES`     | Number of polling attempts.  | `30`                                                 |
+| `READINESS_INTERVAL_MS` | Wait between attempts.       | `1000`                                               |
+
+A passing smoke prints `readiness=ready http=200`. The production-server smoke
+also prints `readiness-server=ready`. The endpoint returns `200` with
+`status: "ready"` when required OpenAI configuration is present, or `503` with
+`status: "degraded"` when voice configuration is missing. The response and
+smoke output contain only booleans or non-secret metadata; they must never
+include API keys, client secrets, `.env` values, SDP payloads, or raw provider
+responses.
 
 ## Verification Commands
 
