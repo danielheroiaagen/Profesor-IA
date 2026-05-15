@@ -73,4 +73,5 @@ model/provider metadata.
 
 - [`docs/PRD.md`](docs/PRD.md) — product scope and acceptance criteria.
 - [`docs/setup.md`](docs/setup.md) — local setup, environment names, and safety rules.
+- [`docs/release-checklist.md`](docs/release-checklist.md) — final MVP release gates and ship/no-ship criteria.
 - [`docs/browser-audio-validation.md`](docs/browser-audio-validation.md) — opt-in live browser/audio evidence workflow.
