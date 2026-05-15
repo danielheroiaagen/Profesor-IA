@@ -42,14 +42,21 @@ finding and record it with `docs/browser-audio-validation.md`.
 Use the safe readiness endpoint in deployments and local smoke checks:
 
 ```bash
-curl -i http://localhost:3000/api/readiness
+npm run smoke:readiness
 ```
 
-It returns `200` with `status: "ready"` when required OpenAI configuration is
-present, or `503` with `status: "degraded"` when voice configuration is missing.
-The response contains only booleans and non-secret metadata; it must never
-include API keys, client secrets, `.env` values, SDP payloads, or raw provider
-responses.
+The command expects a running app at `http://localhost:3000/api/readiness` by
+default. To check a deployed environment:
+
+```bash
+READINESS_URL="https://your-app.example/api/readiness" npm run smoke:readiness
+```
+
+The underlying endpoint returns `200` with `status: "ready"` when required
+OpenAI configuration is present, or `503` with `status: "degraded"` when voice
+configuration is missing. The response and smoke command output contain only
+booleans or non-secret metadata; they must never include API keys, client
+secrets, `.env` values, SDP payloads, or raw provider responses.
 
 ## Verification Commands
 
