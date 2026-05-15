@@ -23,10 +23,10 @@ This page records share-safe evidence for the current Profesor IA MVP release ca
 
 ## Ship decision
 
-| Decision            | Status                                                    |
-| ------------------- | --------------------------------------------------------- |
-| Local MVP           | Ship candidate passed live validation.                    |
-| Public/deployed MVP | Not yet decided; requires a deployed readiness URL check. |
+| Decision            | Status                                                                                                |
+| ------------------- | ----------------------------------------------------------------------------------------------------- |
+| Local MVP           | Ship candidate passed live validation.                                                                |
+| Public/deployed MVP | Not yet decided; follow [`docs/deployment.md`](deployment.md) and run a deployed readiness URL check. |
 
 ## Notes
 
