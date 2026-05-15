@@ -6,3 +6,4 @@ dist/
 .atl/.skill-registry.cache.json
 .env*
 !.env.example
+.DS_Store
