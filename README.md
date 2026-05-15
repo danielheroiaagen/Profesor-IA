@@ -58,8 +58,9 @@ npm run verify
 For live microphone/WebRTC validation, use
 [`docs/browser-audio-validation.md`](docs/browser-audio-validation.md).
 
-For deployment checks, call `GET /api/readiness`. It returns only safe boolean
-status and non-secret model/provider metadata.
+For deployment checks, run `npm run smoke:readiness` against a running app or
+call `GET /api/readiness` directly. Both return only safe status and non-secret
+model/provider metadata.
 
 ## Key docs
 
