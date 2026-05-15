@@ -14,7 +14,7 @@ Use **Final HeyGen Avatar Stage** as the implementation target.
 
 Do not change these behaviors in this redesign:
 
-- HeyGen avatar identity: `552426f4e4584a24871c5ffad2a97f73`
+- HeyGen avatar identity: `e29e792a-41e7-4df0-84a8-349e099fb50f`
 - OpenAI Realtime voice model: `gpt-realtime-2`
 - Existing server API routes and payload shapes
 - Server-minted limited Realtime credential flow
@@ -62,7 +62,7 @@ type TutorStageViewModel = {
     | "fallback"
     | "completed";
   isLiveAvatar: boolean;
-  avatarId: "552426f4e4584a24871c5ffad2a97f73";
+  avatarId: "e29e792a-41e7-4df0-84a8-349e099fb50f";
   realtimeModel: "gpt-realtime-2";
 };
 ```

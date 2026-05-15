@@ -1,7 +1,7 @@
 ## Exploration: profesor-ingles-ia-gamificado
 
 ### Current State
-Greenfield repository. The only project artifacts are `.env` (not read), `.atl/skill-registry.md`, and OpenSpec init files. `openspec/config.yaml` confirms hybrid artifact storage, no app stack, no test runner, `strict_tdd: false`, OpenAI Realtime target `gpt-realtime-2`, HeyGen avatar ID `552426f4e4584a24871c5ffad2a97f73`, and the rule that browser integrations MUST use server-side env vars plus ephemeral client secrets.
+Greenfield repository. The only project artifacts are `.env` (not read), `.atl/skill-registry.md`, and OpenSpec init files. `openspec/config.yaml` confirms hybrid artifact storage, no app stack, no test runner, `strict_tdd: false`, OpenAI Realtime target `gpt-realtime-2`, HeyGen avatar ID `e29e792a-41e7-4df0-84a8-349e099fb50f`, and the rule that browser integrations MUST use server-side env vars plus ephemeral client secrets.
 
 Docs checked during exploration:
 - OpenAI Realtime docs expose server-created Realtime client secrets via `/v1/realtime/client_secrets`; browser WebRTC clients use the short-lived `ek_...` secret, not the main API key.

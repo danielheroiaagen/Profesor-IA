@@ -4,7 +4,7 @@ GitHub issue: #73
 
 ## Intent
 
-The current `/lesson` screen is validated but unpublishable: it feels like a debug form instead of a futuristic private AI tutor. This change defines a surgical redesign: premium avatar-first class experience bound to the configured HeyGen avatar ID `552426f4e4584a24871c5ffad2a97f73`, using OpenAI `gpt-realtime-2`, with no regression to WebRTC, XP, or security.
+The current `/lesson` screen is validated but unpublishable: it feels like a debug form instead of a futuristic private AI tutor. This change defines a surgical redesign: premium avatar-first class experience bound to the configured HeyGen avatar ID `e29e792a-41e7-4df0-84a8-349e099fb50f`, using OpenAI `gpt-realtime-2`, with no regression to WebRTC, XP, or security.
 
 ## Scope
 

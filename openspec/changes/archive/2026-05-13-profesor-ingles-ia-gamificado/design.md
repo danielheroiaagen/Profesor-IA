@@ -19,7 +19,7 @@ Bootstrap a greenfield Next.js + TypeScript MVP where Next.js owns both the Reac
 - Browser UI/client session: microphone permission, WebRTC/session lifecycle, visible feedback, no primary secrets.
 - Server API routes: validate lesson start, mint tokens, proxy/server-mediate vendor needs.
 - OpenAI token service: server-only `OPENAI_API_KEY`, returns ephemeral Realtime session data.
-- HeyGen avatar adapter: reports live/generated/static/unavailable status for avatar `552426f4e4584a24871c5ffad2a97f73`.
+- HeyGen avatar adapter: reports live/generated/static/unavailable status for avatar `e29e792a-41e7-4df0-84a8-349e099fb50f`.
 - Gamification/progress domain: lesson state transitions, completion qualification, XP calculation.
 - Configuration/security layer: env validation, safe errors, docs, `AGENTS.md` guidance.
 

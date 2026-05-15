@@ -2,7 +2,7 @@
 
 ## Design task
 
-Design the main `/lesson` screen for **Profesor IA**, a premium gamified AI English-learning platform. The tutor identity is the configured HeyGen avatar ID `552426f4e4584a24871c5ffad2a97f73`; do not use an anonymous stock tutor as the final product identity. The screen must feel like a futuristic private tutoring session with a live avatar teacher, realtime voice practice, visible corrections, and XP-based progression.
+Design the main `/lesson` screen for **Profesor IA**, a premium gamified AI English-learning platform. The tutor identity is the configured HeyGen avatar ID `e29e792a-41e7-4df0-84a8-349e099fb50f`; do not use an anonymous stock tutor as the final product identity. The screen must feel like a futuristic private tutoring session with a live avatar teacher, realtime voice practice, visible corrections, and XP-based progression.
 
 This is NOT a generic SaaS dashboard and NOT a debug panel. The learner should feel: “I have a personal AI English professor in front of me, listening, speaking, correcting me, and helping me progress.”
 
@@ -186,7 +186,7 @@ Voice engine lock: the live voice tutor must use OpenAI `gpt-realtime-2`. Treat 
 - Existing lesson behavior is frozen: do not redesign the API flow. OpenAI Realtime model is `gpt-realtime-2`.
 - No new backend concepts.
 - No exposure of `.env`, client secrets, raw SDP, provider payloads, or primary keys.
-- Design must map cleanly to configured avatar ID `552426f4e4584a24871c5ffad2a97f73` and existing state names: idle, starting, active, feedback, completed, failed; and connection states: not-started, requesting-mic, connected, fallback, ended, failed.
+- Design must map cleanly to configured avatar ID `e29e792a-41e7-4df0-84a8-349e099fb50f` and existing state names: idle, starting, active, feedback, completed, failed; and connection states: not-started, requesting-mic, connected, fallback, ended, failed.
 - Avoid requiring a heavy component library.
 
 ## Output request

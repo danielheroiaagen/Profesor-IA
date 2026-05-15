@@ -6,12 +6,12 @@ Ship an MVP where a learner can practice a short spoken English lesson with an A
 
 ## MVP Scope
 
-| Area         | In                                                                         | Out                                     |
-| ------------ | -------------------------------------------------------------------------- | --------------------------------------- |
-| Voice tutor  | 2-minute realtime English practice with correction                         | Full curriculum                         |
-| Gamification | XP after meaningful participation and feedback                             | Accounts, payments, long-term analytics |
-| Avatar       | HeyGen avatar `552426f4e4584a24871c5ffad2a97f73` behind fallback adapter   | Required live avatar dependency         |
-| Security     | Server-only primary keys and ephemeral/server-mediated browser credentials | Vendor keys in browser or logs          |
+| Area         | In                                                                           | Out                                     |
+| ------------ | ---------------------------------------------------------------------------- | --------------------------------------- |
+| Voice tutor  | 2-minute realtime English practice with correction                           | Full curriculum                         |
+| Gamification | XP after meaningful participation and feedback                               | Accounts, payments, long-term analytics |
+| Avatar       | HeyGen avatar `e29e792a-41e7-4df0-84a8-349e099fb50f` behind fallback adapter | Required live avatar dependency         |
+| Security     | Server-only primary keys and ephemeral/server-mediated browser credentials   | Vendor keys in browser or logs          |
 
 ## User Outcome
 

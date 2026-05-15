@@ -35,7 +35,7 @@ Chain strategy: feature-branch-chain
 
 ## Phase 2: Premium Presentation Scaffold
 
-- [x] 2.1 Update `app/lesson/lesson-client.tsx` with view model helpers carrying avatar ID `552426f4e4584a24871c5ffad2a97f73` and Realtime model `gpt-realtime-2`.
+- [x] 2.1 Update `app/lesson/lesson-client.tsx` with view model helpers carrying avatar ID `e29e792a-41e7-4df0-84a8-349e099fb50f` and Realtime model `gpt-realtime-2`.
 - [x] 2.2 Replace the status-list layout with avatar-first classroom sections and custom accessible buttons.
 - [ ] 2.3 Update `app/page.tsx` so the landing CTA matches the premium private-tutor promise.
 

@@ -9,7 +9,7 @@ Users need a professional, motivating way to practice spoken English without exp
 ### In Scope
 - Realtime voice tutor flow using server-minted OpenAI ephemeral client secrets.
 - Short lesson loop: start, speak, correction/feedback, complete, XP awarded.
-- Avatar presenter boundary using HeyGen avatar `552426f4e4584a24871c5ffad2a97f73` as spike/fallback, not core dependency.
+- Avatar presenter boundary using HeyGen avatar `e29e792a-41e7-4df0-84a8-349e099fb50f` as spike/fallback, not core dependency.
 - Project foundation: stack bootstrap, SDD specs/design/tasks, AGENTS.md guidance, tests/tooling plan.
 
 ### Out of Scope

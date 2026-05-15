@@ -37,7 +37,7 @@ Reason: it best matches the product promise: a futuristic private tutor with the
 
 ## Required refinements before implementation
 
-- Replace the generic Stitch tutor with the configured HeyGen avatar identity `552426f4e4584a24871c5ffad2a97f73`; if exact media is unavailable in Stitch, mark it as a configured-avatar video slot, not a final stock face.
+- Replace the generic Stitch tutor with the configured HeyGen avatar identity `e29e792a-41e7-4df0-84a8-349e099fb50f`; if exact media is unavailable in Stitch, mark it as a configured-avatar video slot, not a final stock face.
 - Increase gamification clarity without turning the UI into a dashboard.
 - Add explicit visible focus styles for keyboard users.
 - Make disabled CTA reasons visible and accessible.
@@ -62,7 +62,7 @@ Do not copy generated HTML directly. Convert the selected direction into the exi
 
 Verified in code:
 
-- HeyGen avatar default: `552426f4e4584a24871c5ffad2a97f73`
+- HeyGen avatar default: `e29e792a-41e7-4df0-84a8-349e099fb50f`
 - OpenAI Realtime model default: `gpt-realtime-2`
 
 Created corrected Stitch screen:

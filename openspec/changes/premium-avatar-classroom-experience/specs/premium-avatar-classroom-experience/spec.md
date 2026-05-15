@@ -8,7 +8,7 @@ Defines the non-negotiable visual, accessibility, and interaction standard for t
 
 ### Requirement: Avatar-first premium classroom
 
-The system MUST present the lesson as a premium private tutor session where the configured HeyGen avatar identity (`552426f4e4584a24871c5ffad2a97f73`) is the dominant visual element in the first viewport.
+The system MUST present the lesson as a premium private tutor session where the configured HeyGen avatar identity (`e29e792a-41e7-4df0-84a8-349e099fb50f`) is the dominant visual element in the first viewport.
 
 #### Scenario: Learner opens the lesson
 
@@ -32,7 +32,7 @@ The system MUST use the configured HeyGen avatar identity for the tutor surface 
 
 - GIVEN a design or implementation represents the teacher
 - WHEN the tutor surface appears
-- THEN it is tied to avatar ID `552426f4e4584a24871c5ffad2a97f73`
+- THEN it is tied to avatar ID `e29e792a-41e7-4df0-84a8-349e099fb50f`
 - AND the UI does not imply a different stock avatar is the product teacher.
 
 #### Scenario: Live avatar cannot render

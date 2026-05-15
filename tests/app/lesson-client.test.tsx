@@ -54,14 +54,34 @@ describe("LessonClient smoke", () => {
         name: "Avatar configurado para tu clase",
       }),
     ).toBeVisible();
-    expect(screen.getByText("552426f4e4584a24871c5ffad2a97f73")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Clase" })).toHaveAttribute(
+      "href",
+      "#lesson-stage",
+    );
+    expect(screen.getByRole("link", { name: "Práctica" })).toHaveAttribute(
+      "href",
+      "#practice-controls",
+    );
+    expect(screen.getByRole("link", { name: "Progreso" })).toHaveAttribute(
+      "href",
+      "#progress-panel",
+    );
+    expect(screen.getByRole("link", { name: "Estado" })).toHaveAttribute(
+      "href",
+      "#session-status",
+    );
+    expect(
+      screen.getByText("e29e792a-41e7-4df0-84a8-349e099fb50f"),
+    ).toBeVisible();
     expect(screen.getByText("gpt-realtime-2")).toBeVisible();
     expect(
       screen.getByText(
         "Escenario premium configurado; no afirmamos movimiento live si HeyGen no está disponible.",
       ),
     ).toBeVisible();
-    expect(screen.getByText("Corrección visible")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Corrección visible" }),
+    ).toBeVisible();
     expect(screen.getByRole("button", { name: "Empezar clase" })).toBeEnabled();
   });
   afterEach(() => {
@@ -381,7 +401,7 @@ describe("LessonClient smoke", () => {
       expect(screen.getByText("Prácticas: 1 · Feedback: 1")).toBeVisible(),
     );
     expect(
-      screen.getByText("Good job. Say: I am practicing English today."),
+      screen.getAllByText("Good job. Say: I am practicing English today.")[0],
     ).toBeVisible();
   });
 
@@ -454,7 +474,7 @@ describe("LessonClient smoke", () => {
 
     render(<LessonClient />);
 
-    expect(await screen.findByText("10 XP guardados")).toBeVisible();
+    expect(await screen.findByLabelText("10 XP guardados")).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
     await screen.findByText("modo voz seguro");
@@ -488,13 +508,13 @@ describe("LessonClient smoke", () => {
 
     render(<LessonClient />);
 
-    expect(await screen.findByText("60 XP guardados")).toBeVisible();
+    expect(await screen.findByLabelText("60 XP guardados")).toBeVisible();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Borrar progreso local" }),
     );
 
-    expect(await screen.findByText("0 XP guardados")).toBeVisible();
+    expect(await screen.findByLabelText("0 XP guardados")).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "Borrar progreso local" }),
     ).not.toBeInTheDocument();

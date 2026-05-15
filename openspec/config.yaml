@@ -8,7 +8,7 @@ context: |
   Product goal: professional AI English teacher with realtime voice, HeyGen avatar, and gamified learning.
   Current stack: no application stack detected; repository contains only .env, which was not read.
   OpenAI realtime target: gpt-realtime-2.
-  HeyGen avatar ID: 552426f4e4584a24871c5ffad2a97f73.
+  HeyGen avatar ID: e29e792a-41e7-4df0-84a8-349e099fb50f.
   Architecture intent: SDD-first, professional PRD/requirements, AGENTS.md-style guidance, not throwaway code.
   Security: browser access must use server-side environment variables and ephemeral client secrets; never expose .env values.
 

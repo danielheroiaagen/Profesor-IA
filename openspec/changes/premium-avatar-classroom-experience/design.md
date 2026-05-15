@@ -2,7 +2,7 @@
 
 ## Technical Approach
 
-Treat this as a presentation-layer redesign over a frozen functional core. `LessonClient` keeps its current state machine and API calls; the redesign adds a view model and premium layout around existing states. Source of truth already verified in code: `DEFAULT_HEYGEN_AVATAR_ID = "552426f4e4584a24871c5ffad2a97f73"` and `DEFAULT_OPENAI_REALTIME_MODEL = "gpt-realtime-2"`. Stitch is used before implementation to generate visual directions, then Codex maps the chosen direction into the current Next/React codebase.
+Treat this as a presentation-layer redesign over a frozen functional core. `LessonClient` keeps its current state machine and API calls; the redesign adds a view model and premium layout around existing states. Source of truth already verified in code: `DEFAULT_HEYGEN_AVATAR_ID = "e29e792a-41e7-4df0-84a8-349e099fb50f"` and `DEFAULT_OPENAI_REALTIME_MODEL = "gpt-realtime-2"`. Stitch is used before implementation to generate visual directions, then Codex maps the chosen direction into the current Next/React codebase.
 
 ## Architecture Decisions
 
@@ -22,7 +22,7 @@ startLesson -> /api/lessons/start -> /api/realtime/session -> WebRTC
 Realtime events -> evidence/feedback -> completion -> XP
 
 New presentation mapping:
-LessonStatus + ConnectionStatus + AvatarStatus(552426f4e4584a24871c5ffad2a97f73) + XP
+LessonStatus + ConnectionStatus + AvatarStatus(e29e792a-41e7-4df0-84a8-349e099fb50f) + XP
   -> TutorStageViewModel
   -> Accessible premium classroom sections
 ```
@@ -60,7 +60,7 @@ type TutorStageViewModel = {
     | "correcting"
     | "fallback";
   isLiveAvatar: boolean;
-  avatarId: "552426f4e4584a24871c5ffad2a97f73";
+  avatarId: "e29e792a-41e7-4df0-84a8-349e099fb50f";
   realtimeModel: "gpt-realtime-2";
 };
 ```
