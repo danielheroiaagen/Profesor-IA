@@ -69,6 +69,27 @@ describe("POST /api/lessons/start", () => {
     expect(serialized).not.toContain("HEYGEN_API_KEY");
   });
 
+  it("rejects cross-site lesson starts before provider calls", async () => {
+    const fetchImpl = vi.fn();
+    vi.stubGlobal("fetch", fetchImpl);
+
+    const response = await POST(
+      new Request("http://localhost/api/lessons/start", {
+        method: "POST",
+        headers: {
+          origin: "https://attacker.example",
+          "sec-fetch-site": "cross-site",
+          "x-forwarded-for": "203.0.113.10",
+        },
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.error.code).toBe("cross-site-request-denied");
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it("rate limits excessive lesson starts before provider calls", async () => {
     const fetchImpl = vi.fn();
     vi.stubGlobal("fetch", fetchImpl);

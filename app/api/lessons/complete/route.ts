@@ -10,10 +10,17 @@ import {
 import { completeTrackedLesson } from "@/server/lesson-store";
 import { rateLimitPolicies } from "@/server/rate-limit";
 import { checkRateLimitResponse } from "@/server/rate-limit-response";
+import { enforceSameOriginRequest } from "@/server/request-guard";
 
 type CompleteLessonRequest = LessonAccessRequest;
 
 export async function POST(request: Request) {
+  const crossSiteBlocked = enforceSameOriginRequest(request);
+
+  if (crossSiteBlocked) {
+    return crossSiteBlocked;
+  }
+
   const parsed = await parseCompleteLessonRequest(request);
 
   if (!parsed.ok) {
