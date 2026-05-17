@@ -7,7 +7,7 @@ import {
   resetTrackedLessonsForTests,
 } from "@/server/lesson-store";
 
-const LIVEAVATAR_API_KEY = "liveavatar-secret-never-returned";
+const LIVEAVATAR_API_KEY = "test";
 
 describe("POST /api/avatar/live-session", () => {
   afterEach(() => {
@@ -21,15 +21,32 @@ describe("POST /api/avatar/live-session", () => {
     vi.stubEnv("HEYGEN_AVATAR_ID", "e29e792a-41e7-4df0-84a8-349e099fb50f");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        Response.json({
+      vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        const value = String(url);
+
+        expect(value).toBe("https://api.liveavatar.com/v1/sessions/token");
+        const body = JSON.parse(String(init?.body));
+        expect(body).toMatchObject({
+          mode: "LITE",
+          avatar_id: "e29e792a-41e7-4df0-84a8-349e099fb50f",
+          video_settings: {
+            quality: "high",
+            encoding: "VP8",
+          },
+        });
+        expect(body).not.toHaveProperty("avatar_persona");
+        expect(body).not.toHaveProperty("interactivity_type");
+        expect(JSON.stringify(body)).not.toContain("voice_id");
+        expect(JSON.stringify(body)).not.toContain("context_id");
+
+        return Response.json({
           code: 1000,
           data: {
             session_id: "live-session-route",
             session_token: "live-token-limited",
           },
-        }),
-      ),
+        });
+      }),
     );
     createTrackedLesson({ lessonId: "lesson-avatar" });
 
