@@ -3,7 +3,10 @@ node_modules/
 coverage/
 dist/
 *.tsbuildinfo
+.pi/
+.pi-lens/
 .atl/.skill-registry.cache.json
+.profesor-ia-data/
 .env*
 !.env.example
 .DS_Store
