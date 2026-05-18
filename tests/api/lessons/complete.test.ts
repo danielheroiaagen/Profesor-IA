@@ -8,10 +8,15 @@ import {
   recordTrustedLearnerTurn,
   resetTrackedLessonsForTests,
 } from "@/server/lesson-store";
+import {
+  PROGRESS_COOKIE_NAME,
+  resetAnonymousProgressForTests,
+} from "@/server/progress-store";
 
 describe("POST /api/lessons/complete", () => {
   afterEach(() => {
     resetTrackedLessonsForTests();
+    resetAnonymousProgressForTests();
   });
 
   it("awards XP after trusted server-side participation and feedback", async () => {
@@ -41,6 +46,19 @@ describe("POST /api/lessons/complete", () => {
       xp: 50,
       reason: "completed",
     });
+    expect(body.progress).toEqual({
+      totalXp: 50,
+      completedLessons: 1,
+      lastAwardedAt: expect.any(String),
+    });
+    const progressCookie = readCookiePair(response, PROGRESS_COOKIE_NAME);
+    const duplicateResponse = await POST(
+      lessonAccessRequest("lesson-complete", progressCookie),
+    );
+    const duplicateBody = await duplicateResponse.json();
+
+    expect(duplicateResponse.status).toBe(200);
+    expect(duplicateBody.progress).toEqual(body.progress);
   });
 
   it("does not award XP from fabricated client completion evidence", async () => {
@@ -80,6 +98,11 @@ describe("POST /api/lessons/complete", () => {
       xp: 0,
       reason: "insufficient-participation",
     });
+    expect(body.progress).toEqual({
+      totalXp: 0,
+      completedLessons: 0,
+      lastAwardedAt: null,
+    });
   });
 
   it("rejects completion when the lesson access token does not match", async () => {
@@ -101,12 +124,22 @@ describe("POST /api/lessons/complete", () => {
   });
 });
 
-function lessonAccessRequest(lessonId: string) {
+function lessonAccessRequest(lessonId: string, cookie?: string) {
   return new Request("http://localhost/api/lessons/complete", {
     method: "POST",
+    headers: cookie ? { cookie } : undefined,
     body: JSON.stringify({
       lessonId,
       lessonAccessToken: getTrackedLessonAccessToken(lessonId),
     }),
   });
+}
+
+function readCookiePair(response: Response, cookieName: string) {
+  const setCookie = response.headers.get("set-cookie") ?? "";
+  const [cookiePair] = setCookie.split(";");
+
+  expect(cookiePair?.startsWith(`${cookieName}=`)).toBe(true);
+
+  return cookiePair;
 }

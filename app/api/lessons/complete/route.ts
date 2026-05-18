@@ -8,6 +8,11 @@ import {
   type LessonAccessRequest,
 } from "@/server/lesson-access";
 import { completeTrackedLesson } from "@/server/lesson-store";
+import {
+  getOrCreateAnonymousProgressId,
+  recordLessonProgress,
+  writeAnonymousProgressCookie,
+} from "@/server/progress-store";
 import { rateLimitPolicies } from "@/server/rate-limit";
 import { checkRateLimitResponse } from "@/server/rate-limit-response";
 import { enforceSameOriginRequest } from "@/server/request-guard";
@@ -72,12 +77,26 @@ export async function POST(request: Request) {
   }
 
   const xp = awardLessonXp(completion.qualification);
-
-  return NextResponse.json({
+  const progressId = getOrCreateAnonymousProgressId(request);
+  const progress = recordLessonProgress({
+    progressId,
+    lessonId: completion.lesson.id,
+    xp,
+  });
+  const response = NextResponse.json({
     lesson: toSafeLessonResponse(completion.lesson),
     completion: completion.qualification,
     xp,
+    progress,
   });
+
+  writeAnonymousProgressCookie({
+    response,
+    request,
+    progressId,
+  });
+
+  return response;
 }
 
 type ParseResult =
