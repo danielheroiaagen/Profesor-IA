@@ -254,6 +254,7 @@ describe("LessonClient smoke", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     installLocalStorage();
     Object.defineProperty(navigator, "mediaDevices", {
@@ -374,10 +375,16 @@ describe("LessonClient smoke", () => {
     const connectUrl = "https://example.test/realtime/calls";
     const connectAttempts: RequestInit[] = [];
     const requestedUrls: string[] = [];
+    const realtimeAudio = {
+      autoplay: false,
+      srcObject: null as MediaStream | null,
+      play: vi.fn(async () => undefined),
+      pause: vi.fn(),
+    };
 
     vi.stubGlobal(
       "Audio",
-      vi.fn(() => ({ autoplay: false, srcObject: null })),
+      vi.fn(() => realtimeAudio),
     );
     vi.stubGlobal(
       "RTCPeerConnection",
@@ -444,6 +451,15 @@ describe("LessonClient smoke", () => {
     expect(
       screen.getByText("gpt-realtime-2 · credencial limitada"),
     ).toBeVisible();
+
+    act(() => {
+      const peerConnection = vi.mocked(RTCPeerConnection).mock.results[0]
+        ?.value as RTCPeerConnection;
+      peerConnection.ontrack?.({
+        streams: [stream],
+      } as unknown as RTCTrackEvent);
+    });
+
     expect(requestedUrls).toEqual(
       expect.arrayContaining([
         "/api/lessons/start",
@@ -456,6 +472,105 @@ describe("LessonClient smoke", () => {
       "Content-Type": "application/sdp",
     });
     expect(connectAttempts[0]?.body).toBe("offer-sdp");
+    expect(realtimeAudio.autoplay).toBe(true);
+    expect(realtimeAudio.srcObject).toBe(stream);
+    expect(realtimeAudio.play).toHaveBeenCalled();
+  });
+
+  it("closes realtime resources when remote negotiation fails", async () => {
+    const track = { stop: vi.fn() };
+    const stream = { getTracks: () => [track] } as unknown as MediaStream;
+    const connectUrl = "https://example.test/realtime/calls";
+    const dataChannel: {
+      close: ReturnType<typeof vi.fn>;
+      onmessage: ((event: MessageEvent) => void) | null;
+    } = { close: vi.fn(), onmessage: null };
+    const peerConnection = {
+      addTrack: vi.fn(),
+      createDataChannel: vi.fn(() => dataChannel),
+      createOffer: vi.fn(async () => ({ sdp: "offer-sdp", type: "offer" })),
+      setLocalDescription: vi.fn(async () => undefined),
+      setRemoteDescription: vi.fn(async () => {
+        throw new Error("Remote negotiation failed");
+      }),
+      close: vi.fn(),
+    };
+    const realtimeAudio = {
+      autoplay: false,
+      srcObject: stream,
+      play: vi.fn(async () => undefined),
+      pause: vi.fn(),
+    };
+
+    vi.stubGlobal(
+      "Audio",
+      vi.fn(() => realtimeAudio),
+    );
+    vi.stubGlobal(
+      "RTCPeerConnection",
+      vi.fn(() => peerConnection),
+    );
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn(async () => stream),
+      },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL | Request) => {
+        const value = String(url);
+
+        if (value === "/api/lessons/start") {
+          return Response.json({
+            lesson: {
+              id: "lesson-negotiation-fails",
+              state: "active",
+              startedAt: "2026-05-13T00:00:00.000Z",
+              metrics: { learnerTurns: 0, feedbackEvents: 0 },
+            },
+            avatar: {
+              mode: "voice-only",
+              available: false,
+              reason: "avatar-provider-not-configured",
+            },
+          });
+        }
+
+        if (value === "/api/realtime/session") {
+          return Response.json({
+            realtime: {
+              clientSecret: "ek_test_ephemeral",
+              model: "gpt-realtime-2",
+              expiresAt: "2026-05-13T00:10:00.000Z",
+              lessonId: "lesson-negotiation-fails",
+              connectUrl,
+            },
+          });
+        }
+
+        return new Response("answer-sdp");
+      }),
+    );
+
+    render(<LessonClient />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
+
+    await waitFor(() => expect(track.stop).toHaveBeenCalled());
+
+    expect(peerConnection.setRemoteDescription).toHaveBeenCalledWith({
+      type: "answer",
+      sdp: "answer-sdp",
+    });
+    expect(dataChannel.close).toHaveBeenCalled();
+    expect(peerConnection.close).toHaveBeenCalled();
+    expect(realtimeAudio.pause).toHaveBeenCalled();
+    expect(realtimeAudio.srcObject).toBeNull();
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Remote negotiation failed",
+    );
   });
 
   it("records Realtime events as server evidence before awarding XP", async () => {
@@ -944,10 +1059,16 @@ describe("LessonClient smoke", () => {
       setRemoteDescription: vi.fn(async () => undefined),
       close: vi.fn(),
     };
+    const realtimeAudio = {
+      autoplay: false,
+      srcObject: stream,
+      play: vi.fn(async () => undefined),
+      pause: vi.fn(),
+    };
 
     vi.stubGlobal(
       "Audio",
-      vi.fn(() => ({ autoplay: false, srcObject: null })),
+      vi.fn(() => realtimeAudio),
     );
     vi.stubGlobal(
       "RTCPeerConnection",
@@ -1057,6 +1178,8 @@ describe("LessonClient smoke", () => {
     expect(track.stop).toHaveBeenCalled();
     expect(dataChannel.close).toHaveBeenCalled();
     expect(peerConnection.close).toHaveBeenCalled();
+    expect(realtimeAudio.pause).toHaveBeenCalled();
+    expect(realtimeAudio.srcObject).toBeNull();
     expect(
       screen.getByRole("button", { name: "Practicar otra vez" }),
     ).toBeEnabled();
@@ -1071,13 +1194,9 @@ describe("LessonClient smoke", () => {
     ).toBeDisabled();
   });
 
-  it("closes the previous realtime connection before starting another one", async () => {
-    const firstTrack = { stop: vi.fn() };
-    const secondTrack = { stop: vi.fn() };
-    const streams = [
-      { getTracks: () => [firstTrack] },
-      { getTracks: () => [secondTrack] },
-    ] as unknown as MediaStream[];
+  it("keeps the active class start button disabled", async () => {
+    const track = { stop: vi.fn() };
+    const stream = { getTracks: () => [track] } as unknown as MediaStream;
     const peerConnections: Array<{ close: ReturnType<typeof vi.fn> }> = [];
     const dataChannels: Array<{
       close: ReturnType<typeof vi.fn>;
@@ -1110,7 +1229,7 @@ describe("LessonClient smoke", () => {
     Object.defineProperty(navigator, "mediaDevices", {
       configurable: true,
       value: {
-        getUserMedia: vi.fn(async () => streams.shift()),
+        getUserMedia: vi.fn(async () => stream),
       },
     });
 
@@ -1158,10 +1277,11 @@ describe("LessonClient smoke", () => {
     fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
     await waitFor(() => expect(screen.getByText("voz lista")).toBeVisible());
 
-    fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
-    await waitFor(() => expect(firstTrack.stop).toHaveBeenCalled());
-
-    expect(dataChannels[0]?.close).toHaveBeenCalled();
-    expect(peerConnections[0]?.close).toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Clase abierta" }),
+    ).toBeDisabled();
+    expect(track.stop).not.toHaveBeenCalled();
+    expect(dataChannels[0]?.close).not.toHaveBeenCalled();
+    expect(peerConnections[0]?.close).not.toHaveBeenCalled();
   });
 });

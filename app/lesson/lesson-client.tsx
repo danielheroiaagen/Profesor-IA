@@ -72,6 +72,7 @@ type RealtimeConnection = {
   peerConnection: RTCPeerConnection;
   dataChannel: RTCDataChannel;
   stream: MediaStream;
+  audioElement: HTMLAudioElement;
 };
 
 const INITIAL_FEEDBACK_SUMMARY =
@@ -81,6 +82,7 @@ const REQUIRED_FEEDBACK_EVENTS = 1;
 const LOCAL_XP_STORAGE_KEY = "profesor-ia.total-xp";
 const DEFAULT_HEYGEN_AVATAR_ID = "e29e792a-41e7-4df0-84a8-349e099fb50f";
 const DEFAULT_OPENAI_REALTIME_MODEL = "gpt-realtime-2";
+const API_REQUEST_TIMEOUT_MS = 8_000;
 const REALTIME_CONNECT_TIMEOUT_MS = 25_000;
 const STITCH_TUTOR_POSTER_URL =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuDdzHwAwTAvUVLRwMGfxmkra0pwSCyt_9MBzo5amWwIOuiJT0YWdMgIfb-dxqXs4qCM4XJbck5TKVEd1jb4fTgALsRsy1fguXSxALC0Z_hr3me3Tvr42VYUF7f9e09fiQagGE6Qjrigk60gkak4EYTVcFN5bm6sgX55vfZD3-6dDKWbpTNDPPDxEN4cJFgwl8BDNDZgUEN1SH-uP_TWcxWiAACNltXBJF036PQzam6cpb75NIg-I2eH0ttoYWNUkRUix26Iy55uN-0g";
@@ -133,6 +135,8 @@ export default function LessonClient() {
     learnerTurns >= REQUIRED_LEARNER_TURNS &&
     feedbackEvents >= REQUIRED_FEEDBACK_EVENTS;
   const lessonEnded = status === "completed" || status === "failed";
+  const lessonRunning = status === "active" || status === "feedback";
+  const startControlsDisabled = status === "starting" || lessonRunning;
   const canCompleteLesson =
     Boolean(lesson) && !lessonEnded && hasCompletionEvidence;
   const practiceControlsDisabled = !lesson || lessonEnded;
@@ -553,7 +557,7 @@ export default function LessonClient() {
                 className="primaryButton startLessonButton"
                 type="button"
                 onClick={startLesson}
-                disabled={status === "starting"}
+                disabled={startControlsDisabled}
               >
                 <span aria-hidden="true">▷</span>
                 {formatStartLessonAction(status)}
@@ -1660,6 +1664,7 @@ function formatConnectionStatus(status: ConnectionStatus) {
 
 function formatStartLessonAction(status: LessonStatus) {
   if (status === "starting") return "Preparando clase...";
+  if (status === "active" || status === "feedback") return "Clase abierta";
   if (status === "completed") return "Practicar otra vez";
   if (status === "failed") return "Reintentar clase";
 
@@ -1692,7 +1697,7 @@ function formatAvatarStatus(
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -1707,6 +1712,29 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return data;
 }
 
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(
+    () => controller.abort(),
+    API_REQUEST_TIMEOUT_MS,
+  );
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("La solicitud tardó demasiado. Reintentá la clase.");
+    }
+
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 async function connectRealtime(
   realtime: RealtimeSession,
   onRealtimeEvent: (payload: string) => void,
@@ -1716,76 +1744,110 @@ async function connectRealtime(
   }
 
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  const peerConnection = new RTCPeerConnection();
-  const dataChannel = peerConnection.createDataChannel("oai-events");
-
-  stream.getTracks().forEach((track) => peerConnection.addTrack(track, stream));
-
-  peerConnection.ontrack = (event) => {
-    const [remoteStream] = event.streams;
-    const audio = new Audio();
-    audio.autoplay = true;
-    audio.srcObject = remoteStream;
-  };
-
-  dataChannel.onmessage = (event) => {
-    if (typeof event.data === "string") {
-      onRealtimeEvent(event.data);
-    }
-  };
-
-  const offer = await peerConnection.createOffer();
-  await peerConnection.setLocalDescription(offer);
-
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(
-    () => controller.abort(),
-    REALTIME_CONNECT_TIMEOUT_MS,
-  );
-
-  let response: Response;
+  const cleanupTarget: Partial<RealtimeConnection> = { stream };
 
   try {
-    response = await fetch(realtime.connectUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${realtime.clientSecret}`,
-        "Content-Type": "application/sdp",
-      },
-      body: offer.sdp,
-      signal: controller.signal,
-    });
-  } catch (error) {
-    closeRealtimeConnection({ peerConnection, dataChannel, stream });
+    const peerConnection = new RTCPeerConnection();
+    cleanupTarget.peerConnection = peerConnection;
 
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error(
-        "Realtime tardó demasiado en responder. Activamos modo voz seguro.",
-      );
+    const dataChannel = peerConnection.createDataChannel("oai-events");
+    cleanupTarget.dataChannel = dataChannel;
+
+    const audioElement = new Audio();
+    audioElement.autoplay = true;
+    cleanupTarget.audioElement = audioElement;
+
+    stream
+      .getTracks()
+      .forEach((track) => peerConnection.addTrack(track, stream));
+
+    peerConnection.ontrack = (event) => {
+      const [remoteStream] = event.streams;
+      audioElement.srcObject = remoteStream;
+      void audioElement.play?.().catch(() => undefined);
+    };
+
+    dataChannel.onmessage = (event) => {
+      if (typeof event.data === "string") {
+        onRealtimeEvent(event.data);
+      }
+    };
+
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(
+      () => controller.abort(),
+      REALTIME_CONNECT_TIMEOUT_MS,
+    );
+
+    let response: Response;
+
+    try {
+      response = await fetch(realtime.connectUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${realtime.clientSecret}`,
+          "Content-Type": "application/sdp",
+        },
+        body: offer.sdp,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        throw new Error(
+          "Realtime tardó demasiado en responder. Activamos modo voz seguro.",
+        );
+      }
+
+      throw error;
+    } finally {
+      window.clearTimeout(timeoutId);
     }
 
+    if (!response.ok) {
+      throw new Error("Realtime connection failed safely. Retry the lesson.");
+    }
+
+    await peerConnection.setRemoteDescription({
+      type: "answer",
+      sdp: await response.text(),
+    });
+
+    return { peerConnection, dataChannel, stream, audioElement };
+  } catch (error) {
+    closeRealtimeResources(cleanupTarget);
     throw error;
-  } finally {
-    window.clearTimeout(timeoutId);
   }
-
-  if (!response.ok) {
-    closeRealtimeConnection({ peerConnection, dataChannel, stream });
-    throw new Error("Realtime connection failed safely. Retry the lesson.");
-  }
-
-  await peerConnection.setRemoteDescription({
-    type: "answer",
-    sdp: await response.text(),
-  });
-
-  return { peerConnection, dataChannel, stream };
 }
 
 function closeRealtimeConnection(connection: RealtimeConnection | null) {
-  connection?.stream.getTracks().forEach((track) => track.stop());
-  connection?.dataChannel.close();
-  connection?.peerConnection.close();
+  closeRealtimeResources(connection);
+}
+
+function closeRealtimeResources(
+  connection: Partial<RealtimeConnection> | null,
+) {
+  if (!connection) return;
+
+  connection.stream
+    ?.getTracks()
+    .forEach((track) => runSafely(() => track.stop()));
+  runSafely(() => connection.dataChannel?.close());
+  runSafely(() => connection.peerConnection?.close());
+  runSafely(() => connection.audioElement?.pause?.());
+  runSafely(() => {
+    if (connection.audioElement) connection.audioElement.srcObject = null;
+  });
+}
+
+function runSafely(action: () => void) {
+  try {
+    action();
+  } catch {
+    // Cleanup should never block retrying or leaving the lesson safely.
+  }
 }
 
 function muteLiveAvatarVideo(video: HTMLVideoElement) {
