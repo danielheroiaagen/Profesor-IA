@@ -50,6 +50,12 @@ type XPResult = {
   reason: string;
 };
 
+type ProgressSummary = {
+  totalXp: number;
+  completedLessons: number;
+  lastAwardedAt: string | null;
+};
+
 type LessonStatus =
   | "idle"
   | "starting"
@@ -79,7 +85,6 @@ const INITIAL_FEEDBACK_SUMMARY =
   "Objetivo: decir con naturalidad 'I am practicing English today.'";
 const REQUIRED_LEARNER_TURNS = 1;
 const REQUIRED_FEEDBACK_EVENTS = 1;
-const LOCAL_XP_STORAGE_KEY = "profesor-ia.total-xp";
 const DEFAULT_HEYGEN_AVATAR_ID = "e29e792a-41e7-4df0-84a8-349e099fb50f";
 const DEFAULT_OPENAI_REALTIME_MODEL = "gpt-realtime-2";
 const API_REQUEST_TIMEOUT_MS = 8_000;
@@ -119,13 +124,22 @@ export default function LessonClient() {
   const [error, setError] = useState<string | null>(null);
   const connectionRef = useRef<RealtimeConnection | null>(null);
   const lessonAccessTokenRef = useRef<string | null>(null);
+  const progressVersionRef = useRef(0);
   const liveAvatarRef = useRef<LiveAvatarSessionType | null>(null);
   const liveAvatarVideoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
-    setTotalXp(readSavedTotalXp());
+    let mounted = true;
+    const hydrationVersion = progressVersionRef.current;
+
+    void hydrateProgress((progress) => {
+      if (mounted && progressVersionRef.current === hydrationVersion) {
+        setTotalXp(progress.totalXp);
+      }
+    });
 
     return () => {
+      mounted = false;
       closeRealtimeConnection(connectionRef.current);
       void stopLiveAvatarSession({ resetState: false });
     };
@@ -338,25 +352,20 @@ export default function LessonClient() {
     setError(null);
 
     try {
-      const result = await postJson<{ xp: XPResult; lesson: LessonSession }>(
-        "/api/lessons/complete",
-        {
-          lessonId: lesson.id,
-          lessonAccessToken: lessonAccessTokenRef.current,
-        },
-      );
+      const result = await postJson<{
+        xp: XPResult;
+        lesson: LessonSession;
+        progress: ProgressSummary;
+      }>("/api/lessons/complete", {
+        lessonId: lesson.id,
+        lessonAccessToken: lessonAccessTokenRef.current,
+      });
 
       setXp(result.xp);
+      progressVersionRef.current += 1;
+      setTotalXp(result.progress.totalXp);
       syncLessonFromServer(result.lesson);
       setStatus(result.lesson.state === "completed" ? "completed" : "failed");
-
-      if (result.xp.awarded && result.xp.xp > 0) {
-        setTotalXp((currentTotal) => {
-          const nextTotal = currentTotal + result.xp.xp;
-          writeSavedTotalXp(nextTotal);
-          return nextTotal;
-        });
-      }
     } catch {
       setError("No pudimos verificar la práctica. No se otorgó XP sin ganar.");
       setStatus("failed");
@@ -367,9 +376,17 @@ export default function LessonClient() {
     }
   }
 
-  function resetLocalProgress() {
-    clearSavedTotalXp();
-    setTotalXp(0);
+  async function hydrateProgress(
+    onProgress: (progress: ProgressSummary) => void,
+  ) {
+    try {
+      const result = await getJson<{ progress: unknown }>("/api/progress");
+      const progress = readProgressSummary(result.progress);
+
+      if (progress) onProgress(progress);
+    } catch {
+      // Progress hydration should never block opening a voice lesson.
+    }
   }
 
   function syncLessonFromServer(nextLesson: LessonSession) {
@@ -645,15 +662,6 @@ export default function LessonClient() {
                 <small>Usar la frase objetivo con voz clara.</small>
               </div>
             </div>
-            {totalXp > 0 ? (
-              <button
-                className="ghostButton compact"
-                type="button"
-                onClick={resetLocalProgress}
-              >
-                Borrar progreso local
-              </button>
-            ) : null}
           </section>
 
           <section
@@ -1703,6 +1711,14 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
 
+  return readJsonResponse<T>(response);
+}
+
+async function getJson<T>(url: string): Promise<T> {
+  return readJsonResponse<T>(await fetchWithTimeout(url));
+}
+
+async function readJsonResponse<T>(response: Response): Promise<T> {
   const data = (await response.json()) as T & { error?: { message?: string } };
 
   if (!response.ok) {
@@ -1856,39 +1872,28 @@ function muteLiveAvatarVideo(video: HTMLVideoElement) {
   video.volume = 0;
 }
 
-function readSavedTotalXp() {
-  if (typeof window === "undefined") return 0;
+function readProgressSummary(value: unknown): ProgressSummary | null {
+  if (!isRecord(value)) return null;
 
-  try {
-    const value = Number.parseInt(
-      window.localStorage.getItem(LOCAL_XP_STORAGE_KEY) ?? "0",
-      10,
-    );
+  const { totalXp, completedLessons, lastAwardedAt } = value;
 
-    return Number.isFinite(value) && value > 0 ? value : 0;
-  } catch {
-    return 0;
+  if (!isSafeProgressCount(totalXp) || !isSafeProgressCount(completedLessons)) {
+    return null;
   }
+
+  if (lastAwardedAt !== null && typeof lastAwardedAt !== "string") {
+    return null;
+  }
+
+  return { totalXp, completedLessons, lastAwardedAt };
 }
 
-function writeSavedTotalXp(totalXp: number) {
-  if (typeof window === "undefined") return;
-
-  try {
-    window.localStorage.setItem(LOCAL_XP_STORAGE_KEY, String(totalXp));
-  } catch {
-    // Local progress is an enhancement; verified XP still comes from the server.
-  }
+function isSafeProgressCount(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
 
-function clearSavedTotalXp() {
-  if (typeof window === "undefined") return;
-
-  try {
-    window.localStorage.removeItem(LOCAL_XP_STORAGE_KEY);
-  } catch {
-    // Local progress is an enhancement; verified XP still comes from the server.
-  }
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function readRealtimeSignal(payload: string): {

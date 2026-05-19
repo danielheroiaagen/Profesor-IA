@@ -8,18 +8,19 @@ import { describe, expect, it } from "vitest";
 import HomePage from "@/../app/page";
 
 describe("HomePage", () => {
-  it("presents the speaking class without MVP/debug wording", () => {
+  it("presents the premium private tutor promise without MVP/debug wording", () => {
     render(<HomePage />);
 
     expect(
       screen.getByRole("heading", {
-        name: "Practicá inglés con una clase corta por voz.",
+        name: "Tu profesor privado de inglés con voz, avatar visual y XP.",
       }),
     ).toBeVisible();
-    expect(screen.getByText(/sesión de voz en tiempo real/i)).toBeVisible();
+    expect(screen.getByText(/corrección visible/i)).toBeVisible();
+    expect(screen.getByText(/progreso con XP/i)).toBeVisible();
     expect(screen.queryByText(/MVP/i)).not.toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Empezar clase de speaking" }),
+      screen.getByRole("link", { name: "Entrar a la clase premium" }),
     ).toHaveAttribute("href", "/lesson");
   });
 });
