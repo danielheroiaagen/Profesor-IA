@@ -1,11 +1,20 @@
 import { getLiveAvatarServerConfig } from "@/config/server";
+import type {
+  AvatarAdapter,
+  AvatarStatus,
+} from "@/integrations/avatar/avatar-adapter";
+import {
+  createStaticAvatarStatus,
+  createVoiceOnlyAvatarAdapter,
+} from "@/integrations/avatar/avatar-adapter";
 
 const LIVEAVATAR_API_URL = "https://api.liveavatar.com";
 const LIVEAVATAR_MODE = "LITE";
 const LIVEAVATAR_PROVIDER = "liveavatar";
 const LIVEAVATAR_VIDEO_QUALITY = "high";
-const LIVEAVATAR_VIDEO_ENCODING = "H264";
+const LIVEAVATAR_VIDEO_ENCODING = "VP8";
 const DEFAULT_MAX_SESSION_DURATION_SECONDS = 300;
+const DEFAULT_TIMEOUT_MS = 1_500;
 
 type FetchLike = typeof fetch;
 
@@ -21,6 +30,14 @@ type LiveAvatarTokenPayload = {
   code?: number;
   data?: unknown;
   message?: string;
+};
+
+type LiveAvatarAdapterOptions = {
+  apiKey?: string;
+  avatarId: string;
+  fetchImpl?: FetchLike;
+  timeoutMs?: number;
+  apiBaseUrl?: string;
 };
 
 export type LiveAvatarSessionToken = {
@@ -39,6 +56,84 @@ export class LiveAvatarSessionError extends Error {
     super(message);
     this.name = "LiveAvatarSessionError";
   }
+}
+
+export function createLiveAvatarAdapterFromConfig(
+  options: Partial<Omit<LiveAvatarAdapterOptions, "apiKey" | "avatarId">> = {},
+): AvatarAdapter {
+  const config = getLiveAvatarServerConfig();
+
+  return createLiveAvatarAdapter({
+    apiKey: config.apiKey,
+    avatarId: config.avatarId,
+    ...options,
+  });
+}
+
+export function createLiveAvatarAdapter({
+  apiKey,
+  avatarId,
+  fetchImpl = fetch,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+  apiBaseUrl = LIVEAVATAR_API_URL,
+}: LiveAvatarAdapterOptions): AvatarAdapter {
+  const normalizedAvatarId = avatarId.trim();
+
+  if (!apiKey?.trim()) {
+    return createVoiceOnlyAvatarAdapter("avatar-live-provider-not-configured");
+  }
+
+  if (!normalizedAvatarId) {
+    return createVoiceOnlyAvatarAdapter("avatar-live-id-not-configured");
+  }
+
+  return {
+    async getStatus(): Promise<AvatarStatus> {
+      try {
+        const response = await withTimeout(
+          fetchImpl(
+            `${apiBaseUrl}/v1/avatars/${encodeURIComponent(normalizedAvatarId)}`,
+            {
+              method: "GET",
+              headers: {
+                "X-API-KEY": apiKey,
+                Accept: "application/json",
+              },
+            },
+          ),
+          timeoutMs,
+        );
+
+        if (!response.ok) {
+          return createStaticAvatarStatus(
+            normalizedAvatarId,
+            "avatar-live-provider-rejected",
+          );
+        }
+
+        const payload: unknown = await response.json();
+
+        if (!responseContainsId(payload, normalizedAvatarId)) {
+          return createStaticAvatarStatus(
+            normalizedAvatarId,
+            "avatar-live-provider-rejected",
+          );
+        }
+
+        return {
+          mode: "live",
+          available: true,
+          avatarId: normalizedAvatarId,
+          reason: "avatar-live-validated",
+        };
+      } catch {
+        return createStaticAvatarStatus(
+          normalizedAvatarId,
+          "avatar-live-provider-unavailable",
+        );
+      }
+    },
+  };
 }
 
 export async function mintLiveAvatarSessionFromConfig(
@@ -134,6 +229,22 @@ function readSessionToken(payload: unknown) {
     : null;
 }
 
+function responseContainsId(payload: unknown, id: string): boolean {
+  if (payload === id) return true;
+
+  if (Array.isArray(payload)) {
+    return payload.some((item) => responseContainsId(item, id));
+  }
+
+  if (isRecord(payload)) {
+    return Object.values(payload).some((value) =>
+      responseContainsId(value, id),
+    );
+  }
+
+  return false;
+}
+
 function isLiveAvatarTokenPayload(
   payload: unknown,
 ): payload is LiveAvatarTokenPayload {
@@ -142,4 +253,24 @@ function isLiveAvatarTokenPayload(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeout = setTimeout(
+      () => reject(new Error("avatar-live-provider-timeout")),
+      timeoutMs,
+    );
+
+    promise.then(
+      (value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  });
 }
