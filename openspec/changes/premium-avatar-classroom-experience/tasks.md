@@ -37,11 +37,11 @@ Chain strategy: feature-branch-chain
 
 - [x] 2.1 Update `app/lesson/lesson-client.tsx` with view model helpers carrying avatar ID `e29e792a-41e7-4df0-84a8-349e099fb50f` and Realtime model `gpt-realtime-2`.
 - [x] 2.2 Replace the status-list layout with avatar-first classroom sections and custom accessible buttons.
-- [ ] 2.3 Update `app/page.tsx` so the landing CTA matches the premium private-tutor promise.
+- [x] 2.3 Update `app/page.tsx` so the landing CTA matches the premium private-tutor promise.
 
 ## Phase 3: State Coverage
 
-- [ ] 3.1 Map idle, starting, connected, fallback, feedback, completed, and failed states to visible learner copy.
+- [x] 3.1 Map idle, starting, connected, fallback, feedback, completed, and failed states to visible learner copy.
 - [x] 3.2 Preserve honest fallback: no live-avatar claim when configured HeyGen avatar movement/speech is unavailable.
 - [x] 3.3 Keep secure-session messaging secondary and never expose raw credentials, SDP, or `.env` values.
 
@@ -51,10 +51,10 @@ Chain strategy: feature-branch-chain
 - [x] 4.2 Preserve existing Realtime credential, fallback, evidence, and XP regression assertions.
 - [x] 4.3 Run `npm run verify`.
 - [x] 4.4 Validate visually with Browser/Computer Use screenshot.
-- [ ] 4.5 Run final real browser mic/WebRTC/HeyGen validation proving configured avatar movement/speech or block release with evidence.
+- [x] 4.5 Run final real browser mic/WebRTC/HeyGen validation proving configured avatar movement/speech or block release with evidence.
 - [x] 4.6 Add/keep a regression assertion that Realtime sessions return `gpt-realtime-2`.
 
 ## Phase 5: Evidence
 
-- [ ] 5.1 Update release evidence docs only after validation passes.
+- [x] 5.1 Update release evidence docs only after validation passes.
 - [ ] 5.2 Run fresh-context review before PR/merge.
