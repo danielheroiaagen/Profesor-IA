@@ -11,6 +11,56 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const liveAvatarSdkMock = vi.hoisted(() => {
+  const SessionEvent = {
+    SESSION_STREAM_READY: "session.stream_ready",
+    SESSION_DISCONNECTED: "session.disconnected",
+  } as const;
+  const sessions: MockLiveAvatarSession[] = [];
+
+  class MockLiveAvatarSession {
+    attach = vi.fn();
+    start = vi.fn(async () => {
+      this.emit(SessionEvent.SESSION_STREAM_READY);
+    });
+    stop = vi.fn(async () => undefined);
+    startListening = vi.fn();
+    stopListening = vi.fn();
+    interrupt = vi.fn();
+    voiceChat = {
+      startPushToTalk: vi.fn(async () => undefined),
+      stopPushToTalk: vi.fn(async () => undefined),
+    };
+    handlers = new Map<string, Array<() => void>>();
+
+    constructor(
+      readonly token: string,
+      readonly config: { voiceChat?: boolean },
+    ) {
+      sessions.push(this);
+    }
+
+    on(event: string, callback: () => void) {
+      const eventHandlers = this.handlers.get(event) ?? [];
+      eventHandlers.push(callback);
+      this.handlers.set(event, eventHandlers);
+      return this;
+    }
+
+    emit(event: string) {
+      this.handlers.get(event)?.forEach((callback) => callback());
+    }
+  }
+
+  return {
+    LiveAvatarSession: MockLiveAvatarSession,
+    SessionEvent,
+    sessions,
+  };
+});
+
+vi.mock("@heygen/liveavatar-web-sdk", () => liveAvatarSdkMock);
+
 import LessonClient from "@/../app/lesson/lesson-client";
 
 function installLocalStorage(initialEntries: Record<string, string> = {}) {
@@ -38,6 +88,7 @@ function installLocalStorage(initialEntries: Record<string, string> = {}) {
 
 describe("LessonClient smoke", () => {
   beforeEach(() => {
+    liveAvatarSdkMock.sessions.length = 0;
     installLocalStorage();
   });
 
@@ -51,7 +102,7 @@ describe("LessonClient smoke", () => {
     ).toBeVisible();
     expect(
       screen.getByRole("heading", {
-        name: "Avatar configurado para tu clase",
+        name: "Avatar visual listo para tu clase",
       }),
     ).toBeVisible();
     expect(screen.getByRole("link", { name: "Clase" })).toHaveAttribute(
@@ -76,14 +127,132 @@ describe("LessonClient smoke", () => {
     expect(screen.getByText("gpt-realtime-2")).toBeVisible();
     expect(
       screen.getByText(
-        "Escenario premium configurado; no afirmamos movimiento live si HeyGen no está disponible.",
+        "Escenario premium configurado; no afirmamos movimiento live si LiveAvatar no está disponible.",
       ),
     ).toBeVisible();
+    expect(screen.getByText("Voz principal: gpt-realtime-2")).toBeVisible();
     expect(
       screen.getByRole("heading", { name: "Corrección visible" }),
     ).toBeVisible();
+    expect(
+      screen.getByLabelText(
+        "Video live del avatar HeyGen e29e792a-41e7-4df0-84a8-349e099fb50f",
+      ),
+    ).toHaveProperty("muted", true);
     expect(screen.getByRole("button", { name: "Empezar clase" })).toBeEnabled();
   });
+  it("starts LiveAvatar as muted visual-only support while Realtime owns voice", async () => {
+    const track = { stop: vi.fn() };
+    const stream = { getTracks: () => [track] } as unknown as MediaStream;
+    const getUserMedia = vi.fn(async () => stream);
+    const connectUrl = "https://example.test/realtime/calls";
+    const liveAvatarRequests: unknown[] = [];
+
+    vi.stubGlobal(
+      "RTCPeerConnection",
+      vi.fn(() => ({
+        addTrack: vi.fn(),
+        createDataChannel: vi.fn(() => ({ close: vi.fn(), onmessage: null })),
+        createOffer: vi.fn(async () => ({ sdp: "offer-sdp", type: "offer" })),
+        setLocalDescription: vi.fn(async () => undefined),
+        setRemoteDescription: vi.fn(async () => undefined),
+        close: vi.fn(),
+      })),
+    );
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: { getUserMedia },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        const value = String(url);
+
+        if (value === "/api/lessons/start") {
+          return Response.json({
+            lesson: {
+              id: "lesson-liveavatar-visual",
+              state: "active",
+              startedAt: "2026-05-13T00:00:00.000Z",
+              metrics: { learnerTurns: 0, feedbackEvents: 0 },
+            },
+            lessonAccessToken: "lesson-access-token",
+            avatar: {
+              mode: "live",
+              available: true,
+              avatarId: "e29e792a-41e7-4df0-84a8-349e099fb50f",
+            },
+          });
+        }
+
+        if (value === "/api/avatar/live-session") {
+          liveAvatarRequests.push(JSON.parse(String(init?.body)));
+
+          return Response.json({
+            liveAvatar: {
+              provider: "liveavatar",
+              mode: "live",
+              avatarId: "e29e792a-41e7-4df0-84a8-349e099fb50f",
+              sessionId: "liveavatar-session",
+              sessionToken: "liveavatar-session-token",
+            },
+          });
+        }
+
+        if (value === "/api/realtime/session") {
+          return Response.json({
+            realtime: {
+              clientSecret: "ek_test_ephemeral",
+              model: "gpt-realtime-2",
+              expiresAt: "2026-05-13T00:10:00.000Z",
+              lessonId: "lesson-liveavatar-visual",
+              connectUrl,
+            },
+          });
+        }
+
+        return new Response("answer-sdp");
+      }),
+    );
+
+    render(<LessonClient />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
+
+    await waitFor(() => expect(liveAvatarSdkMock.sessions).toHaveLength(1));
+    await waitFor(() => expect(screen.getByText("voz lista")).toBeVisible());
+
+    const session = liveAvatarSdkMock.sessions[0];
+    const video = screen.getByLabelText(
+      "Video live del avatar HeyGen e29e792a-41e7-4df0-84a8-349e099fb50f",
+    ) as HTMLVideoElement;
+
+    expect(liveAvatarRequests).toEqual([
+      {
+        lessonId: "lesson-liveavatar-visual",
+        lessonAccessToken: "lesson-access-token",
+      },
+    ]);
+    expect(session.token).toBe("liveavatar-session-token");
+    expect(session.config).toEqual({ voiceChat: false });
+    expect(session.attach).toHaveBeenCalledWith(video);
+    expect(session.startListening).not.toHaveBeenCalled();
+    expect(session.stopListening).not.toHaveBeenCalled();
+    expect(session.interrupt).not.toHaveBeenCalled();
+    expect(session.voiceChat.startPushToTalk).not.toHaveBeenCalled();
+    expect(session.voiceChat.stopPushToTalk).not.toHaveBeenCalled();
+    expect(video).toHaveProperty("muted", true);
+    expect(video).toHaveProperty("defaultMuted", true);
+    expect(video).toHaveProperty("volume", 0);
+    expect(getUserMedia).toHaveBeenCalledWith({ audio: true });
+    expect(
+      screen.getByText(
+        "Avatar visual conectado; voz y micrófono pertenecen solo a Realtime 2.",
+      ),
+    ).toBeVisible();
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
     installLocalStorage();

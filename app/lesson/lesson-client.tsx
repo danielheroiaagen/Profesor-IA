@@ -209,7 +209,13 @@ export default function LessonClient() {
     lessonId: string,
     lessonAccessToken: string,
   ) {
-    if (!nextAvatar.available || !nextAvatar.avatarId) return;
+    if (
+      nextAvatar.mode !== "live" ||
+      !nextAvatar.available ||
+      !nextAvatar.avatarId
+    ) {
+      return;
+    }
 
     await stopLiveAvatarSession({ resetState: false });
     setLiveAvatarStatus("starting");
@@ -230,7 +236,9 @@ export default function LessonClient() {
         if (liveAvatarRef.current !== session) return;
 
         if (liveAvatarVideoRef.current) {
+          muteLiveAvatarVideo(liveAvatarVideoRef.current);
           session.attach(liveAvatarVideoRef.current);
+          muteLiveAvatarVideo(liveAvatarVideoRef.current);
         }
         setLiveAvatarStatus("ready");
       });
@@ -382,6 +390,11 @@ export default function LessonClient() {
     connectionRef.current = nextConnection;
   }
 
+  function rememberLiveAvatarVideo(video: HTMLVideoElement | null) {
+    liveAvatarVideoRef.current = video;
+    if (video) muteLiveAvatarVideo(video);
+  }
+
   const lessonStatusLabel = formatLessonStatus(status);
   const voiceStatusLabel = formatConnectionStatus(connectionStatus);
   const avatarStatusLabel = formatAvatarStatus(avatar, liveAvatarStatus);
@@ -449,7 +462,7 @@ export default function LessonClient() {
           >
             <div className="stageMeta">
               <span className="liveBadge">
-                <span aria-hidden="true" /> Avatar configurado · HeyGen
+                <span aria-hidden="true" /> Avatar visual · LiveAvatar LITE
               </span>
               <span>
                 ID: <code className="identityCode">{stage.avatarId}</code>
@@ -464,7 +477,7 @@ export default function LessonClient() {
               <div className="avatarShade" aria-hidden="true" />
               <div className="avatarAura" aria-hidden="true" />
               <video
-                ref={liveAvatarVideoRef}
+                ref={rememberLiveAvatarVideo}
                 className={
                   stage.isLiveAvatar
                     ? "avatarVideo avatarVideo--ready"
@@ -472,6 +485,10 @@ export default function LessonClient() {
                 }
                 playsInline
                 autoPlay
+                muted
+                onVolumeChange={(event) =>
+                  muteLiveAvatarVideo(event.currentTarget)
+                }
                 aria-label={`Video live del avatar HeyGen ${stage.avatarId}`}
               />
               {!stage.isLiveAvatar ? (
@@ -488,7 +505,9 @@ export default function LessonClient() {
               </div>
             </div>
 
-            <div className="poweredBadge">Powered by {stage.realtimeModel}</div>
+            <div className="poweredBadge">
+              Voz principal: {stage.realtimeModel}
+            </div>
             <h2 id="avatar-stage-title" className="stageTitle">
               {stage.title}
             </h2>
@@ -497,8 +516,8 @@ export default function LessonClient() {
             </p>
             <p className="stageIntegrityNote">
               {stage.isLiveAvatar
-                ? "Avatar live verificado para esta sesión."
-                : "Escenario premium configurado; no afirmamos movimiento live si HeyGen no está disponible."}
+                ? "Avatar visual conectado; voz y micrófono pertenecen solo a Realtime 2."
+                : "Escenario premium configurado; no afirmamos movimiento live si LiveAvatar no está disponible."}
             </p>
           </article>
 
@@ -806,7 +825,7 @@ function readTutorStage(
   if (connectionStatus === "connected" || status === "active") {
     return withTutorIdentity({
       title: isLiveAvatar
-        ? "Avatar HeyGen escuchando"
+        ? "Avatar visual listo para tu clase"
         : "Profesor IA escuchando por voz",
       stateLabel: "Escuchando",
       stateDescription:
@@ -828,7 +847,7 @@ function readTutorStage(
   }
 
   return withTutorIdentity({
-    title: "Avatar configurado para tu clase",
+    title: "Avatar visual listo para tu clase",
     stateLabel: "Ready",
     stateDescription:
       "Tu profesor IA está listo para abrir una clase de speaking.",
@@ -1767,6 +1786,12 @@ function closeRealtimeConnection(connection: RealtimeConnection | null) {
   connection?.stream.getTracks().forEach((track) => track.stop());
   connection?.dataChannel.close();
   connection?.peerConnection.close();
+}
+
+function muteLiveAvatarVideo(video: HTMLVideoElement) {
+  video.defaultMuted = true;
+  video.muted = true;
+  video.volume = 0;
 }
 
 function readSavedTotalXp() {
