@@ -1,5 +1,7 @@
 .atl/
 .engram/
+.pi/
+.pi-lens/
 .next/
 coverage/
 dist/

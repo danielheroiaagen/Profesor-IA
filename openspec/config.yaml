@@ -2,70 +2,91 @@ schema: spec-driven
 project: profesor ia
 artifact_store:
   mode: hybrid
-initialized_at: 2026-05-12
+  initialized_at: "2026-05-12"
+  note: Existing repository config retained. Current Pi session is using openspec-only artifact writes because callable memory tools are unavailable.
 
 context: |
-  Product goal: professional AI English teacher with realtime voice, HeyGen avatar, and gamified learning.
-  Current stack: no application stack detected; repository contains only .env, which was not read.
+  Product goal: professional AI English teacher MVP: short realtime voice lesson, visible correction, XP feedback, and non-blocking avatar surface.
+  Current stack: Next.js 15 App Router, React 19, TypeScript 5, Vitest, Testing Library, ESLint, Prettier.
+  Current app capabilities: server-minted OpenAI Realtime WebRTC lesson flow, visible feedback, trusted XP/progress evidence, server-side avatar status/session boundaries, readiness smoke checks, and premium lesson UI work in progress.
   OpenAI realtime target: gpt-realtime-2.
   HeyGen avatar ID: e29e792a-41e7-4df0-84a8-349e099fb50f.
-  Architecture intent: SDD-first, professional PRD/requirements, AGENTS.md-style guidance, not throwaway code.
+  Architecture intent: SDD-first, professional PRD/requirements, AGENTS.md-style guidance, small reviewable PR slices.
   Security: browser access must use server-side environment variables and ephemeral client secrets; never expose .env values.
 
-strict_tdd: false
-strict_tdd_reason: No test runner or application stack exists yet, so strict TDD is unavailable until tooling is created.
+strict_tdd: true
+strict_tdd_reason: Application and test tooling now exist. New implementation slices should follow RED, GREEN, TRIANGULATE, REFACTOR and record evidence.
 
 testing:
-  detected: 2026-05-12
+  detected: "2026-05-16"
   test_runner:
-    available: false
-    framework: null
-    command: null
+    available: true
+    framework: vitest
+    command: npm test
   layers:
     unit:
-      available: false
-      tool: null
+      available: true
+      tool: vitest
     integration:
-      available: false
-      tool: null
+      available: true
+      tool: vitest
     e2e:
       available: false
       tool: null
+      note: Live browser/microphone/WebRTC validation is documented as manual/opt-in evidence.
   coverage:
     available: false
     command: null
   quality_tools:
     linter:
-      available: false
-      command: null
+      available: true
+      command: npm run lint
     type_checker:
-      available: false
-      command: null
+      available: true
+      command: npm run typecheck
     formatter:
-      available: false
-      command: null
+      available: true
+      command: npm run format
+    build:
+      available: true
+      command: npm run build
+    full_verify:
+      available: true
+      command: npm run verify
 
 rules:
   proposal:
     - Start from product requirements and user outcomes before choosing framework code.
     - Include rollback or fallback plans for realtime voice, avatar, and auth-sensitive integrations.
+    - Keep PR slices under the 400 changed-line review budget when practical.
   specs:
     - Use RFC 2119 keywords and Given/When/Then scenarios.
     - Keep secrets out of specs; reference environment variable names only when needed.
   design:
-    - Document boundaries for browser, server, OpenAI Realtime, HeyGen, persistence, and gamification domains.
+    - Document boundaries for browser, server, OpenAI Realtime, HeyGen/LiveAvatar, persistence, and gamification domains.
     - Require server-side environment variables and ephemeral client secrets for browser access.
   tasks:
     - Group work by independently reviewable product capability.
-    - Add testing/tooling setup tasks before claiming strict TDD.
+    - Forecast review workload and recommend chained PRs before apply when estimated diff exceeds 400 changed lines.
   apply:
-    tdd: false
-    test_command: ""
+    tdd: true
+    test_command: npm test
     notes:
-      - Follow detected stack only after it exists; do not invent tooling during implementation.
+      - STRICT TDD MODE IS ACTIVE. Follow RED, GREEN, TRIANGULATE, REFACTOR and record evidence.
+      - Keep product rules in src/domain/*.
+      - Keep vendor calls in src/integrations/*.
+      - Keep server-only configuration in src/config/server.ts or adjacent server-only modules.
+      - Do not implement domain, API, voice UI, or avatar integration outside the approved SDD slice.
   verify:
-    test_command: ""
-    build_command: ""
+    test_command: npm test
+    build_command: npm run build
+    full_verify_command: npm run verify
     coverage_threshold: 0
+    required_commands:
+      - npm run format
+      - npm test
+      - npm run typecheck
+      - npm run lint
+      - npm run build
   archive:
     - Preserve completed change folders as audit history before merging deltas into main specs.
