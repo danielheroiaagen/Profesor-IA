@@ -438,6 +438,16 @@ describe("LessonClient smoke", () => {
           });
         }
 
+        if (value === "/api/progress") {
+          return Response.json({
+            progress: {
+              totalXp: 0,
+              completedLessons: 0,
+              lastAwardedAt: null,
+            },
+          });
+        }
+
         connectAttempts.push(init ?? {});
         return new Response("answer-sdp");
       }),
@@ -689,10 +699,10 @@ describe("LessonClient smoke", () => {
     ).toBeVisible();
   });
 
-  it("persists server-awarded XP as anonymous local progress", async () => {
-    window.localStorage.setItem("profesor-ia.total-xp", "10");
+  it("hydrates and completes with server-owned anonymous progress", async () => {
+    window.localStorage.setItem("profesor-ia.total-xp", "999");
     const lesson = {
-      id: "lesson-local-progress",
+      id: "lesson-server-progress",
       state: "active",
       startedAt: "2026-05-13T00:00:00.000Z",
       metrics: { learnerTurns: 0, feedbackEvents: 0 },
@@ -702,6 +712,16 @@ describe("LessonClient smoke", () => {
       "fetch",
       vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
         const value = String(url);
+
+        if (value === "/api/progress") {
+          return Response.json({
+            progress: {
+              totalXp: 10,
+              completedLessons: 1,
+              lastAwardedAt: "2026-05-13T00:00:00.000Z",
+            },
+          });
+        }
 
         if (value === "/api/lessons/start") {
           return Response.json({
@@ -720,7 +740,7 @@ describe("LessonClient smoke", () => {
               clientSecret: "ek_test_ephemeral",
               model: "gpt-realtime-2",
               expiresAt: "2026-05-13T00:10:00.000Z",
-              lessonId: "lesson-local-progress",
+              lessonId: "lesson-server-progress",
               connectUrl: "https://api.openai.com/v1/realtime/calls",
             },
           });
@@ -752,6 +772,11 @@ describe("LessonClient smoke", () => {
             xp: 50,
             reason: "completed",
           },
+          progress: {
+            totalXp: 50,
+            completedLessons: 2,
+            lastAwardedAt: "2026-05-13T00:05:00.000Z",
+          },
         });
       }),
     );
@@ -780,29 +805,150 @@ describe("LessonClient smoke", () => {
     fireEvent.click(screen.getByRole("button", { name: "Finalizar clase" }));
 
     expect(await screen.findByText("+50 XP ganados")).toBeVisible();
-    expect(await screen.findByText("Total guardado: 60 XP.")).toBeVisible();
-    expect(window.localStorage.getItem("profesor-ia.total-xp")).toBe("60");
+    expect(await screen.findByText("Total guardado: 50 XP.")).toBeVisible();
+    expect(window.localStorage.getItem("profesor-ia.total-xp")).toBe("999");
+    expect(
+      screen.queryByRole("button", { name: "Borrar progreso local" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Clase cerrada" }),
     ).toBeDisabled();
   });
 
-  it("clears anonymous local XP progress from browser storage", async () => {
-    window.localStorage.setItem("profesor-ia.total-xp", "60");
+  it("ignores stale progress hydration after completion", async () => {
+    let resolveProgress: (response: Response) => void = () => undefined;
+    const progressResponse = new Promise<Response>((resolve) => {
+      resolveProgress = resolve;
+    });
+    const lesson = {
+      id: "lesson-stale-progress",
+      state: "active",
+      startedAt: "2026-05-13T00:00:00.000Z",
+      metrics: { learnerTurns: 0, feedbackEvents: 0 },
+    };
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        const value = String(url);
+
+        if (value === "/api/progress") return progressResponse;
+
+        if (value === "/api/lessons/start") {
+          return Response.json({
+            lesson,
+            avatar: {
+              mode: "voice-only",
+              available: false,
+              reason: "avatar-provider-not-configured",
+            },
+          });
+        }
+
+        if (value === "/api/realtime/session") {
+          return Response.json({
+            realtime: {
+              clientSecret: "ek_test_ephemeral",
+              model: "gpt-realtime-2",
+              expiresAt: "2026-05-13T00:10:00.000Z",
+              lessonId: "lesson-stale-progress",
+              connectUrl: "https://api.openai.com/v1/realtime/calls",
+            },
+          });
+        }
+
+        if (value === "/api/lessons/evidence") {
+          const body = JSON.parse(String(init?.body)) as {
+            evidence: "learner-turn" | "feedback";
+          };
+
+          if (body.evidence === "learner-turn") {
+            lesson.metrics.learnerTurns += 1;
+          } else {
+            lesson.metrics.feedbackEvents += 1;
+            lesson.state = "feedback";
+          }
+
+          return Response.json({ lesson });
+        }
+
+        return Response.json({
+          lesson: {
+            ...lesson,
+            state: "completed",
+            completionReason: "completed",
+          },
+          xp: { awarded: true, xp: 50, reason: "completed" },
+          progress: {
+            totalXp: 50,
+            completedLessons: 1,
+            lastAwardedAt: "2026-05-13T00:05:00.000Z",
+          },
+        });
+      }),
+    );
 
     render(<LessonClient />);
 
-    expect(await screen.findByLabelText("60 XP guardados")).toBeVisible();
-
+    fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
+    await screen.findByText("modo voz seguro");
     fireEvent.click(
-      screen.getByRole("button", { name: "Borrar progreso local" }),
+      screen.getByRole("button", { name: "Ya practiqué la frase" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Ver corrección sugerida" }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText("Prácticas: 1 · Feedback: 1")).toBeVisible(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Finalizar clase" }));
+
+    expect(await screen.findByText("Total guardado: 50 XP.")).toBeVisible();
+
+    resolveProgress(
+      Response.json({
+        progress: {
+          totalXp: 10,
+          completedLessons: 1,
+          lastAwardedAt: "2026-05-13T00:00:00.000Z",
+        },
+      }),
     );
 
+    await waitFor(() =>
+      expect(screen.getByLabelText("50 XP guardados")).toBeVisible(),
+    );
+    expect(screen.queryByLabelText("10 XP guardados")).not.toBeInTheDocument();
+  });
+
+  it("keeps progress hydration failures non-blocking", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL | Request) => {
+        if (String(url) === "/api/progress") {
+          throw new Error("Progress unavailable");
+        }
+
+        return Response.json({
+          lesson: {
+            id: "lesson-progress-fallback",
+            state: "active",
+            startedAt: "2026-05-13T00:00:00.000Z",
+            metrics: { learnerTurns: 0, feedbackEvents: 0 },
+          },
+          avatar: {
+            mode: "voice-only",
+            available: false,
+            reason: "avatar-provider-not-configured",
+          },
+        });
+      }),
+    );
+
+    render(<LessonClient />);
+
     expect(await screen.findByLabelText("0 XP guardados")).toBeVisible();
-    expect(
-      screen.queryByRole("button", { name: "Borrar progreso local" }),
-    ).not.toBeInTheDocument();
-    expect(window.localStorage.getItem("profesor-ia.total-xp")).toBeNull();
+    expect(screen.getByRole("button", { name: "Empezar clase" })).toBeEnabled();
   });
 
   it("clears stale lesson state when retry start fails before creating a new lesson", async () => {
@@ -880,6 +1026,11 @@ describe("LessonClient smoke", () => {
             awarded: true,
             xp: 50,
             reason: "completed",
+          },
+          progress: {
+            totalXp: 50,
+            completedLessons: 1,
+            lastAwardedAt: "2026-05-13T00:05:00.000Z",
           },
         });
       }),
@@ -989,6 +1140,11 @@ describe("LessonClient smoke", () => {
             awarded: false,
             xp: 0,
             reason: "unverified",
+          },
+          progress: {
+            totalXp: 0,
+            completedLessons: 0,
+            lastAwardedAt: null,
           },
         });
       }),
@@ -1137,6 +1293,11 @@ describe("LessonClient smoke", () => {
               awarded: true,
               xp: 50,
               reason: "completed",
+            },
+            progress: {
+              totalXp: 50,
+              completedLessons: 1,
+              lastAwardedAt: "2026-05-13T00:05:00.000Z",
             },
           });
         }

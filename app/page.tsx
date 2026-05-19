@@ -20,11 +20,11 @@ export default function HomePage() {
       >
         Profesor IA
       </p>
-      <h1>Practicá inglés con una clase corta por voz.</h1>
+      <h1>Tu profesor privado de inglés con voz, avatar visual y XP.</h1>
       <p>
-        La clase arranca una sesión de voz en tiempo real con credenciales
-        efímeras, muestra correcciones visibles y otorga XP solo cuando hubo
-        participación real y feedback.
+        Entrá a una clase premium con voz en tiempo real, avatar visual seguro,
+        corrección visible y progreso con XP solo cuando hubo práctica real y
+        feedback verificado.
       </p>
       <Link
         href="/lesson"
@@ -38,7 +38,7 @@ export default function HomePage() {
           textDecoration: "none",
         }}
       >
-        Empezar clase de speaking
+        Entrar a la clase premium
       </Link>
     </main>
   );
