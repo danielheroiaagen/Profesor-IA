@@ -14,8 +14,8 @@ Use this local, opt-in workflow to prove the real microphone/WebRTC path without
    I am practicing English today.
    ```
 
-6. A passing run shows `Prácticas: 1 · Feedback: 1`, `sesión cerrada`, and
-   `+50 XP ganados`.
+6. A passing run shows `Prácticas: 1 · Feedback: 1`, `sesión cerrada`,
+   `+50 XP ganados`, and `gpt-realtime-2 · credencial limitada`.
 7. Record the result with the template below.
 
 ## Safe evidence rules
@@ -26,13 +26,13 @@ Forbidden: `.env` values, primary API keys, client secret values, SDP payloads, 
 
 ## Outcome categories
 
-| Outcome                  | Use when                                                                           |
-| ------------------------ | ---------------------------------------------------------------------------------- |
-| `passed`                 | Mic capture, Realtime/WebRTC, server evidence, session close, and XP all worked.   |
-| `blocked-by-environment` | Browser permission, device, network, quota, or provider config blocked validation. |
-| `failed-by-product`      | Local prerequisites were valid, but the app flow or fallback broke.                |
+| Outcome                  | Use when                                                                                                        |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `passed`                 | Mic capture, Realtime/WebRTC, server evidence, session close, and XP all worked.                                |
+| `blocked-by-environment` | Browser permission, device, network, quota, provider config, or missing live-browser access blocked validation. |
+| `failed-by-product`      | Local prerequisites were valid, but the app flow or fallback broke.                                             |
 
-Failure category: `microphone`, `network`, `provider`, or `app`.
+Failure category: `microphone`, `network`, `provider`, `app`, or `environment`.
 
 ## Evidence template
 
@@ -43,28 +43,38 @@ Failure category: `microphone`, `network`, `provider`, or `app`.
 - Config names present: OPENAI_API_KEY, OPENAI_REALTIME_MODEL (optional)
 - Microphone branch tested: granted | denied
 - Outcome: passed | blocked-by-environment | failed-by-product
-- Failure category: microphone | network | provider | app | n/a
+- Failure category: microphone | network | provider | app | environment | n/a
 - Visible UI state:
 - Evidence counters:
 - XP result:
+- Realtime model label:
+- Avatar mode:
 - Notes:
 - Safety checked: no `.env`, keys, client secrets, SDP, or raw provider responses included.
 ```
 
 ## Automated checks
 
-Run `npm run verify` before opening a PR. These checks must not require live
-microphone hardware or live provider calls.
+Run `npm run verify` before opening a PR. These checks must not require live microphone hardware or live provider calls.
 
-## Last validated baseline
+## Current release-candidate status
+
+- Date: 2026-05-19
+- Branch: `codex/premium-avatar-06-release-evidence`
+- Local deterministic gate: `npm run verify` passed
+- Production smoke: `readiness=ready http=200`; `readiness-server=ready`
+- Live browser/mic outcome in this agent session: `blocked-by-environment`
+- Reason: no live browser/microphone tool is available inside the agent harness, and `.env` values were intentionally not read.
+- Evidence file: [`docs/release-evidence.md`](release-evidence.md)
+- Safety checked: no `.env`, keys, client secrets, SDP, screenshots, or raw provider responses included.
+
+## Last validated live baseline
 
 - Date: 2026-05-15
 - Browser/OS: Brave on macOS
 - App URL: `http://127.0.0.1:3000/lesson`
 - Outcome: `passed`
-- Visible UI state: `clase completada`, `sesión cerrada`, `Prácticas: 2 ·
-Feedback: 4`, `+50 XP ganados`
+- Visible UI state: `clase completada`, `sesión cerrada`, `Prácticas: 2 · Feedback: 4`, `+50 XP ganados`
 - Avatar/HeyGen: `tutor visual disponible`
 - Evidence file: [`docs/release-evidence.md`](release-evidence.md)
-- Safety checked: no `.env`, keys, client secrets, SDP, or raw provider
-  responses included.
+- Safety checked: no `.env`, keys, client secrets, SDP, or raw provider responses included.
