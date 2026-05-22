@@ -31,10 +31,10 @@ Chained PRs recommended: Yes.
 
 ## Phase 2: PostgreSQL Foundation
 
-- [ ] 2.1 Add `db/migrations/*` structure.
-- [ ] 2.2 Define initial schema for users, lesson attempts, lesson events, progress awards, and curriculum units.
-- [ ] 2.3 Add local development PostgreSQL setup.
-- [ ] 2.4 Add database configuration by variable name only: `POSTGRES_URL`.
+- [x] 2.1 Add `db/migrations/*` structure.
+- [x] 2.2 Define initial schema for users, lesson attempts, lesson events, progress awards, and curriculum units.
+- [x] 2.3 Add local development PostgreSQL setup.
+- [x] 2.4 Add database configuration by variable name only: `POSTGRES_URL`.
 - [ ] 2.5 Add repository-layer tests with safe test database strategy.
 
 ## Phase 3: Durable Progress Migration
@@ -70,7 +70,8 @@ Chained PRs recommended: Yes.
 
 - [ ] Current Next.js gate: `npm run verify`.
 - [x] Go gate when backend exists: `go test ./...`.
+- [ ] PostgreSQL migration gate: apply `db/migrations/0001_learning_core.up.sql` against a local test database.
 - [ ] Live browser/audio validation before public release.
 - [ ] Fresh-context review before PR/merge for any non-trivial implementation slice.
 
-Note: Go files were added in the GitHub branch. Local execution is still required before merge because this session cannot run shell commands in the workspace.
+Note: Go and PostgreSQL files were added in GitHub branches. Local execution is still required before merge because this session cannot run shell commands in the workspace.
