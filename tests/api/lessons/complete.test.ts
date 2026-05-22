@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/../app/api/lessons/complete/route";
 import {
@@ -13,19 +13,18 @@ import {
   resetAnonymousProgressForTests,
 } from "@/server/progress-store";
 
+const originalGoApiInternalUrl = process.env.GO_API_INTERNAL_URL;
+
 describe("POST /api/lessons/complete", () => {
   afterEach(() => {
     resetTrackedLessonsForTests();
     resetAnonymousProgressForTests();
+    restoreGoApiInternalUrl();
+    vi.unstubAllGlobals();
   });
 
   it("awards XP after trusted server-side participation and feedback", async () => {
-    createTrackedLesson({
-      lessonId: "lesson-complete",
-      now: new Date("2026-05-13T00:00:00.000Z"),
-    });
-    recordTrustedLearnerTurn("lesson-complete");
-    recordTrustedFeedback("lesson-complete");
+    createCompletableLesson("lesson-complete");
 
     const response = await POST(lessonAccessRequest("lesson-complete"));
     const body = await response.json();
@@ -59,6 +58,66 @@ describe("POST /api/lessons/complete", () => {
 
     expect(duplicateResponse.status).toBe(200);
     expect(duplicateBody.progress).toEqual(body.progress);
+  });
+
+  it("sends trusted completion evidence to the Go progress award endpoint", async () => {
+    process.env.GO_API_INTERNAL_URL = "http://go-api.test";
+    createCompletableLesson("lesson-go-award");
+    const fetchMock = vi.fn(async () =>
+      Response.json({
+        awarded: true,
+        xp: 50,
+        reason: "lesson_completed",
+        inserted: true,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(lessonAccessRequest("lesson-go-award"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.progress).toMatchObject({ totalXp: 50, completedLessons: 1 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    const payload = JSON.parse(String(init?.body));
+
+    expect(String(url)).toBe("http://go-api.test/v1/progress/awards");
+    expect(init?.method).toBe("POST");
+    expect(payload).toMatchObject({
+      attemptId: "lesson-go-award",
+      anonymousProgressId: expect.any(String),
+      evidence: {
+        verified: true,
+        learnerTurns: 1,
+        feedbacks: 1,
+        interrupted: false,
+      },
+    });
+  });
+
+  it("keeps the in-memory progress fallback when the Go endpoint is unavailable", async () => {
+    process.env.GO_API_INTERNAL_URL = "http://go-api.test";
+    createCompletableLesson("lesson-go-fallback");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("unavailable", { status: 503 })),
+    );
+
+    const response = await POST(lessonAccessRequest("lesson-go-fallback"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.xp).toEqual({
+      awarded: true,
+      xp: 50,
+      reason: "completed",
+    });
+    expect(body.progress).toEqual({
+      totalXp: 50,
+      completedLessons: 1,
+      lastAwardedAt: expect.any(String),
+    });
   });
 
   it("does not award XP from fabricated client completion evidence", async () => {
@@ -124,6 +183,15 @@ describe("POST /api/lessons/complete", () => {
   });
 });
 
+function createCompletableLesson(lessonId: string) {
+  createTrackedLesson({
+    lessonId,
+    now: new Date("2026-05-13T00:00:00.000Z"),
+  });
+  recordTrustedLearnerTurn(lessonId);
+  recordTrustedFeedback(lessonId);
+}
+
 function lessonAccessRequest(lessonId: string, cookie?: string) {
   return new Request("http://localhost/api/lessons/complete", {
     method: "POST",
@@ -142,4 +210,13 @@ function readCookiePair(response: Response, cookieName: string) {
   expect(cookiePair?.startsWith(`${cookieName}=`)).toBe(true);
 
   return cookiePair;
+}
+
+function restoreGoApiInternalUrl() {
+  if (originalGoApiInternalUrl === undefined) {
+    delete process.env.GO_API_INTERNAL_URL;
+    return;
+  }
+
+  process.env.GO_API_INTERNAL_URL = originalGoApiInternalUrl;
 }
