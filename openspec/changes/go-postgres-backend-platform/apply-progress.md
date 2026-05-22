@@ -103,10 +103,33 @@ Behavior added:
 - Rejects missing attempt IDs and ambiguous/missing identities.
 - Adds deterministic fake-store unit tests using pgx command tags.
 
+### Phase 3c: Progress Award Endpoint
+
+Added a Go HTTP endpoint for recording server-trusted progress awards through the existing domain and repository boundary.
+
+Files changed/added:
+
+- `backend/api/internal/progress/handler.go`
+- `backend/api/internal/progress/handler_test.go`
+- `backend/api/internal/server/server.go`
+- `backend/api/internal/server/progress_awards_test.go`
+- `backend/api/internal/database/postgres.go`
+- `backend/api/cmd/server/main.go`
+- `backend/api/README.md`
+
+Behavior added:
+
+- `POST /v1/progress/awards` accepts strict JSON completion evidence.
+- The endpoint awards only server-validated completion evidence and returns denial reasons for incomplete evidence.
+- The endpoint writes through `PostgresAwardRepository` when `POSTGRES_URL` is configured.
+- The endpoint returns `progress_awards_unavailable` when PostgreSQL is not configured.
+- The response reports whether an award was newly inserted or was already idempotently recorded.
+- Recorder/storage errors are mapped to safe public error codes without leaking database URLs or provider details.
+- Added unit coverage for handler success, denied evidence, invalid requests, unavailable repository, hidden storage errors, unsupported methods, and mux route integration.
+
 Important boundaries:
 
-- No production progress migration yet.
-- No `/lesson` behavior changes yet.
+- No `/lesson` UI integration yet.
 - No browser access to PostgreSQL.
 - No auth/session behavior yet.
 - No avatar-live behavior included.
@@ -134,7 +157,6 @@ This session could not run local shell commands because command execution is una
 ## Deferred
 
 - Real repository-layer tests against migrated schema.
-- API endpoint that uses the progress domain + repository.
 - Durable progress migration from Next.js process memory to Go.
 - Auth/session ownership.
 - RAIO/YouTalk curriculum seed/import workflow.
@@ -142,4 +164,4 @@ This session could not run local shell commands because command execution is una
 
 ## Next Recommended
 
-Run local verification, generate `go.sum` if needed, then continue with a Go endpoint for recording progress awards behind the current contract before changing the current Next.js lesson completion behavior.
+Run local verification, generate `go.sum` if needed, then continue with a small integration slice that lets the current Next.js `/lesson` completion flow call the Go progress award endpoint without breaking the existing in-memory fallback.
