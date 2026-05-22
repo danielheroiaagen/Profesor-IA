@@ -28,21 +28,6 @@ Optional non-secret configuration names:
 
 When `POSTGRES_URL` is unset, `/readyz` reports `postgres: not_configured` and remains ready. The progress award endpoint returns `progress_awards_unavailable` until PostgreSQL is configured. When `POSTGRES_URL` is set, startup and readiness validate database availability without logging the connection string.
 
-## Progress award request
-
-```json
-{
-  "attemptId": "attempt-1",
-  "anonymousProgressId": "anonymous-1",
-  "evidence": {
-    "verified": true,
-    "learnerTurns": 1,
-    "feedbacks": 1,
-    "interrupted": false
-  }
-}
-```
-
-Use exactly one identity per request: `userId` or `anonymousProgressId`.
+Progress award requests require `attemptId`, trusted completion `evidence`, and exactly one identity: `userId` or `anonymousProgressId`.
 
 Do not add database URLs, provider tokens, Realtime client secrets, or raw provider responses to logs or docs.
