@@ -16,7 +16,12 @@ func TestProgressAwardRouteRecordsValidCompletion(t *testing.T) {
 
 	recorder := &fakeProgressAwardRecorder{inserted: true}
 	handler := NewHandler(Config{ProgressAwards: recorder})
-	request := httptest.NewRequest(http.MethodPost, "/v1/progress/awards", bytes.NewBufferString(`{"attemptId":"attempt-1","anonymousProgressId":"anonymous-1","evidence":{"verified":true,"learnerTurns":1,"feedbacks":1,"interrupted":false}}`))
+	requestBody := `{
+		"attemptId":"attempt-1",
+		"anonymousProgressId":"anonymous-1",
+		"evidence":{"verified":true,"learnerTurns":1,"feedbacks":1,"interrupted":false}
+	}`
+	request := httptest.NewRequest(http.MethodPost, "/v1/progress/awards", bytes.NewBufferString(requestBody))
 	response := httptest.NewRecorder()
 
 	handler.ServeHTTP(response, request)
