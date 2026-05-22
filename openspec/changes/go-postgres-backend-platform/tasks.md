@@ -42,9 +42,10 @@ Chained PRs recommended: Yes.
 - [x] 3.1 Preserve current XP domain rules in Go.
 - [x] 3.2 Add PostgreSQL repository for idempotent progress awards.
 - [x] 3.3 Preserve idempotent award by lesson/attempt at the domain and repository layers.
-- [ ] 3.4 Keep existing `/lesson` completion UI behavior valid.
+- [x] 3.4 Keep existing `/lesson` completion UI behavior valid.
 - [x] 3.5 Add tests for the new progress award persistence boundary.
 - [x] 3.6 Add Go API endpoint for server-trusted progress awards.
+- [x] 3.7 Bridge Next.js lesson completion to the Go progress award endpoint with in-memory fallback.
 
 ## Phase 4: Auth / Session Ownership
 
