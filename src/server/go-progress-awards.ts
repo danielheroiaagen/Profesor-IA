@@ -110,7 +110,10 @@ async function readAwardResponse(response: Response) {
 
     return {
       awarded: value.awarded === true,
-      xp: typeof value.xp === "number" && Number.isFinite(value.xp) ? value.xp : 0,
+      xp:
+        typeof value.xp === "number" && Number.isFinite(value.xp)
+          ? value.xp
+          : 0,
       inserted: value.inserted === true,
       reason: typeof value.reason === "string" ? value.reason : "",
     };
