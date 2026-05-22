@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -23,8 +24,13 @@ type Pinger interface {
 	Ping(context.Context) error
 }
 
+type Executor interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
+
 type Pool interface {
 	Pinger
+	Executor
 	Close()
 }
 
