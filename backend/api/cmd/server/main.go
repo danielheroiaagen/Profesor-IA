@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/database"
+	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/progress"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/server"
 )
 
@@ -25,10 +26,17 @@ func main() {
 		defer pool.Close()
 	}
 
+	progressAwards, err := openProgressAwardsIfConfigured(pool)
+	if err != nil {
+		slog.Error("progress awards repository is unavailable", "error", err)
+		os.Exit(1)
+	}
+
 	config := server.Config{
-		Addr:     envOrDefault("GO_API_ADDR", ":8080"),
-		Version:  envOrDefault("GO_API_VERSION", "dev"),
-		Database: pool,
+		Addr:           envOrDefault("GO_API_ADDR", ":8080"),
+		Version:        envOrDefault("GO_API_VERSION", "dev"),
+		Database:       pool,
+		ProgressAwards: progressAwards,
 	}
 
 	httpServer := server.NewHTTPServer(config)
@@ -47,6 +55,14 @@ func openDatabaseIfConfigured(ctx context.Context) (database.Pool, error) {
 	}
 
 	return database.Open(ctx, database.Config{URL: postgresURL})
+}
+
+func openProgressAwardsIfConfigured(pool database.Pool) (progress.AwardRecorder, error) {
+	if pool == nil {
+		return nil, nil
+	}
+
+	return progress.NewPostgresAwardRepository(pool)
 }
 
 func envOrDefault(name string, fallback string) string {
