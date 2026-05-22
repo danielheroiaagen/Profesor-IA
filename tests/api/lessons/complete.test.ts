@@ -63,13 +63,14 @@ describe("POST /api/lessons/complete", () => {
   it("sends trusted completion evidence to the Go progress award endpoint", async () => {
     process.env.GO_API_INTERNAL_URL = "http://go-api.test";
     createCompletableLesson("lesson-go-award");
-    const fetchMock = vi.fn(async () =>
-      Response.json({
-        awarded: true,
-        xp: 50,
-        reason: "lesson_completed",
-        inserted: true,
-      }),
+    const fetchMock = vi.fn(
+      async (_url: string | URL | Request, _init?: RequestInit) =>
+        Response.json({
+          awarded: true,
+          xp: 50,
+          reason: "lesson_completed",
+          inserted: true,
+        }),
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -79,11 +80,14 @@ describe("POST /api/lessons/complete", () => {
     expect(response.status).toBe(200);
     expect(body.progress).toMatchObject({ totalXp: 50, completedLessons: 1 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0];
-    const payload = JSON.parse(String(init?.body));
+    const call = fetchMock.mock.calls[0];
+
+    expect(call).toBeDefined();
+    const [url, init] = call as [string | URL | Request, RequestInit];
+    const payload = JSON.parse(String(init.body));
 
     expect(String(url)).toBe("http://go-api.test/v1/progress/awards");
-    expect(init?.method).toBe("POST");
+    expect(init.method).toBe("POST");
     expect(payload).toMatchObject({
       attemptId: "lesson-go-award",
       anonymousProgressId: expect.any(String),
