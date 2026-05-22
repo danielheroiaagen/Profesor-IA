@@ -16,23 +16,23 @@ Current MVP contract:
 ## Security Rules
 
 - Never read, print, commit, or expose `.env` values.
-- Reference configuration by name only: `OPENAI_API_KEY`, `OPENAI_REALTIME_MODEL`, `LIVEAVATAR_API_KEY`, `HEYGEN_API_KEY`, `HEYGEN_AVATAR_ID`.
-- Browser code must never receive primary OpenAI, LiveAvatar, HeyGen, Supabase service-role, database, or storage keys.
-- Browser access must use ephemeral OpenAI credentials, Supabase anon/RLS-safe access, or server-mediated avatar credentials.
-- Realtime client secrets, SDP payloads, lesson access tokens, provider session tokens, and raw provider responses must not be logged into docs, PRs, screenshots, or telemetry.
+- Reference configuration by name only: `OPENAI_API_KEY`, `OPENAI_REALTIME_MODEL`, `LIVEAVATAR_API_KEY`, `HEYGEN_API_KEY`, `HEYGEN_AVATAR_ID`, `POSTGRES_URL`, `GO_API_INTERNAL_URL`, `SESSION_SECRET`.
+- Browser code must never receive primary OpenAI, LiveAvatar, HeyGen, PostgreSQL, database, storage, or service keys.
+- Browser access must use ephemeral OpenAI credentials, server-managed session cookies, or server-mediated avatar credentials.
+- Realtime client secrets, SDP payloads, lesson access tokens, provider session tokens, database URLs, and raw provider responses must not be logged into docs, PRs, screenshots, or telemetry.
 
 ## Deployment Decision
 
 Default production direction:
 
-| Layer                       | Recommended choice                                                                                 | Reason                                                                            |
-| --------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| App hosting                 | Hostinger VPS with Docker/PM2 + reverse proxy, or Vercel if speed matters more than server control | Next.js route handlers need a normal Node/Next runtime.                           |
-| Database/Auth/Storage       | Supabase hosted                                                                                    | Fastest professional path with managed Postgres, Auth, Storage, backups, and RLS. |
-| Self-hosted Supabase on VPS | Not first choice                                                                                   | Higher ops burden: backups, upgrades, Auth, Storage, Realtime, security patches.  |
-| Standalone managed Postgres | Good later if Supabase services are not needed                                                     | Use when Auth/Storage/RLS are replaced by custom services.                        |
+| Layer                 | Recommended choice                                                                                  | Reason                                                                                         |
+| --------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Frontend/app hosting  | Hostinger VPS with reverse proxy, or Vercel if speed matters more than server control               | Next.js remains the browser-facing frontend and can keep the current MVP route handlers during migration. |
+| Backend API           | Go HTTP service                                                                                     | The real-product backend should own durable progress, auth/session, curriculum, and avatar orchestration. |
+| Database              | PostgreSQL                                                                                          | User-selected durable data store; use managed Postgres for production unless VPS ops are explicitly accepted. |
+| Supabase              | Not used for the product roadmap unless a future approved spec reverses this decision                | PostgreSQL + Go replaces the previous Supabase-hosted recommendation.                          |
 
-Do **not** self-host Supabase on Hostinger VPS for the first real-product release unless the user explicitly accepts the operational cost. Prefer Supabase hosted for Postgres/Auth/Storage and keep the app runtime separate.
+Do **not** add Supabase Auth, Supabase client code, Supabase RLS policies, or Supabase service-role keys unless a future approved issue/spec reverses this architecture decision.
 
 ## Real Product Roadmap — Required Order
 
@@ -53,7 +53,8 @@ Include:
 Do not include:
 
 - new product features,
-- database schema redesign,
+- PostgreSQL schema redesign,
+- Go backend migration,
 - avatar-speaking behavior,
 - Agents SDK or GPT Image.
 
@@ -64,32 +65,34 @@ Acceptance evidence:
 - browser validation records `voz lista`, `gpt-realtime-2 · credencial limitada`, `Prácticas: 1 · Feedback: 1`, `sesión cerrada`, and `+50 XP ganados`,
 - no secret values appear in artifacts.
 
-### Phase 2 — Auth and durable progress
+### Phase 2 — Go backend, PostgreSQL, auth, and durable progress
 
-Goal: replace process-local anonymous progress with real user-owned durable progress.
+Goal: replace process-local anonymous progress with real user-owned durable progress through a Go backend and PostgreSQL.
 
-Recommended stack:
+Target stack:
 
-- Supabase hosted Postgres,
-- Supabase Auth,
-- Row Level Security,
+- Go HTTP API service,
+- PostgreSQL,
 - migrations checked into the repo,
+- server-managed auth/session cookies or an approved external identity provider mediated by Go,
 - server-side progress award rules.
 
 Rules:
 
 - Keep XP awarding server-trusted.
 - Never trust client-submitted XP totals.
-- Browser may use Supabase anon access only with RLS-safe policies.
-- Service-role keys stay server-only.
+- Browser must never receive PostgreSQL credentials.
+- Next.js may temporarily proxy or call the Go API, but durable backend ownership belongs in Go.
+- Prefer small migration slices: Go health/readiness -> PostgreSQL migrations -> progress persistence -> auth/session -> lesson attempts.
 
 ### Phase 3 — Real curriculum and longer lessons
 
-Goal: turn the single short demo lesson into a real learning product.
+Goal: turn the single short demo lesson into a real learning product using PostgreSQL-backed curriculum content.
 
 Include:
 
 - lesson units and levels,
+- RAIO/YouTalk lesson plans,
 - attempt history,
 - visible correction history,
 - teacher prompts/instructions by level,
@@ -97,9 +100,10 @@ Include:
 
 Rules:
 
-- Keep domain rules in `src/domain/*`.
-- Keep persistence access in `src/server/*` or dedicated data modules.
-- Keep vendor calls in `src/integrations/*`.
+- Keep product rules in `src/domain/*` until moved behind the Go service.
+- Keep Go product rules in `backend/api/internal/*` or the chosen Go service package layout.
+- Keep persistence access in Go repositories backed by PostgreSQL.
+- Keep vendor calls in `src/integrations/*` during migration, then move backend-owned integrations to Go only with an approved spec.
 
 ### Phase 4 — Advanced avatar, only after a new spec
 
@@ -115,7 +119,7 @@ Options to evaluate one at a time:
 | Realtime text to avatar TTS            | Future spike; higher latency and interruption complexity. |
 | Realtime audio to avatar lipsync       | Future spike; highest sync and provider risk.             |
 
-Do not add `/api/avatar/speak`, `/api/avatar/interrupt`, avatar microphone access, or avatar TTS inside unrelated PRs.
+Do not add `/api/avatar/speak`, `/api/avatar/interrupt`, avatar microphone access, or avatar TTS inside unrelated PRs. If implemented later, avatar orchestration should be backend-mediated and compatible with the Go API boundary.
 
 ### Phase 5 — Agents SDK, tools, and GPT Image
 
@@ -138,12 +142,14 @@ Rules:
 
 ## Code Organization
 
-- Product rules: `src/domain/*`.
-- Server state and persistence: `src/server/*` or adjacent server-only modules.
-- Vendor calls: `src/integrations/*`.
+- Product rules: `src/domain/*` until migrated.
+- Current Next.js server state and persistence: `src/server/*` or adjacent server-only modules.
+- Future Go backend: `backend/api/*`.
+- Future PostgreSQL migrations: `db/migrations/*`.
+- Vendor calls: `src/integrations/*` during the MVP; move to Go only through approved specs.
 - Server-only config: `src/config/server.ts` or adjacent server-only modules.
 - Browser UI: `app/*` client/server components with explicit boundaries.
-- Tests should live beside the behavior area under `tests/*`.
+- Tests should live beside the behavior area under `tests/*`; future Go tests should live with Go packages.
 
 ## Review Budget and PR Strategy
 
@@ -155,7 +161,7 @@ Rules:
 
 ## Quality Bar
 
-Before marking work ready:
+Before marking current Next.js work ready:
 
 ```bash
 npm test
@@ -164,11 +170,17 @@ npm run lint
 npm run build
 ```
 
-Before release or merge of substantial work:
+Before release or merge of substantial current work:
 
 ```bash
 npm run verify
 OPENAI_API_KEY=ci-readiness-placeholder npm run smoke:readiness:server
+```
+
+When Go backend code exists, also run the Go test/build gate defined by that change, starting with:
+
+```bash
+go test ./...
 ```
 
 For deploy/public launch, also run the real browser/audio workflow in `docs/browser-audio-validation.md`.
