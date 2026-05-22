@@ -3,26 +3,24 @@ package progress
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
+
+const validAwardJSON = `{
+	"attemptId":"attempt-1",
+	"userId":"user-1",
+	"evidence":{"verified":true,"learnerTurns":1,"feedbacks":1,"interrupted":false}
+}`
 
 func TestRegisterAwardRecordsValidEvidence(t *testing.T) {
 	t.Parallel()
 
 	recorder := &fakeAwardRecorder{inserted: true}
-	handler := NewHandler(recorder)
-	response := httptest.NewRecorder()
-	request := awardHTTPPost(`{
-		"attemptId":"attempt-1",
-		"userId":"user-1",
-		"evidence":{"verified":true,"learnerTurns":1,"feedbacks":1,"interrupted":false}
-	}`)
-
-	handler.RegisterAward(response, request)
+	response := postAward(t, NewHandler(recorder), validAwardJSON)
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, response.Code)
@@ -30,36 +28,20 @@ func TestRegisterAwardRecordsValidEvidence(t *testing.T) {
 	if !recorder.called {
 		t.Fatal("expected recorder call")
 	}
-	if recorder.record.AttemptID != "attempt-1" {
-		t.Fatalf("expected attempt-1, got %q", recorder.record.AttemptID)
-	}
-	if recorder.record.Identity.UserID != "user-1" {
-		t.Fatalf("expected user-1, got %q", recorder.record.Identity.UserID)
+	if recorder.record.AttemptID != "attempt-1" || recorder.record.Identity.UserID != "user-1" {
+		t.Fatalf("unexpected record: %+v", recorder.record)
 	}
 	if recorder.record.Decision.XP != LessonCompletionXP {
 		t.Fatalf("expected %d XP, got %d", LessonCompletionXP, recorder.record.Decision.XP)
 	}
-
-	var body awardResponse
-	decodeJSON(t, response, &body)
-	if !body.Awarded || !body.Inserted || body.XP != LessonCompletionXP || body.Reason != "lesson_completed" {
-		t.Fatalf("unexpected award response: %+v", body)
-	}
+	assertBodyContains(t, response, `"awarded":true`, `"xp":50`, `"reason":"lesson_completed"`, `"inserted":true`)
 }
 
 func TestRegisterAwardSkipsDeniedEvidence(t *testing.T) {
 	t.Parallel()
 
 	recorder := &fakeAwardRecorder{inserted: true}
-	handler := NewHandler(recorder)
-	response := httptest.NewRecorder()
-	request := awardHTTPPost(`{
-		"attemptId":"attempt-1",
-		"userId":"user-1",
-		"evidence":{"verified":true,"learnerTurns":1,"feedbacks":0,"interrupted":false}
-	}`)
-
-	handler.RegisterAward(response, request)
+	response := postAward(t, NewHandler(recorder), strings.Replace(validAwardJSON, `"feedbacks":1`, `"feedbacks":0`, 1))
 
 	if response.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, response.Code)
@@ -67,121 +49,91 @@ func TestRegisterAwardSkipsDeniedEvidence(t *testing.T) {
 	if recorder.called {
 		t.Fatal("expected denied evidence to skip recorder")
 	}
-
-	var body awardResponse
-	decodeJSON(t, response, &body)
-	if body.Awarded || body.Inserted || body.XP != 0 || body.Reason != "missing_feedback" {
-		t.Fatalf("unexpected denied response: %+v", body)
-	}
+	assertBodyContains(t, response, `"awarded":false`, `"xp":0`, `"reason":"missing_feedback"`)
 }
 
-func TestRegisterAwardReturnsUnavailableWhenRecorderMissing(t *testing.T) {
+func TestRegisterAwardErrors(t *testing.T) {
 	t.Parallel()
 
-	handler := NewHandler(nil)
-	response := httptest.NewRecorder()
-	request := awardHTTPPost(`{
-		"attemptId":"attempt-1",
-		"userId":"user-1",
-		"evidence":{"verified":true,"learnerTurns":1,"feedbacks":1,"interrupted":false}
-	}`)
-
-	handler.RegisterAward(response, request)
-
-	if response.Code != http.StatusServiceUnavailable {
-		t.Fatalf("expected status %d, got %d", http.StatusServiceUnavailable, response.Code)
+	cases := []struct {
+		name    string
+		handler Handler
+		request *http.Request
+		status  int
+		code    string
+	}{
+		{
+			name:    "recorder missing",
+			handler: NewHandler(nil),
+			request: awardRequest(http.MethodPost, validAwardJSON),
+			status:  http.StatusServiceUnavailable,
+			code:    "progress_awards_unavailable",
+		},
+		{
+			name:    "invalid json",
+			handler: NewHandler(&fakeAwardRecorder{}),
+			request: awardRequest(http.MethodPost, `{"attemptId":`),
+			status:  http.StatusBadRequest,
+			code:    "invalid_request",
+		},
+		{
+			name:    "invalid award request",
+			handler: NewHandler(&fakeAwardRecorder{err: ErrInvalidAwardIdentity}),
+			request: awardRequest(http.MethodPost, strings.Replace(validAwardJSON, `"userId":"user-1"`, `"userId":"user-1","anonymousProgressId":"anonymous-1"`, 1)),
+			status:  http.StatusBadRequest,
+			code:    "invalid_award_request",
+		},
+		{
+			name:    "storage error hidden",
+			handler: NewHandler(&fakeAwardRecorder{err: errors.New("postgres://secret@localhost")}),
+			request: awardRequest(http.MethodPost, validAwardJSON),
+			status:  http.StatusInternalServerError,
+			code:    "progress_award_failed",
+		},
+		{
+			name:    "unsupported method",
+			handler: NewHandler(&fakeAwardRecorder{}),
+			request: awardRequest(http.MethodGet, ""),
+			status:  http.StatusMethodNotAllowed,
+			code:    "method_not_allowed",
+		},
 	}
-	assertErrorResponse(t, response, "progress_awards_unavailable")
-}
 
-func TestRegisterAwardRejectsInvalidJSON(t *testing.T) {
-	t.Parallel()
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	handler := NewHandler(&fakeAwardRecorder{})
-	response := httptest.NewRecorder()
-	request := awardHTTPPost(`{"attemptId":`)
+			response := httptest.NewRecorder()
+			tc.handler.RegisterAward(response, tc.request)
 
-	handler.RegisterAward(response, request)
-
-	if response.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, response.Code)
+			if response.Code != tc.status {
+				t.Fatalf("expected status %d, got %d", tc.status, response.Code)
+			}
+			assertBodyContains(t, response, `"error":"`+tc.code+`"`)
+		})
 	}
-	assertErrorResponse(t, response, "invalid_request")
 }
 
-func TestRegisterAwardRejectsInvalidAwardRequest(t *testing.T) {
-	t.Parallel()
-
-	handler := NewHandler(&fakeAwardRecorder{err: ErrInvalidAwardIdentity})
-	response := httptest.NewRecorder()
-	request := awardHTTPPost(`{
-		"attemptId":"attempt-1",
-		"userId":"user-1",
-		"anonymousProgressId":"anonymous-1",
-		"evidence":{"verified":true,"learnerTurns":1,"feedbacks":1,"interrupted":false}
-	}`)
-
-	handler.RegisterAward(response, request)
-
-	if response.Code != http.StatusBadRequest {
-		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, response.Code)
-	}
-	assertErrorResponse(t, response, "invalid_award_request")
-}
-
-func TestRegisterAwardHidesRecorderErrors(t *testing.T) {
-	t.Parallel()
-
-	handler := NewHandler(&fakeAwardRecorder{err: errors.New("postgres://secret@localhost")})
-	response := httptest.NewRecorder()
-	request := awardHTTPPost(`{
-		"attemptId":"attempt-1",
-		"userId":"user-1",
-		"evidence":{"verified":true,"learnerTurns":1,"feedbacks":1,"interrupted":false}
-	}`)
-
-	handler.RegisterAward(response, request)
-
-	if response.Code != http.StatusInternalServerError {
-		t.Fatalf("expected status %d, got %d", http.StatusInternalServerError, response.Code)
-	}
-	assertErrorResponse(t, response, "progress_award_failed")
-}
-
-func TestRegisterAwardRejectsUnsupportedMethod(t *testing.T) {
-	t.Parallel()
-
-	handler := NewHandler(&fakeAwardRecorder{})
-	response := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/v1/progress/awards", nil)
-
-	handler.RegisterAward(response, request)
-
-	if response.Code != http.StatusMethodNotAllowed {
-		t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, response.Code)
-	}
-	assertErrorResponse(t, response, "method_not_allowed")
-}
-
-func awardHTTPPost(body string) *http.Request {
-	return httptest.NewRequest(http.MethodPost, "/v1/progress/awards", bytes.NewBufferString(body))
-}
-
-func decodeJSON[T any](t *testing.T, response *httptest.ResponseRecorder, body *T) {
+func postAward(t *testing.T, handler Handler, body string) *httptest.ResponseRecorder {
 	t.Helper()
 
-	if err := json.NewDecoder(response.Body).Decode(body); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
+	response := httptest.NewRecorder()
+	handler.RegisterAward(response, awardRequest(http.MethodPost, body))
+	return response
 }
 
-func assertErrorResponse(t *testing.T, response *httptest.ResponseRecorder, code string) {
+func awardRequest(method string, body string) *http.Request {
+	return httptest.NewRequest(method, "/v1/progress/awards", bytes.NewBufferString(body))
+}
+
+func assertBodyContains(t *testing.T, response *httptest.ResponseRecorder, snippets ...string) {
 	t.Helper()
 
-	var body errorResponse
-	decodeJSON(t, response, &body)
-	if body.Error != code {
-		t.Fatalf("expected error %q, got %q", code, body.Error)
+	body := response.Body.String()
+	for _, snippet := range snippets {
+		if !strings.Contains(body, snippet) {
+			t.Fatalf("expected body %q to contain %q", body, snippet)
+		}
 	}
 }
 
