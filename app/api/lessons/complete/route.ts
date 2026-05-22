@@ -8,6 +8,7 @@ import {
   type LessonAccessRequest,
 } from "@/server/lesson-access";
 import { completeTrackedLesson } from "@/server/lesson-store";
+import { recordGoProgressAward } from "@/server/go-progress-awards";
 import {
   getOrCreateAnonymousProgressId,
   recordLessonProgress,
@@ -78,6 +79,14 @@ export async function POST(request: Request) {
 
   const xp = awardLessonXp(completion.qualification);
   const progressId = getOrCreateAnonymousProgressId(request);
+
+  await recordGoProgressAward({
+    progressId,
+    lessonId: completion.lesson.id,
+    metrics: completion.lesson.metrics,
+    xp,
+  });
+
   const progress = recordLessonProgress({
     progressId,
     lessonId: completion.lesson.id,
