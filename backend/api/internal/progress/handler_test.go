@@ -65,35 +65,35 @@ func TestRegisterAwardErrors(t *testing.T) {
 		{
 			name:    "recorder missing",
 			handler: NewHandler(nil),
-			request: awardRequest(http.MethodPost, validAwardJSON),
+			request: newAwardRequest(http.MethodPost, validAwardJSON),
 			status:  http.StatusServiceUnavailable,
 			code:    "progress_awards_unavailable",
 		},
 		{
 			name:    "invalid json",
 			handler: NewHandler(&fakeAwardRecorder{}),
-			request: awardRequest(http.MethodPost, `{"attemptId":`),
+			request: newAwardRequest(http.MethodPost, `{"attemptId":`),
 			status:  http.StatusBadRequest,
 			code:    "invalid_request",
 		},
 		{
 			name:    "invalid award request",
 			handler: NewHandler(&fakeAwardRecorder{err: ErrInvalidAwardIdentity}),
-			request: awardRequest(http.MethodPost, strings.Replace(validAwardJSON, `"userId":"user-1"`, `"userId":"user-1","anonymousProgressId":"anonymous-1"`, 1)),
+			request: newAwardRequest(http.MethodPost, strings.Replace(validAwardJSON, `"userId":"user-1"`, `"userId":"user-1","anonymousProgressId":"anonymous-1"`, 1)),
 			status:  http.StatusBadRequest,
 			code:    "invalid_award_request",
 		},
 		{
 			name:    "storage error hidden",
 			handler: NewHandler(&fakeAwardRecorder{err: errors.New("postgres://secret@localhost")}),
-			request: awardRequest(http.MethodPost, validAwardJSON),
+			request: newAwardRequest(http.MethodPost, validAwardJSON),
 			status:  http.StatusInternalServerError,
 			code:    "progress_award_failed",
 		},
 		{
 			name:    "unsupported method",
 			handler: NewHandler(&fakeAwardRecorder{}),
-			request: awardRequest(http.MethodGet, ""),
+			request: newAwardRequest(http.MethodGet, ""),
 			status:  http.StatusMethodNotAllowed,
 			code:    "method_not_allowed",
 		},
@@ -118,11 +118,11 @@ func postAward(t *testing.T, handler Handler, body string) *httptest.ResponseRec
 	t.Helper()
 
 	response := httptest.NewRecorder()
-	handler.RegisterAward(response, awardRequest(http.MethodPost, body))
+	handler.RegisterAward(response, newAwardRequest(http.MethodPost, body))
 	return response
 }
 
-func awardRequest(method string, body string) *http.Request {
+func newAwardRequest(method string, body string) *http.Request {
 	return httptest.NewRequest(method, "/v1/progress/awards", bytes.NewBufferString(body))
 }
 
