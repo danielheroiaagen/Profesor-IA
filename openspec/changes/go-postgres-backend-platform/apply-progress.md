@@ -127,10 +127,27 @@ Behavior added:
 - Recorder/storage errors are mapped to safe public error codes without leaking database URLs or provider details.
 - Added unit coverage for handler success, denied evidence, invalid requests, unavailable repository, hidden storage errors, unsupported methods, and mux route integration.
 
+### Phase 3d: Next.js Lesson Progress Bridge
+
+Connected the existing Next.js lesson completion route to the Go progress award endpoint while preserving the MVP client contract.
+
+Files changed/added:
+
+- `src/server/go-progress-awards.ts`
+- `app/api/lessons/complete/route.ts`
+- `tests/api/lessons/complete.test.ts`
+
+Behavior added:
+
+- `POST /api/lessons/complete` now attempts a server-to-server call to `GO_API_INTERNAL_URL` + `/v1/progress/awards` after lesson access, rate limit, and server-trusted completion are verified.
+- The browser still calls only the existing Next.js route; no browser code receives the Go API URL.
+- The existing client-facing response shape stays unchanged.
+- The existing in-memory anonymous progress store remains as a fallback and UI summary source if the Go API is unset or unavailable.
+- Tests cover Go award request payloads and fallback behavior.
+
 Important boundaries:
 
-- No `/lesson` UI integration yet.
-- No browser access to PostgreSQL.
+- Durable read-side progress still uses the existing in-memory summary until the next migration slice.
 - No auth/session behavior yet.
 - No avatar-live behavior included.
 
@@ -141,6 +158,13 @@ Planned Go gate:
 ```bash
 cd backend/api
 go test ./...
+```
+
+Planned Next.js gate:
+
+```bash
+npm test -- tests/api/lessons/complete.test.ts
+npm run verify
 ```
 
 Planned PostgreSQL migration gate:
@@ -156,12 +180,12 @@ This session could not run local shell commands because command execution is una
 
 ## Deferred
 
+- Durable progress read API backed by Go/PostgreSQL.
 - Real repository-layer tests against migrated schema.
-- Durable progress migration from Next.js process memory to Go.
 - Auth/session ownership.
 - RAIO/YouTalk curriculum seed/import workflow.
 - Live avatar event bridge.
 
 ## Next Recommended
 
-Run local verification, generate `go.sum` if needed, then continue with a small integration slice that lets the current Next.js `/lesson` completion flow call the Go progress award endpoint without breaking the existing in-memory fallback.
+Run local verification, generate `go.sum` if needed, then continue with auth/session ownership or durable progress reads before starting the avatar-live event bridge.
