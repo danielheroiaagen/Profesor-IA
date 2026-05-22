@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"time"
+
+	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/progress"
 )
 
 const serviceName = "profesor-ia-api"
@@ -14,9 +16,10 @@ type DatabasePinger interface {
 }
 
 type Config struct {
-	Addr     string
-	Version  string
-	Database DatabasePinger
+	Addr           string
+	Version        string
+	Database       DatabasePinger
+	ProgressAwards progress.AwardRecorder
 }
 
 type statusResponse struct {
@@ -57,6 +60,9 @@ func NewHandler(config Config) http.Handler {
 		statusCode, response := readinessResponse(r.Context(), config)
 		writeJSON(w, statusCode, response)
 	})
+
+	progressHandler := progress.NewHandler(config.ProgressAwards)
+	mux.HandleFunc("POST /v1/progress/awards", progressHandler.RegisterAward)
 
 	return withSecurityHeaders(mux)
 }
