@@ -68,9 +68,28 @@ Behavior added:
 - Returns degraded readiness without exposing database URL if PostgreSQL is unavailable.
 - Adds deterministic fake-pinger unit tests for database checks and readiness states.
 
+### Phase 3a: Go Progress Domain
+
+Added Go domain rules for server-trusted XP awards without changing current Next.js lesson behavior.
+
+Files added:
+
+- `backend/api/internal/progress/progress.go`
+- `backend/api/internal/progress/progress_test.go`
+
+Behavior added:
+
+- Preserves the current completion XP amount: 50 XP.
+- Awards XP only when completion evidence is verified, not interrupted, has at least one learner turn, and has at least one feedback event.
+- Denies awards with explicit reasons for unverified, interrupted, missing learner turn, and missing feedback cases.
+- Applies awards idempotently by attempt ID in the domain snapshot.
+- Adds deterministic unit tests for all award/deny paths.
+
 Important boundaries:
 
 - No production progress migration yet.
+- No database repository writes yet.
+- No `/lesson` behavior changes yet.
 - No browser access to PostgreSQL.
 - No auth/session behavior yet.
 - No avatar-live behavior included.
@@ -98,7 +117,7 @@ This session could not run local shell commands because command execution is una
 ## Deferred
 
 - Real repository-layer tests against migrated schema.
-- Durable progress migration.
+- Durable progress persistence.
 - Auth/session ownership.
 - RAIO/YouTalk curriculum seed/import workflow.
 - Live avatar event bridge.
