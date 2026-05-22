@@ -39,9 +39,9 @@ Chained PRs recommended: Yes.
 
 ## Phase 3: Durable Progress Migration
 
-- [ ] 3.1 Preserve current XP domain rules.
+- [x] 3.1 Preserve current XP domain rules in Go.
 - [ ] 3.2 Move progress persistence from process-local store to Go + PostgreSQL.
-- [ ] 3.3 Preserve idempotent award by lesson/attempt.
+- [x] 3.3 Preserve idempotent award by lesson/attempt at the domain layer.
 - [ ] 3.4 Keep existing `/lesson` completion UI behavior valid.
 - [ ] 3.5 Update tests for the new persistence boundary.
 
