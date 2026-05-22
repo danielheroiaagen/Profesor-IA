@@ -1,13 +1,14 @@
 package progress
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 )
 
 type AwardRecorder interface {
-	RecordAward(r *http.Request, record AwardRecord) (bool, error)
+	RecordAward(ctx context.Context, record AwardRecord) (bool, error)
 }
 
 type Handler struct {
@@ -19,10 +20,10 @@ func NewHandler(awards AwardRecorder) Handler {
 }
 
 type awardRequest struct {
-	AttemptID string `json:"attemptId"`
-	UserID    string `json:"userId,omitempty"`
-	AnonymousProgressID string `json:"anonymousProgressId,omitempty"`
-	Evidence completionEvidenceRequest `json:"evidence"`
+	AttemptID           string                    `json:"attemptId"`
+	UserID              string                    `json:"userId,omitempty"`
+	AnonymousProgressID string                    `json:"anonymousProgressId,omitempty"`
+	Evidence            completionEvidenceRequest `json:"evidence"`
 }
 
 type completionEvidenceRequest struct {
@@ -77,7 +78,7 @@ func (h Handler) RegisterAward(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	inserted, err := h.awards.RecordAward(r, AwardRecord{
+	inserted, err := h.awards.RecordAward(r.Context(), AwardRecord{
 		Identity: AwardIdentity{
 			UserID:              request.UserID,
 			AnonymousProgressID: request.AnonymousProgressID,
