@@ -188,16 +188,34 @@ Behavior added:
 - Adds an expired cookie helper for logout/session invalidation endpoints.
 - Adds deterministic tests for token generation, invalid token generator configuration, reader failures, active cookies, and expired cookies.
 
+### Phase 4b: Session Persistence Repository
+
+Added the Go repository boundary for durable session ownership and invalidation.
+
+Files added:
+
+- `backend/api/internal/session/repository.go`
+- `backend/api/internal/session/repository_test.go`
+
+Behavior added:
+
+- Stores SHA-256 hashes of opaque session tokens in `auth_sessions`; raw session tokens are never persisted.
+- Creates sessions for a validated `user_id`, token, and future expiry.
+- Resolves active, non-revoked session hashes to user identity.
+- Rejects expired resolved sessions even if a stale row is returned.
+- Revokes sessions idempotently by setting `revoked_at` through the token hash.
+- Adds deterministic fake-store tests for create, resolve, revoke, validation, and database error wrapping.
+
 Important boundaries:
 
-- No session persistence repository yet.
-- No progress association with authenticated user identity yet.
 - No login/logout HTTP endpoints yet.
+- Progress awards are not yet associated with the resolved session identity.
+- No browser/session cookie wiring yet.
 - Avatar-live behavior remains deferred until the event contract slice.
 
 ## Verification
 
-GitHub Actions now verifies chained PRs with:
+GitHub Actions verifies chained PRs with:
 
 ```bash
 npm run verify
@@ -221,11 +239,11 @@ Local shell execution is unavailable in this Codex desktop thread, so database m
 
 - Durable progress read API backed by Go/PostgreSQL.
 - Real repository-layer tests against migrated schema.
-- Session persistence and logout endpoint wiring.
-- Progress association with user identity.
+- Login/logout HTTP endpoint wiring.
+- Progress association with resolved user identity.
 - RAIO/YouTalk curriculum seed/import workflow.
 - Live avatar event bridge.
 
 ## Next Recommended
 
-Run CI for the session foundation slice, then continue with the session persistence/logout slice before starting the RAIO curriculum API and avatar-live event bridge.
+Run CI for the session repository slice, then wire session resolution into progress awards before starting the RAIO curriculum API and avatar-live event bridge.
