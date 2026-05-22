@@ -44,6 +44,7 @@ Chained PRs recommended: Yes.
 - [x] 3.3 Preserve idempotent award by lesson/attempt at the domain and repository layers.
 - [ ] 3.4 Keep existing `/lesson` completion UI behavior valid.
 - [x] 3.5 Add tests for the new progress award persistence boundary.
+- [x] 3.6 Add Go API endpoint for server-trusted progress awards.
 
 ## Phase 4: Auth / Session Ownership
 
