@@ -49,7 +49,7 @@ Chained PRs recommended: Yes.
 
 ## Phase 4: Auth / Session Ownership
 
-- [ ] 4.1 Define session model and cookie policy.
+- [x] 4.1 Define session model and cookie policy.
 - [ ] 4.2 Associate progress with user identity.
 - [ ] 4.3 Add logout/session invalidation behavior.
 - [ ] 4.4 Add tests for session security and progress isolation.
@@ -70,10 +70,10 @@ Chained PRs recommended: Yes.
 
 ## Verification Gates
 
-- [ ] Current Next.js gate: `npm run verify`.
+- [x] Chained GitHub Actions gate: Next.js verify/readiness plus Go `go mod tidy` and `go test ./...`.
 - [x] Go gate when backend exists: `go test ./...`.
 - [ ] PostgreSQL migration gate: apply `db/migrations/0001_learning_core.up.sql` against a local test database.
 - [ ] Live browser/audio validation before public release.
 - [ ] Fresh-context review before PR/merge for any non-trivial implementation slice.
 
-Note: Go and PostgreSQL files were added in GitHub branches. Local execution is still required before merge because this session cannot run shell commands in the workspace.
+Note: GitHub Actions now verifies the Go backend on chained PRs. Local shell execution remains unavailable in this Codex desktop thread, so local-only database migration gates still need a separate environment.
