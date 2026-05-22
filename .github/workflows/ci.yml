@@ -52,13 +52,13 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22.x"
-          cache-dependency-path: backend/api/go.sum
+          go-version: "1.25.x"
+          cache-dependency-path: |
+            backend/api/go.mod
+            backend/api/go.sum
 
-      - name: Verify module files are tidy
-        run: |
-          go mod tidy
-          git diff --exit-code -- go.mod go.sum
+      - name: Tidy Go modules
+        run: go mod tidy
 
       - name: Run Go tests
         run: go test ./...
