@@ -6,5 +6,9 @@
 coverage/
 dist/
 node_modules/
-openspec/changes/archive/
+openspec/changes/
 package-lock.json
+AGENTS.md
+backend/api/README.md
+db/README.md
+docs/deployment.md
