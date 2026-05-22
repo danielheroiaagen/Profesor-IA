@@ -3,9 +3,9 @@ package server
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/progress"
@@ -16,11 +16,7 @@ func TestProgressAwardRouteRecordsValidCompletion(t *testing.T) {
 
 	recorder := &fakeProgressAwardRecorder{inserted: true}
 	handler := NewHandler(Config{ProgressAwards: recorder})
-	request := httptest.NewRequest(http.MethodPost, "/v1/progress/awards", bytes.NewBufferString(`{
-		"attemptId":"attempt-1",
-		"anonymousProgressId":"anonymous-1",
-		"evidence":{"verified":true,"learnerTurns":1,"feedbacks":1,"interrupted":false}
-	}`))
+	request := httptest.NewRequest(http.MethodPost, "/v1/progress/awards", bytes.NewBufferString(`{"attemptId":"attempt-1","anonymousProgressId":"anonymous-1","evidence":{"verified":true,"learnerTurns":1,"feedbacks":1,"interrupted":false}}`))
 	response := httptest.NewRecorder()
 
 	handler.ServeHTTP(response, request)
@@ -31,24 +27,15 @@ func TestProgressAwardRouteRecordsValidCompletion(t *testing.T) {
 	if !recorder.called {
 		t.Fatal("expected progress award recorder call")
 	}
-	if recorder.record.AttemptID != "attempt-1" {
-		t.Fatalf("expected attempt-1, got %q", recorder.record.AttemptID)
-	}
-	if recorder.record.Identity.AnonymousProgressID != "anonymous-1" {
-		t.Fatalf("expected anonymous-1, got %q", recorder.record.Identity.AnonymousProgressID)
+	if recorder.record.AttemptID != "attempt-1" || recorder.record.Identity.AnonymousProgressID != "anonymous-1" {
+		t.Fatalf("unexpected record: %+v", recorder.record)
 	}
 
-	var body struct {
-		Awarded  bool   `json:"awarded"`
-		XP       int    `json:"xp"`
-		Reason   string `json:"reason"`
-		Inserted bool   `json:"inserted"`
-	}
-	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if !body.Awarded || !body.Inserted || body.XP != progress.LessonCompletionXP || body.Reason != "lesson_completed" {
-		t.Fatalf("unexpected award response: %+v", body)
+	body := response.Body.String()
+	for _, snippet := range []string{`"awarded":true`, `"xp":50`, `"reason":"lesson_completed"`, `"inserted":true`} {
+		if !strings.Contains(body, snippet) {
+			t.Fatalf("expected body %q to contain %q", body, snippet)
+		}
 	}
 }
 
