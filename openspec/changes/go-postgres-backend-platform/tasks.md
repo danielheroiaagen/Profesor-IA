@@ -35,7 +35,7 @@ Chained PRs recommended: Yes.
 - [x] 2.2 Define initial schema for users, lesson attempts, lesson events, progress awards, and curriculum units.
 - [x] 2.3 Add local development PostgreSQL setup.
 - [x] 2.4 Add database configuration by variable name only: `POSTGRES_URL`.
-- [ ] 2.5 Add repository-layer tests with safe test database strategy.
+- [x] 2.5 Add PostgreSQL connection checks with safe fake-pinger tests.
 
 ## Phase 3: Durable Progress Migration
 
