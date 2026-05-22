@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/../app/api/lessons/complete/route";
 import {
@@ -16,6 +16,10 @@ import {
 const originalGoApiInternalUrl = process.env.GO_API_INTERNAL_URL;
 
 describe("POST /api/lessons/complete", () => {
+  beforeEach(() => {
+    delete process.env.GO_API_INTERNAL_URL;
+  });
+
   afterEach(() => {
     resetTrackedLessonsForTests();
     resetAnonymousProgressForTests();
