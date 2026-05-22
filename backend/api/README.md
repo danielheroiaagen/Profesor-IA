@@ -5,9 +5,9 @@ This service is the future backend boundary for durable product capabilities.
 Current slice:
 
 - `GET /healthz` — process health.
-- `GET /readyz` — readiness without external dependencies yet.
-- No PostgreSQL connection yet.
-- No product behavior migrated yet.
+- `GET /readyz` — readiness with optional PostgreSQL health when `POSTGRES_URL` is configured.
+- PostgreSQL connection package exists, but no product behavior is migrated yet.
+- No progress, auth, curriculum, or avatar-live behavior has moved to Go yet.
 
 ## Local commands
 
@@ -23,5 +23,8 @@ Optional non-secret configuration names:
 | --- | --- | --- |
 | `GO_API_ADDR` | HTTP listen address | `:8080` |
 | `GO_API_VERSION` | Safe version label returned by health endpoints | `dev` |
+| `POSTGRES_URL` | Server-only PostgreSQL connection string | unset |
+
+When `POSTGRES_URL` is unset, `/readyz` reports `postgres: not_configured` and remains ready. When it is set, startup and readiness validate database availability without logging the connection string.
 
 Do not add database URLs, provider tokens, Realtime client secrets, or raw provider responses to logs or docs.
