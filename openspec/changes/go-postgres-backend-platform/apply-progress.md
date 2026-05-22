@@ -85,10 +85,27 @@ Behavior added:
 - Applies awards idempotently by attempt ID in the domain snapshot.
 - Adds deterministic unit tests for all award/deny paths.
 
+### Phase 3b: Progress Award Repository
+
+Added a PostgreSQL repository boundary for writing server-trusted progress awards.
+
+Files added:
+
+- `backend/api/internal/progress/repository.go`
+- `backend/api/internal/progress/repository_test.go`
+
+Behavior added:
+
+- Records awarded decisions into `progress_awards`.
+- Uses `ON CONFLICT (attempt_id) DO NOTHING` to preserve idempotency at the persistence layer.
+- Supports exactly one identity per award: `user_id` or `anonymous_progress_id`.
+- Skips denied awards without database writes.
+- Rejects missing attempt IDs and ambiguous/missing identities.
+- Adds deterministic fake-store unit tests using pgx command tags.
+
 Important boundaries:
 
 - No production progress migration yet.
-- No database repository writes yet.
 - No `/lesson` behavior changes yet.
 - No browser access to PostgreSQL.
 - No auth/session behavior yet.
@@ -117,11 +134,12 @@ This session could not run local shell commands because command execution is una
 ## Deferred
 
 - Real repository-layer tests against migrated schema.
-- Durable progress persistence.
+- API endpoint that uses the progress domain + repository.
+- Durable progress migration from Next.js process memory to Go.
 - Auth/session ownership.
 - RAIO/YouTalk curriculum seed/import workflow.
 - Live avatar event bridge.
 
 ## Next Recommended
 
-Run local verification, generate `go.sum` if needed, then continue with a durable progress repository slice before changing the current Next.js lesson completion behavior.
+Run local verification, generate `go.sum` if needed, then continue with a Go endpoint for recording progress awards behind the current contract before changing the current Next.js lesson completion behavior.
