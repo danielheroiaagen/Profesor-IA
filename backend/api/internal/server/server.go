@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -8,9 +9,14 @@ import (
 
 const serviceName = "profesor-ia-api"
 
+type DatabasePinger interface {
+	Ping(context.Context) error
+}
+
 type Config struct {
-	Addr    string
-	Version string
+	Addr     string
+	Version  string
+	Database DatabasePinger
 }
 
 type statusResponse struct {
@@ -48,17 +54,41 @@ func NewHandler(config Config) http.Handler {
 	})
 
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, statusResponse{
-			Service: serviceName,
-			Status:  "ready",
-			Version: versionOrDefault(config.Version),
-			Checks: map[string]string{
-				"http": "ok",
-			},
-		})
+		statusCode, response := readinessResponse(r.Context(), config)
+		writeJSON(w, statusCode, response)
 	})
 
 	return withSecurityHeaders(mux)
+}
+
+func readinessResponse(ctx context.Context, config Config) (int, statusResponse) {
+	checks := map[string]string{
+		"http": "ok",
+	}
+	statusCode := http.StatusOK
+	status := "ready"
+
+	if config.Database == nil {
+		checks["postgres"] = "not_configured"
+	} else {
+		pingContext, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+
+		if err := config.Database.Ping(pingContext); err != nil {
+			checks["postgres"] = "unavailable"
+			statusCode = http.StatusServiceUnavailable
+			status = "degraded"
+		} else {
+			checks["postgres"] = "ok"
+		}
+	}
+
+	return statusCode, statusResponse{
+		Service: serviceName,
+		Status:  status,
+		Version: versionOrDefault(config.Version),
+		Checks:  checks,
+	}
 }
 
 func withSecurityHeaders(next http.Handler) http.Handler {
