@@ -145,26 +145,6 @@ func hashSessionToken(token string) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
-const insertSessionSQL = `
-INSERT INTO auth_sessions (
-  user_id,
-  session_hash,
-  expires_at
-)
-VALUES ($1, $2, $3)
-`
-
-const selectSessionSQL = `
-SELECT user_id, expires_at
-FROM auth_sessions
-WHERE session_hash = $1
-  AND revoked_at IS NULL
-LIMIT 1
-`
-
-const revokeSessionSQL = `
-UPDATE auth_sessions
-SET revoked_at = $2
-WHERE session_hash = $1
-  AND revoked_at IS NULL
-`
+const insertSessionSQL = `INSERT INTO auth_sessions (user_id, session_hash, expires_at) VALUES ($1, $2, $3)`
+const selectSessionSQL = `SELECT user_id, expires_at FROM auth_sessions WHERE session_hash = $1 AND revoked_at IS NULL LIMIT 1`
+const revokeSessionSQL = `UPDATE auth_sessions SET revoked_at = $2 WHERE session_hash = $1 AND revoked_at IS NULL`
