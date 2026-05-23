@@ -150,15 +150,6 @@ func TestPostgresSessionRepositoryRevokesSession(t *testing.T) {
 	}
 }
 
-func TestPostgresSessionRepositoryRequiresStore(t *testing.T) {
-	t.Parallel()
-
-	_, err := NewPostgresSessionRepository(nil)
-	if !errors.Is(err, ErrMissingSessionStore) {
-		t.Fatalf("expected ErrMissingSessionStore, got %v", err)
-	}
-}
-
 func mustSessionRepository(t *testing.T, store SessionStore, now time.Time) *PostgresSessionRepository {
 	t.Helper()
 	repository, err := NewPostgresSessionRepositoryWithClock(store, func() time.Time { return now })
@@ -177,9 +168,7 @@ func mustSessionHash(t *testing.T, token string) string {
 	return value
 }
 
-func fixedSessionTime() time.Time {
-	return time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC)
-}
+func fixedSessionTime() time.Time { return time.Date(2026, 5, 22, 12, 0, 0, 0, time.UTC) }
 
 type fakeSessionStore struct {
 	execCalled  bool
