@@ -63,31 +63,28 @@ describe("avatar runtime dispatcher", () => {
     });
   });
 
-  it(
-    "keeps runtime identity trusted even if event input contains spoofed fields",
-    () => {
-      const unsafeEvent = {
-        type: "tutor.speech_delta" as const,
-        attemptId: "spoofed-attempt",
-        lessonPlanSlug: "spoofed-lesson",
-        rawAudio: "raw-audio-secret",
-        tutorText: "Approved tutor text.",
-        occurredAt: "2026-05-23T00:00:03Z",
-      };
+  it("keeps trusted identity against spoofed event fields", () => {
+    const unsafeEvent = {
+      type: "tutor.speech_delta" as const,
+      attemptId: "spoofed-attempt",
+      lessonPlanSlug: "spoofed-lesson",
+      rawAudio: "raw-audio-secret",
+      tutorText: "Approved tutor text.",
+      occurredAt: "2026-05-23T00:00:03Z",
+    };
 
-      const state = reduceAvatarRuntimeEvent(
-        createAvatarRuntimeState(BASE_STATE),
-        unsafeEvent,
-      );
-      const serialized = JSON.stringify(state.lastAction);
+    const state = reduceAvatarRuntimeEvent(
+      createAvatarRuntimeState(BASE_STATE),
+      unsafeEvent,
+    );
+    const serialized = JSON.stringify(state.lastAction);
 
-      expect(state.lastAction?.attemptId).toBe("attempt-1");
-      expect(state.lastAction?.lessonPlanSlug).toBe("raio-a1-linking");
-      expect(serialized).not.toContain("spoofed-attempt");
-      expect(serialized).not.toContain("spoofed-lesson");
-      expect(serialized).not.toContain("raw-audio-secret");
-    },
-  );
+    expect(state.lastAction?.attemptId).toBe("attempt-1");
+    expect(state.lastAction?.lessonPlanSlug).toBe("raio-a1-linking");
+    expect(serialized).not.toContain("spoofed-attempt");
+    expect(serialized).not.toContain("spoofed-lesson");
+    expect(serialized).not.toContain("raw-audio-secret");
+  });
 
   it("preserves fallback status for degraded connections", () => {
     const state = reduceAvatarRuntimeEvent(
@@ -122,6 +119,8 @@ describe("avatar runtime dispatcher", () => {
     }
 
     expect(state.actionHistory).toHaveLength(3);
-    expect(state.actionHistory[0]?.occurredAt).toBe("2026-05-23T00:00:02Z");
+    expect(state.actionHistory[0]?.occurredAt).toBe(
+      "2026-05-23T00:00:02Z",
+    );
   });
 });
