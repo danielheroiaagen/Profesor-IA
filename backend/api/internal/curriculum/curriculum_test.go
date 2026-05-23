@@ -40,6 +40,7 @@ func TestPostgresRepositorySelectsNextLesson(t *testing.T) {
 func TestPostgresRepositoryErrors(t *testing.T) {
 	t.Parallel()
 
+	expectedErr := errors.New("database unavailable")
 	cases := []struct {
 		name     string
 		level    string
@@ -48,7 +49,7 @@ func TestPostgresRepositoryErrors(t *testing.T) {
 	}{
 		{"invalid level", "starter", fakeRow{}, ErrInvalidCEFRLevel},
 		{"missing lesson", "A1", fakeRow{err: pgx.ErrNoRows}, ErrLessonNotFound},
-		{"store error", "A1", fakeRow{err: errors.New("database unavailable")}, errors.New("database unavailable")},
+		{"store error", "A1", fakeRow{err: expectedErr}, expectedErr},
 	}
 
 	for _, tc := range cases {
