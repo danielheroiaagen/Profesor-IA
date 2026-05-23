@@ -135,7 +135,9 @@ function createAvatarAction(event: AvatarLessonEvent): AvatarAction {
   }
 }
 
-function createFeedbackAction(tone: AvatarFeedbackTone = "neutral"): AvatarAction {
+function createFeedbackAction(
+  tone: AvatarFeedbackTone = "neutral",
+): AvatarAction {
   if (tone === "praise") {
     return {
       kind: "celebrate",
