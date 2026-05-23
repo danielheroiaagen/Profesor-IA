@@ -16,8 +16,8 @@ func TestPostgresRepositorySelectsNextLesson(t *testing.T) {
 
 	store := &fakeStore{row: fakeRow{values: []any{
 		"raio-a1-linking", "A1 Linking Basics", "Use connected speech in short answers", "A1",
-		"/t/ and /d/ endings", "Link consonant endings into vowel starts", []byte(`["I am","you are"]`),
-		"Tell a short story about your morning", []byte(`{"fluency":"emerging"}`), []byte(`{"target":"linking"}`), 1,
+		"/t/ and /d/ endings", "Link consonant endings into vowel starts", []byte("[\"I am\",\"you are\"]"),
+		"Tell a short story about your morning", []byte("{\"fluency\":\"emerging\"}"), []byte("{\"target\":\"linking\"}"), 1,
 	}}}
 	repository := mustRepository(t, store)
 
