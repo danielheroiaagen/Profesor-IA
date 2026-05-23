@@ -321,6 +321,31 @@ Important boundaries:
 - No backend-mediated avatar action endpoint yet.
 - No browser avatar renderer changes yet.
 
+### Phase 6c: Avatar Runtime Dispatcher
+
+Added the browser-runtime state dispatcher for avatar actions.
+
+Files added/changed:
+
+- `src/integrations/avatar/avatar-runtime.ts`
+- `tests/integrations/avatar/avatar-runtime.test.ts`
+- `openspec/changes/go-postgres-backend-platform/tasks.md`
+- `openspec/changes/go-postgres-backend-platform/apply-progress.md`
+
+Behavior added:
+
+- Keeps trusted runtime identity (`attemptId`, `lessonPlanSlug`) outside event payloads.
+- Dispatches lesson/Realtime events into avatar runtime states.
+- Maintains bounded avatar action history for the browser runtime.
+- Preserves fallback state for degraded connection events.
+- Adds deterministic tests for spoofed event fields and raw-audio exclusion.
+
+Important boundaries:
+
+- The dispatcher is not yet wired into `app/lesson/lesson-client.tsx`.
+- No backend-mediated avatar action endpoint yet.
+- No visual renderer changes yet.
+
 ## Verification
 
 GitHub Actions verifies chained PRs with:
@@ -351,8 +376,9 @@ Local shell execution is unavailable in this Codex desktop thread, so database m
 - Next.js session cookie forwarding/logout bridge.
 - RAIO/YouTalk curriculum seed/import workflow.
 - Avatar provider spike.
+- Wire avatar runtime dispatcher into the lesson client.
 - Backend-mediated avatar action endpoint and browser renderer.
 
 ## Next Recommended
 
-Run CI for the avatar reducer slice, then wire the reducer into the browser lesson runtime or perform the avatar provider spike.
+Run CI for the avatar runtime dispatcher slice, then wire the dispatcher into the lesson client visual state.
