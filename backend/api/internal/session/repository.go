@@ -103,6 +103,15 @@ func (r *PostgresSessionRepository) ResolveSession(ctx context.Context, token st
 	return SessionIdentity{UserID: userID}, nil
 }
 
+func (r *PostgresSessionRepository) ResolveSessionUserID(ctx context.Context, token string) (string, error) {
+	identity, err := r.ResolveSession(ctx, token)
+	if err != nil {
+		return "", err
+	}
+
+	return identity.UserID, nil
+}
+
 func (r *PostgresSessionRepository) RevokeSession(ctx context.Context, token string) (bool, error) {
 	sessionHash, err := hashSessionToken(token)
 	if err != nil {
