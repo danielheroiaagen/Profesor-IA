@@ -55,6 +55,7 @@ Chained PRs recommended: Yes.
 - [x] 4.4 Add repository-level session invalidation behavior.
 - [x] 4.5 Add logout endpoint and session cookie clearing.
 - [x] 4.6 Add tests for session security and progress isolation.
+- [x] 4.7 Add credential password-hash foundation for future login/register.
 
 ## Phase 5: RAIO / YouTalk Curriculum
 

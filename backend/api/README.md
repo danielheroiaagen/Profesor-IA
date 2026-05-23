@@ -8,7 +8,7 @@ Current slice:
 - `GET /readyz` — readiness with optional PostgreSQL health when `POSTGRES_URL` is configured.
 - `POST /v1/progress/awards` — records a server-trusted lesson completion XP award when PostgreSQL is configured.
 - Progress award domain and persistence exist in Go, but the current Next.js lesson UI is not integrated yet.
-- No auth, curriculum, or avatar-live behavior has moved to Go yet.
+- Session logout, session-backed progress identity, curriculum selection, and credential password hashing now exist in Go; login/register routes are still deferred.
 
 ## Local commands
 
