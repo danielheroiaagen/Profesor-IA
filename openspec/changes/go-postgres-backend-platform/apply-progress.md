@@ -206,11 +206,33 @@ Behavior added:
 - Revokes sessions idempotently by setting `revoked_at` through the token hash.
 - Adds deterministic fake-store tests for create, resolve, revoke, validation, and database error wrapping.
 
+### Phase 4c: Progress Award Session Identity
+
+Wired session resolution into the Go progress award endpoint.
+
+Files changed:
+
+- `backend/api/internal/progress/handler.go`
+- `backend/api/internal/progress/handler_test.go`
+- `backend/api/internal/session/repository.go`
+- `backend/api/internal/database/postgres.go`
+- `backend/api/internal/server/server.go`
+- `backend/api/cmd/server/main.go`
+
+Behavior added:
+
+- `POST /v1/progress/awards` now resolves `profesor-ia.session` when a session cookie is present.
+- A valid session cookie becomes the trusted `user_id` identity for the progress award.
+- Request-body `userId` or `anonymousProgressId` is ignored when a valid session is present.
+- Anonymous award fallback remains valid when no session cookie is present.
+- Invalid or expired supplied session cookies return `invalid_session` without writing an award.
+- The Go server wires `PostgresSessionRepository` when `POSTGRES_URL` is configured.
+
 Important boundaries:
 
 - No login/logout HTTP endpoints yet.
-- Progress awards are not yet associated with the resolved session identity.
-- No browser/session cookie wiring yet.
+- Next.js does not forward the session cookie to Go yet.
+- Durable progress read API remains deferred.
 - Avatar-live behavior remains deferred until the event contract slice.
 
 ## Verification
@@ -240,10 +262,10 @@ Local shell execution is unavailable in this Codex desktop thread, so database m
 - Durable progress read API backed by Go/PostgreSQL.
 - Real repository-layer tests against migrated schema.
 - Login/logout HTTP endpoint wiring.
-- Progress association with resolved user identity.
+- Next.js session cookie forwarding to Go.
 - RAIO/YouTalk curriculum seed/import workflow.
 - Live avatar event bridge.
 
 ## Next Recommended
 
-Run CI for the session repository slice, then wire session resolution into progress awards before starting the RAIO curriculum API and avatar-live event bridge.
+Run CI for the session identity slice, then add logout/session cookie clearing or start the RAIO curriculum API before the avatar-live event bridge.
