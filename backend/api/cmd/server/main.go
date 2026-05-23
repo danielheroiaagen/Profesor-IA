@@ -14,6 +14,11 @@ import (
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/session"
 )
 
+type sessionStore interface {
+	progress.SessionResolver
+	session.Revoker
+}
+
 func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -44,6 +49,8 @@ func main() {
 		Database:        pool,
 		ProgressAwards:  progressAwards,
 		SessionResolver: sessions,
+		SessionRevoker:  sessions,
+		SecureCookies:   secureCookiesFromEnv(),
 	}
 
 	httpServer := server.NewHTTPServer(config)
@@ -72,7 +79,7 @@ func openProgressAwardsIfConfigured(pool database.Pool) (progress.AwardRecorder,
 	return progress.NewPostgresAwardRepository(pool)
 }
 
-func openSessionsIfConfigured(pool database.Pool) (progress.SessionResolver, error) {
+func openSessionsIfConfigured(pool database.Pool) (sessionStore, error) {
 	if pool == nil {
 		return nil, nil
 	}
@@ -87,4 +94,8 @@ func envOrDefault(name string, fallback string) string {
 	}
 
 	return value
+}
+
+func secureCookiesFromEnv() bool {
+	return os.Getenv("GO_API_SECURE_COOKIES") != "false"
 }
