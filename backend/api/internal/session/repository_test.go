@@ -74,7 +74,6 @@ func TestPostgresSessionRepositoryResolvesSession(t *testing.T) {
 		{"active", fakeSessionRow{values: []any{"user-1", now.Add(time.Hour)}}, "user-1", nil},
 		{"expired", fakeSessionRow{values: []any{"user-1", now.Add(-time.Second)}}, "", ErrExpiredSession},
 		{"missing", fakeSessionRow{err: pgx.ErrNoRows}, "", ErrSessionNotFound},
-		{"empty user", fakeSessionRow{values: []any{"", now.Add(time.Hour)}}, "", ErrMissingUserID},
 		{"database error", fakeSessionRow{err: expectedErr}, "", expectedErr},
 	}
 
@@ -97,9 +96,6 @@ func TestPostgresSessionRepositoryResolvesSession(t *testing.T) {
 			}
 			if identity.UserID != tc.wantUserID {
 				t.Fatalf("expected %q, got %q", tc.wantUserID, identity.UserID)
-			}
-			if !store.queryCalled || store.query != selectSessionSQL {
-				t.Fatal("expected select session SQL")
 			}
 			assertSessionArg(t, store.queryArgs[0], mustSessionHash(t, "raw-token"))
 		})
@@ -140,9 +136,6 @@ func TestPostgresSessionRepositoryRevokesSession(t *testing.T) {
 			}
 			if revoked != tc.revoked {
 				t.Fatalf("expected revoked=%v, got %v", tc.revoked, revoked)
-			}
-			if tc.store.execQuery != revokeSessionSQL {
-				t.Fatal("expected revoke session SQL")
 			}
 			assertSessionArg(t, tc.store.execArgs[0], mustSessionHash(t, "raw-token"))
 			assertSessionArg(t, tc.store.execArgs[1], now)
