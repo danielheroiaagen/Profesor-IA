@@ -11,6 +11,7 @@ import (
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/database"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/progress"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/server"
+	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/session"
 )
 
 func main() {
@@ -31,12 +32,18 @@ func main() {
 		slog.Error("progress awards repository is unavailable", "error", err)
 		os.Exit(1)
 	}
+	sessions, err := openSessionsIfConfigured(pool)
+	if err != nil {
+		slog.Error("session repository is unavailable", "error", err)
+		os.Exit(1)
+	}
 
 	config := server.Config{
-		Addr:           envOrDefault("GO_API_ADDR", ":8080"),
-		Version:        envOrDefault("GO_API_VERSION", "dev"),
-		Database:       pool,
-		ProgressAwards: progressAwards,
+		Addr:            envOrDefault("GO_API_ADDR", ":8080"),
+		Version:         envOrDefault("GO_API_VERSION", "dev"),
+		Database:        pool,
+		ProgressAwards:  progressAwards,
+		SessionResolver: sessions,
 	}
 
 	httpServer := server.NewHTTPServer(config)
@@ -63,6 +70,14 @@ func openProgressAwardsIfConfigured(pool database.Pool) (progress.AwardRecorder,
 	}
 
 	return progress.NewPostgresAwardRepository(pool)
+}
+
+func openSessionsIfConfigured(pool database.Pool) (progress.SessionResolver, error) {
+	if pool == nil {
+		return nil, nil
+	}
+
+	return session.NewPostgresSessionRepository(pool)
 }
 
 func envOrDefault(name string, fallback string) string {
