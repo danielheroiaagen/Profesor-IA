@@ -65,8 +65,8 @@ Chained PRs recommended: Yes.
 
 ## Phase 6: Live Avatar Event Bridge
 
-- [ ] 6.1 Write separate avatar-live spec before implementation.
-- [ ] 6.2 Define Realtime tutor event -> avatar action contract.
+- [x] 6.1 Write separate avatar-live spec before implementation.
+- [x] 6.2 Define Realtime tutor event -> avatar action contract.
 - [ ] 6.3 Add backend-mediated avatar action endpoints only after provider spike.
 - [ ] 6.4 Preserve fallback: avatar failure must not break voice lesson.
 
