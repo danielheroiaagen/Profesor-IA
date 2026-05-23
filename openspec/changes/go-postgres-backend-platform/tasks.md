@@ -68,7 +68,8 @@ Chained PRs recommended: Yes.
 - [x] 6.1 Write separate avatar-live spec before implementation.
 - [x] 6.2 Define Realtime tutor event -> avatar action contract.
 - [ ] 6.3 Add backend-mediated avatar action endpoints only after provider spike.
-- [ ] 6.4 Preserve fallback: avatar failure must not break voice lesson.
+- [x] 6.4 Preserve fallback: avatar failure must not break voice lesson.
+- [x] 6.5 Add provider-neutral avatar action reducer with no raw-audio payload.
 
 ## Verification Gates
 
