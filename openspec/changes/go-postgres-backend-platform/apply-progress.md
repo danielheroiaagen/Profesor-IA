@@ -272,6 +272,30 @@ Important boundaries:
 - Next.js does not consume this endpoint yet.
 - Avatar-live behavior remains deferred until the event contract slice.
 
+### Phase 6a: Avatar Live Event Contract
+
+Added the separate avatar-live contract before implementation.
+
+Files added/changed:
+
+- `docs/avatar-live-event-contract.md`
+- `openspec/changes/go-postgres-backend-platform/tasks.md`
+- `openspec/changes/go-postgres-backend-platform/apply-progress.md`
+
+Behavior/contract added:
+
+- Defines lesson/Realtime event inputs (`lesson.ready`, `learner.speech_started`, `tutor.speech_delta`, etc.).
+- Defines a provider-neutral `avatar.action` envelope.
+- Defines avatar states: idle, listening, thinking, speaking, feedback, celebrating, and fallback.
+- Documents privacy/safety invariants: no raw learner audio, no blocking lesson, server-side credentials, static fallback.
+- Documents latency budget and acceptance scenarios.
+
+Important boundaries:
+
+- No provider selected yet.
+- No avatar backend endpoints yet.
+- No browser animation implementation yet.
+
 ## Verification
 
 GitHub Actions verifies chained PRs with:
@@ -301,8 +325,9 @@ Local shell execution is unavailable in this Codex desktop thread, so database m
 - Login endpoint wiring.
 - Next.js session cookie forwarding/logout bridge.
 - RAIO/YouTalk curriculum seed/import workflow.
-- Live avatar event bridge.
+- Avatar provider spike.
+- Backend-mediated avatar action endpoint and browser renderer.
 
 ## Next Recommended
 
-Run CI for the RAIO next lesson API slice, then add curriculum seed/import or write the avatar-live event contract spec.
+Run CI for the avatar contract slice, then perform the avatar provider spike or add the curriculum seed/import workflow.
