@@ -4,11 +4,13 @@ import {
   createAvatarRuntimeState,
   reduceAvatarRuntimeEvent,
 } from "@/integrations/avatar/avatar-runtime";
+import type { AvatarRuntimeEventInput } from "@/integrations/avatar/avatar-runtime";
 
 const BASE_STATE = {
   attemptId: "attempt-1",
   lessonPlanSlug: "raio-a1-linking",
 };
+const OCCURRED_AT = "2026-05-23T00:00:00Z";
 
 describe("avatar runtime dispatcher", () => {
   it("creates trusted idle runtime state", () => {
@@ -21,18 +23,16 @@ describe("avatar runtime dispatcher", () => {
     });
   });
 
-  it("dispatches learner speech events into listening and thinking states", () => {
+  it("dispatches learner speech states", () => {
+    const initialState = createAvatarRuntimeState(BASE_STATE);
     const listening = reduceAvatarRuntimeEvent(
-      createAvatarRuntimeState(BASE_STATE),
-      {
-        type: "learner.speech_started",
-        occurredAt: "2026-05-23T00:00:00Z",
-      },
+      initialState,
+      event("learner.speech_started"),
     );
-    const thinking = reduceAvatarRuntimeEvent(listening, {
-      type: "learner.speech_completed",
-      occurredAt: "2026-05-23T00:00:01Z",
-    });
+    const thinking = reduceAvatarRuntimeEvent(
+      listening,
+      event("learner.speech_completed"),
+    );
 
     expect(listening.status).toBe("listening");
     expect(listening.lastAction?.action.kind).toBe("listen");
@@ -41,14 +41,10 @@ describe("avatar runtime dispatcher", () => {
     expect(thinking.actionHistory).toHaveLength(2);
   });
 
-  it("dispatches tutor text into a speaking action", () => {
+  it("dispatches tutor text into speaking", () => {
     const state = reduceAvatarRuntimeEvent(
       createAvatarRuntimeState(BASE_STATE),
-      {
-        type: "tutor.speech_delta",
-        tutorText: "Nice pronunciation.",
-        occurredAt: "2026-05-23T00:00:02Z",
-      },
+      event("tutor.speech_delta", { tutorText: "Nice pronunciation." }),
     );
 
     expect(state.status).toBe("speaking");
@@ -63,14 +59,12 @@ describe("avatar runtime dispatcher", () => {
     });
   });
 
-  it("keeps trusted identity against spoofed event fields", () => {
+  it("keeps trusted identity against spoofed fields", () => {
     const unsafeEvent = {
-      type: "tutor.speech_delta" as const,
+      ...event("tutor.speech_delta", { tutorText: "Approved tutor text." }),
       attemptId: "spoofed-attempt",
       lessonPlanSlug: "spoofed-lesson",
       rawAudio: "raw-audio-secret",
-      tutorText: "Approved tutor text.",
-      occurredAt: "2026-05-23T00:00:03Z",
     };
 
     const state = reduceAvatarRuntimeEvent(
@@ -86,13 +80,10 @@ describe("avatar runtime dispatcher", () => {
     expect(serialized).not.toContain("raw-audio-secret");
   });
 
-  it("preserves fallback status for degraded connections", () => {
+  it("preserves fallback for degraded connections", () => {
     const state = reduceAvatarRuntimeEvent(
       createAvatarRuntimeState(BASE_STATE),
-      {
-        type: "connection.degraded",
-        occurredAt: "2026-05-23T00:00:04Z",
-      },
+      event("connection.degraded"),
     );
 
     expect(state.status).toBe("fallback");
@@ -104,23 +95,31 @@ describe("avatar runtime dispatcher", () => {
     });
   });
 
-  it("limits action history for browser runtime state", () => {
+  it("limits action history", () => {
     let state = createAvatarRuntimeState(BASE_STATE);
 
     for (let index = 0; index < 5; index += 1) {
       state = reduceAvatarRuntimeEvent(
         state,
-        {
-          type: "lesson.ready",
+        event("lesson.ready", {
           occurredAt: `2026-05-23T00:00:0${index}Z`,
-        },
+        }),
         { maxHistory: 3 },
       );
     }
 
     expect(state.actionHistory).toHaveLength(3);
-    expect(state.actionHistory[0]?.occurredAt).toBe(
-      "2026-05-23T00:00:02Z",
-    );
+    expect(state.actionHistory[0]?.occurredAt).toBe("2026-05-23T00:00:02Z");
   });
 });
+
+function event(
+  type: AvatarRuntimeEventInput["type"],
+  overrides: Partial<AvatarRuntimeEventInput> = {},
+): AvatarRuntimeEventInput {
+  return {
+    type,
+    occurredAt: OCCURRED_AT,
+    ...overrides,
+  };
+}
