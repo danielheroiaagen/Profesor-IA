@@ -51,7 +51,7 @@ Chained PRs recommended: Yes.
 
 - [x] 4.1 Define session model and cookie policy.
 - [x] 4.2 Add session persistence repository with hashed-token identity lookup.
-- [ ] 4.3 Associate progress awards with resolved user identity.
+- [x] 4.3 Associate progress awards with resolved user identity.
 - [x] 4.4 Add repository-level session invalidation behavior.
 - [ ] 4.5 Add logout endpoint and session cookie clearing.
 - [ ] 4.6 Add tests for session security and progress isolation.
