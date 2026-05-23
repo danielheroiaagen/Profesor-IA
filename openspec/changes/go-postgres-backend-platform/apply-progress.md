@@ -165,12 +165,6 @@ Behavior added:
 - The existing in-memory anonymous progress store remains as a fallback and UI summary source if the Go API is unset or unavailable.
 - Tests cover Go award request payloads and fallback behavior.
 
-Important boundaries:
-
-- Durable read-side progress still uses the existing in-memory summary until the next migration slice.
-- No auth/session behavior yet.
-- No avatar-live behavior included.
-
 ### Phase 4a: Session Token and Cookie Foundation
 
 Added the first auth/session ownership slice in Go: opaque token generation plus HTTP-only cookie policy.
@@ -228,10 +222,32 @@ Behavior added:
 - Invalid or expired supplied session cookies return `invalid_session` without writing an award.
 - The Go server wires `PostgresSessionRepository` when `POSTGRES_URL` is configured.
 
+### Phase 4d: Logout Endpoint and Cookie Clearing
+
+Added the Go logout endpoint and wired session invalidation into the HTTP server.
+
+Files changed/added:
+
+- `backend/api/internal/session/handler.go`
+- `backend/api/internal/session/handler_test.go`
+- `backend/api/internal/server/server.go`
+- `backend/api/cmd/server/main.go`
+- `openspec/changes/go-postgres-backend-platform/tasks.md`
+- `openspec/changes/go-postgres-backend-platform/apply-progress.md`
+
+Behavior added:
+
+- `POST /v1/session/logout` revokes the current session token when a `profesor-ia.session` cookie is present and PostgreSQL sessions are configured.
+- Logout is idempotent when no session cookie exists.
+- Successful logout always sets the expired HTTP-only session cookie.
+- Revocation failures return a safe `logout_failed` response without leaking storage details.
+- Session cookie `Secure` behavior is now controlled by `GO_API_SECURE_COOKIES`; it defaults to secure unless explicitly set to `false`.
+- Added unit coverage for revocation, cookie clearing, idempotent no-cookie logout, revoker failure, and unsupported methods.
+
 Important boundaries:
 
-- No login/logout HTTP endpoints yet.
-- Next.js does not forward the session cookie to Go yet.
+- No login endpoint yet.
+- Next.js does not call the Go logout endpoint yet.
 - Durable progress read API remains deferred.
 - Avatar-live behavior remains deferred until the event contract slice.
 
@@ -261,11 +277,11 @@ Local shell execution is unavailable in this Codex desktop thread, so database m
 
 - Durable progress read API backed by Go/PostgreSQL.
 - Real repository-layer tests against migrated schema.
-- Login/logout HTTP endpoint wiring.
-- Next.js session cookie forwarding to Go.
+- Login endpoint wiring.
+- Next.js session cookie forwarding/logout bridge.
 - RAIO/YouTalk curriculum seed/import workflow.
 - Live avatar event bridge.
 
 ## Next Recommended
 
-Run CI for the session identity slice, then add logout/session cookie clearing or start the RAIO curriculum API before the avatar-live event bridge.
+Run CI for the logout slice, then start the RAIO curriculum API slice or write the avatar-live event contract spec.
