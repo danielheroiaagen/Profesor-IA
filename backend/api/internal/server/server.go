@@ -23,6 +23,7 @@ type Config struct {
 	ProgressAwards  progress.AwardRecorder
 	SessionResolver progress.SessionResolver
 	SessionRevoker  session.Revoker
+	SecureCookies   bool
 }
 
 type statusResponse struct {
@@ -66,7 +67,7 @@ func NewHandler(config Config) http.Handler {
 
 	progressHandler := progress.NewHandlerWithSessions(config.ProgressAwards, config.SessionResolver, session.CookieName)
 	mux.HandleFunc("POST /v1/progress/awards", progressHandler.RegisterAward)
-	sessionHandler := session.NewHandler(config.SessionRevoker, session.NewCookiePolicy(true))
+	sessionHandler := session.NewHandler(config.SessionRevoker, session.NewCookiePolicy(config.SecureCookies))
 	mux.HandleFunc("POST /v1/session/logout", sessionHandler.Logout)
 
 	return withSecurityHeaders(mux)
