@@ -3,6 +3,18 @@
 import type { LiveAvatarSession as LiveAvatarSessionType } from "@heygen/liveavatar-web-sdk";
 import { useEffect, useRef, useState } from "react";
 
+import {
+  reduceLessonAvatarConnectionDegraded,
+  reduceLessonAvatarManualEvent,
+  reduceLessonAvatarRealtimePayload,
+  startLessonAvatarRuntime,
+} from "@/integrations/avatar/avatar-lesson-runtime";
+import type {
+  AvatarRuntimeEventInput,
+  AvatarRuntimeState,
+  AvatarRuntimeStatus,
+} from "@/integrations/avatar/avatar-runtime";
+
 type LessonSession = {
   id: string;
   state: string;
@@ -121,8 +133,12 @@ export default function LessonClient() {
   );
   const [xp, setXp] = useState<XPResult | null>(null);
   const [totalXp, setTotalXp] = useState(0);
+  const [avatarRuntime, setAvatarRuntime] = useState<AvatarRuntimeState | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const connectionRef = useRef<RealtimeConnection | null>(null);
+  const avatarRuntimeRef = useRef<AvatarRuntimeState | null>(null);
   const lessonAccessTokenRef = useRef<string | null>(null);
   const progressVersionRef = useRef(0);
   const liveAvatarRef = useRef<LiveAvatarSessionType | null>(null);
@@ -166,6 +182,7 @@ export default function LessonClient() {
     setLesson(null);
     setAvatar(null);
     setLiveAvatarStatus("idle");
+    replaceAvatarRuntime(null);
     setRealtime(null);
     setError(null);
     setXp(null);
@@ -182,6 +199,9 @@ export default function LessonClient() {
       lessonAccessTokenRef.current = lessonResponse.lessonAccessToken;
       setLesson(lessonResponse.lesson);
       setAvatar(lessonResponse.avatar);
+      replaceAvatarRuntime(
+        startLessonAvatarRuntime({ attemptId: lessonResponse.lesson.id }),
+      );
       void startLiveAvatarSession(
         lessonResponse.avatar,
         lessonResponse.lesson.id,
@@ -212,6 +232,7 @@ export default function LessonClient() {
       setConnectionStatus("connected");
       setStatus("active");
     } catch (startError) {
+      if (lessonStarted) dispatchAvatarConnectionDegraded();
       setConnectionStatus(lessonStarted ? "fallback" : "failed");
       setStatus(lessonStarted ? "active" : "failed");
       setError(
@@ -263,12 +284,14 @@ export default function LessonClient() {
       session.on(SessionEvent.SESSION_DISCONNECTED, () => {
         if (liveAvatarRef.current !== session) return;
         setLiveAvatarStatus("unavailable");
+        dispatchAvatarConnectionDegraded();
       });
 
       await session.start();
     } catch {
       liveAvatarRef.current = null;
       setLiveAvatarStatus("unavailable");
+      dispatchAvatarConnectionDegraded();
     }
   }
 
@@ -287,7 +310,14 @@ export default function LessonClient() {
   }
 
   async function recordRealtimeEvidence(lessonId: string, payload: string) {
-    const signal = readRealtimeSignal(payload);
+    const runtime = avatarRuntimeRef.current;
+    const result = runtime
+      ? reduceLessonAvatarRealtimePayload(runtime, payload)
+      : null;
+
+    if (result) replaceAvatarRuntime(result.state);
+
+    const signal = result?.signal;
 
     if (!signal) return;
 
@@ -333,16 +363,23 @@ export default function LessonClient() {
     if (!lesson) return;
 
     setError(null);
+    dispatchAvatarRuntimeEvent({ type: "learner.speech_completed" });
     await recordServerEvidence(lesson.id, "learner-turn");
   }
 
   async function recordVisibleFeedback() {
     if (!lesson) return;
 
+    const visibleFeedback =
+      "Corrección: decí 'I am practicing English today' en lugar de 'I practicing English today'.";
+
     setError(null);
-    setFeedbackSummary(
-      "Corrección: decí 'I am practicing English today' en lugar de 'I practicing English today'.",
-    );
+    setFeedbackSummary(visibleFeedback);
+    dispatchAvatarRuntimeEvent({
+      type: "feedback.detected",
+      tutorText: visibleFeedback,
+      feedbackTone: "correction",
+    });
     await recordServerEvidence(lesson.id, "feedback");
   }
 
@@ -366,6 +403,9 @@ export default function LessonClient() {
       setTotalXp(result.progress.totalXp);
       syncLessonFromServer(result.lesson);
       setStatus(result.lesson.state === "completed" ? "completed" : "failed");
+      if (result.lesson.state === "completed") {
+        dispatchAvatarRuntimeEvent({ type: "lesson.completed" });
+      }
     } catch {
       setError("No pudimos verificar la práctica. No se otorgó XP sin ganar.");
       setStatus("failed");
@@ -411,6 +451,25 @@ export default function LessonClient() {
     connectionRef.current = nextConnection;
   }
 
+  function replaceAvatarRuntime(nextRuntime: AvatarRuntimeState | null) {
+    avatarRuntimeRef.current = nextRuntime;
+    setAvatarRuntime(nextRuntime);
+  }
+
+  function dispatchAvatarRuntimeEvent(event: AvatarRuntimeEventInput) {
+    const runtime = avatarRuntimeRef.current;
+    if (!runtime) return;
+
+    replaceAvatarRuntime(reduceLessonAvatarManualEvent(runtime, event));
+  }
+
+  function dispatchAvatarConnectionDegraded() {
+    const runtime = avatarRuntimeRef.current;
+    if (!runtime) return;
+
+    replaceAvatarRuntime(reduceLessonAvatarConnectionDegraded(runtime));
+  }
+
   function rememberLiveAvatarVideo(video: HTMLVideoElement | null) {
     liveAvatarVideoRef.current = video;
     if (video) muteLiveAvatarVideo(video);
@@ -418,12 +477,18 @@ export default function LessonClient() {
 
   const lessonStatusLabel = formatLessonStatus(status);
   const voiceStatusLabel = formatConnectionStatus(connectionStatus);
-  const avatarStatusLabel = formatAvatarStatus(avatar, liveAvatarStatus);
+  const avatarRuntimeStatus = avatarRuntime?.status ?? null;
+  const avatarStatusLabel = formatAvatarStatus(
+    avatar,
+    liveAvatarStatus,
+    avatarRuntimeStatus,
+  );
   const stage = readTutorStage(
     status,
     connectionStatus,
     avatar,
     liveAvatarStatus,
+    avatarRuntimeStatus,
   );
   const protectedSessionLabel = realtime
     ? `${realtime.model} · credencial limitada`
@@ -691,6 +756,12 @@ export default function LessonClient() {
                   ) : null}
                 </dd>
               </div>
+              {avatarRuntime ? (
+                <div>
+                  <dt>Runtime avatar</dt>
+                  <dd>{formatAvatarRuntimeStatus(avatarRuntime.status)}</dd>
+                </div>
+              ) : null}
               <div>
                 <dt>Sesión protegida</dt>
                 <dd>{protectedSessionLabel}</dd>
@@ -785,6 +856,7 @@ function readTutorStage(
   connectionStatus: ConnectionStatus,
   avatar: AvatarStatus | null,
   liveAvatarStatus: LiveAvatarStatus,
+  avatarRuntimeStatus: AvatarRuntimeStatus | null,
 ): TutorStageViewModel {
   const isLiveAvatar = liveAvatarStatus === "ready";
 
@@ -796,6 +868,17 @@ function readTutorStage(
         "Clase completada. Tu progreso quedó registrado con evidencia de práctica.",
       motionCue: "completed",
       isLiveAvatar,
+    });
+  }
+
+  if (status === "failed" || connectionStatus === "failed") {
+    return withTutorIdentity({
+      title: "Reintento seguro",
+      stateLabel: "Reintento seguro",
+      stateDescription:
+        "No se pudo preparar la clase. Reintentá sin exponer credenciales.",
+      motionCue: "fallback",
+      isLiveAvatar: false,
     });
   }
 
@@ -835,6 +918,12 @@ function readTutorStage(
   }
 
   if (connectionStatus === "connected" || status === "active") {
+    const runtimeStage = readRuntimeTutorStage(
+      avatarRuntimeStatus,
+      isLiveAvatar,
+    );
+    if (runtimeStage) return runtimeStage;
+
     return withTutorIdentity({
       title: isLiveAvatar
         ? "Avatar visual listo para tu clase"
@@ -847,17 +936,6 @@ function readTutorStage(
     });
   }
 
-  if (status === "failed" || connectionStatus === "failed") {
-    return withTutorIdentity({
-      title: "Reintento seguro",
-      stateLabel: "Reintento seguro",
-      stateDescription:
-        "No se pudo preparar la clase. Reintentá sin exponer credenciales.",
-      motionCue: "fallback",
-      isLiveAvatar: false,
-    });
-  }
-
   return withTutorIdentity({
     title: "Avatar visual listo para tu clase",
     stateLabel: "Ready",
@@ -866,6 +944,70 @@ function readTutorStage(
     motionCue: "idle",
     isLiveAvatar: false,
   });
+}
+
+function readRuntimeTutorStage(
+  status: AvatarRuntimeStatus | null,
+  isLiveAvatar: boolean,
+): TutorStageViewModel | null {
+  switch (status) {
+    case "listening":
+      return withTutorIdentity({
+        title: "Profesor IA escuchando en vivo",
+        stateLabel: "Escuchando",
+        stateDescription: "Tu profesor está atento a tu voz en tiempo real.",
+        motionCue: "listening",
+        isLiveAvatar,
+      });
+    case "thinking":
+      return withTutorIdentity({
+        title: "Pensando la respuesta",
+        stateLabel: "Corrigiendo",
+        stateDescription:
+          "Tu profesor está procesando tu frase antes de responder.",
+        motionCue: "correcting",
+        isLiveAvatar,
+      });
+    case "speaking":
+      return withTutorIdentity({
+        title: "Profesor IA respondiendo",
+        stateLabel: "Hablando",
+        stateDescription:
+          "Tu profesor está hablando con texto aprobado por Realtime.",
+        motionCue: "speaking",
+        isLiveAvatar,
+      });
+    case "feedback":
+      return withTutorIdentity({
+        title: "Corrección de pronunciación",
+        stateLabel: "Corrigiendo",
+        stateDescription:
+          "Tu profesor está corrigiendo la frase para que suene natural.",
+        motionCue: "correcting",
+        isLiveAvatar,
+      });
+    case "celebrating":
+      return withTutorIdentity({
+        title: "Clase completada con evidencia",
+        stateLabel: "Completada",
+        stateDescription:
+          "Clase completada. Tu progreso quedó registrado con evidencia de práctica.",
+        motionCue: "completed",
+        isLiveAvatar,
+      });
+    case "fallback":
+      return withTutorIdentity({
+        title: "Tutoría premium en modo voz",
+        stateLabel: "Modo voz seguro",
+        stateDescription:
+          "El avatar no bloquea la clase: seguimos con tutoría por voz segura.",
+        motionCue: "fallback",
+        isLiveAvatar: false,
+      });
+    case "idle":
+    case null:
+      return null;
+  }
 }
 
 function withTutorIdentity(
@@ -1694,14 +1836,32 @@ function formatCompleteLessonAction(
 function formatAvatarStatus(
   avatar: AvatarStatus | null,
   liveAvatarStatus: LiveAvatarStatus,
+  avatarRuntimeStatus: AvatarRuntimeStatus | null,
 ) {
   if (!avatar) return "tutor listo para empezar";
+  if (avatar.mode === "voice-only") return "tutor en modo voz";
+  if (avatarRuntimeStatus && avatarRuntimeStatus !== "idle") {
+    return formatAvatarRuntimeStatus(avatarRuntimeStatus);
+  }
   if (liveAvatarStatus === "ready") return "avatar live conectado";
   if (liveAvatarStatus === "starting") return "avatar live iniciando";
   if (liveAvatarStatus === "unavailable") return "avatar live no disponible";
   if (avatar.available) return "tutor visual disponible";
-  if (avatar.mode === "voice-only") return "tutor en modo voz";
   return "tutor con presencia estática";
+}
+
+function formatAvatarRuntimeStatus(status: AvatarRuntimeStatus) {
+  const labels: Record<AvatarRuntimeStatus, string> = {
+    idle: "avatar preparado",
+    listening: "avatar escuchando en vivo",
+    thinking: "avatar pensando respuesta",
+    speaking: "avatar hablando en vivo",
+    feedback: "avatar corrigiendo en vivo",
+    celebrating: "avatar celebrando progreso",
+    fallback: "avatar en modo voz seguro",
+  };
+
+  return labels[status];
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -1894,46 +2054,4 @@ function isSafeProgressCount(value: unknown): value is number {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function readRealtimeSignal(payload: string): {
-  evidence?: LessonEvidence;
-  feedbackSummary?: string;
-} | null {
-  try {
-    const event = JSON.parse(payload) as {
-      type?: string;
-      text?: string;
-      transcript?: string;
-      response?: { output_text?: string };
-    };
-    const text = event.text ?? event.transcript ?? event.response?.output_text;
-    const trimmedText =
-      typeof text === "string" && text.trim() ? text.trim() : null;
-
-    if (
-      event.type === "conversation.item.input_audio_transcription.completed" &&
-      trimmedText
-    ) {
-      return { evidence: "learner-turn" };
-    }
-
-    if (isTutorFeedbackEvent(event.type) && trimmedText) {
-      return {
-        evidence: "feedback",
-        feedbackSummary: trimmedText,
-      };
-    }
-
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function isTutorFeedbackEvent(type: string | undefined) {
-  return (
-    type === "response.output_audio_transcript.done" ||
-    type === "response.output_text.done"
-  );
 }

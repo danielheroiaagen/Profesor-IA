@@ -149,6 +149,10 @@ describe("LessonClient smoke", () => {
     const liveAvatarRequests: unknown[] = [];
 
     vi.stubGlobal(
+      "Audio",
+      vi.fn(() => ({ autoplay: false, srcObject: null, pause: vi.fn() })),
+    );
+    vi.stubGlobal(
       "RTCPeerConnection",
       vi.fn(() => ({
         addTrack: vi.fn(),
@@ -697,6 +701,129 @@ describe("LessonClient smoke", () => {
     expect(
       screen.getAllByText("Good job. Say: I am practicing English today.")[0],
     ).toBeVisible();
+  });
+
+  it("drives the avatar stage from Realtime runtime events", async () => {
+    const track = { stop: vi.fn() };
+    const stream = { getTracks: () => [track] } as unknown as MediaStream;
+    const dataChannel: {
+      close: ReturnType<typeof vi.fn>;
+      onmessage: ((event: MessageEvent) => void) | null;
+    } = { close: vi.fn(), onmessage: null };
+    const emitRealtimeEvent = (event: unknown) => {
+      act(() => {
+        dataChannel.onmessage?.({
+          data: JSON.stringify(event),
+        } as MessageEvent);
+      });
+    };
+
+    vi.stubGlobal(
+      "Audio",
+      vi.fn(() => ({ autoplay: false, srcObject: null })),
+    );
+    vi.stubGlobal(
+      "RTCPeerConnection",
+      vi.fn(() => ({
+        addTrack: vi.fn(),
+        createDataChannel: vi.fn(() => dataChannel),
+        createOffer: vi.fn(async () => ({ sdp: "offer-sdp", type: "offer" })),
+        setLocalDescription: vi.fn(async () => undefined),
+        setRemoteDescription: vi.fn(async () => undefined),
+        close: vi.fn(),
+      })),
+    );
+    Object.defineProperty(navigator, "mediaDevices", {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn(async () => stream),
+      },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL | Request) => {
+        const value = String(url);
+
+        if (value === "/api/lessons/start") {
+          return Response.json({
+            lesson: {
+              id: "lesson-avatar-runtime-ui",
+              state: "active",
+              startedAt: "2026-05-23T00:00:00.000Z",
+              metrics: { learnerTurns: 0, feedbackEvents: 0 },
+            },
+            lessonAccessToken: "lesson-access-token",
+            avatar: {
+              mode: "static",
+              available: true,
+              avatarId: "e29e792a-41e7-4df0-84a8-349e099fb50f",
+            },
+          });
+        }
+
+        if (value === "/api/realtime/session") {
+          return Response.json({
+            realtime: {
+              clientSecret: "ek_test_ephemeral",
+              model: "gpt-realtime-2",
+              expiresAt: "2026-05-23T00:10:00.000Z",
+              lessonId: "lesson-avatar-runtime-ui",
+              connectUrl: "https://api.openai.com/v1/realtime/calls",
+            },
+          });
+        }
+
+        if (value === "/api/progress") {
+          return Response.json({
+            progress: {
+              totalXp: 0,
+              completedLessons: 0,
+              lastAwardedAt: null,
+            },
+          });
+        }
+
+        return new Response("answer-sdp");
+      }),
+    );
+
+    render(<LessonClient />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Empezar clase" }));
+    await waitFor(() => expect(screen.getByText("voz lista")).toBeVisible());
+    expect(screen.getByText("avatar preparado")).toBeVisible();
+
+    emitRealtimeEvent({ type: "input_audio_buffer.speech_started" });
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", {
+          name: "Profesor IA escuchando en vivo",
+        }),
+      ).toBeVisible(),
+    );
+    expect(screen.getAllByText("avatar escuchando en vivo")[0]).toBeVisible();
+
+    emitRealtimeEvent({ type: "input_audio_buffer.speech_stopped" });
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "Pensando la respuesta" }),
+      ).toBeVisible(),
+    );
+    expect(screen.getAllByText("avatar pensando respuesta")[0]).toBeVisible();
+
+    emitRealtimeEvent({
+      type: "response.output_audio_transcript.delta",
+      delta: "Nice pronunciation.",
+      rawAudio: "raw-audio-secret",
+    });
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "Profesor IA respondiendo" }),
+      ).toBeVisible(),
+    );
+    expect(screen.getAllByText("avatar hablando en vivo")[0]).toBeVisible();
+    expect(screen.queryByText("raw-audio-secret")).not.toBeInTheDocument();
   });
 
   it("hydrates and completes with server-owned anonymous progress", async () => {
