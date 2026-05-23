@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/curriculum"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/database"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/progress"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/server"
@@ -42,6 +43,11 @@ func main() {
 		slog.Error("session repository is unavailable", "error", err)
 		os.Exit(1)
 	}
+	curriculumProvider, err := openCurriculumIfConfigured(pool)
+	if err != nil {
+		slog.Error("curriculum repository is unavailable", "error", err)
+		os.Exit(1)
+	}
 
 	config := server.Config{
 		Addr:            envOrDefault("GO_API_ADDR", ":8080"),
@@ -51,6 +57,7 @@ func main() {
 		SessionResolver: sessions,
 		SessionRevoker:  sessions,
 		SecureCookies:   secureCookiesFromEnv(),
+		Curriculum:       curriculumProvider,
 	}
 
 	httpServer := server.NewHTTPServer(config)
@@ -85,6 +92,14 @@ func openSessionsIfConfigured(pool database.Pool) (sessionStore, error) {
 	}
 
 	return session.NewPostgresSessionRepository(pool)
+}
+
+func openCurriculumIfConfigured(pool database.Pool) (curriculum.Provider, error) {
+	if pool == nil {
+		return nil, nil
+	}
+
+	return curriculum.NewPostgresRepository(pool)
 }
 
 func envOrDefault(name string, fallback string) string {
