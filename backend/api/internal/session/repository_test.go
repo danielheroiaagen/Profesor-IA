@@ -19,27 +19,19 @@ func TestPostgresSessionRepositoryCreatesSessionWithHashedToken(t *testing.T) {
 	store := &fakeSessionStore{execTag: pgconn.NewCommandTag("INSERT 0 1")}
 	repository := mustSessionRepository(t, store, now)
 
-	err := repository.CreateSession(context.Background(), SessionRecord{
-		UserID:    " user-1 ",
-		Token:     "raw-session-token",
-		ExpiresAt: expiresAt,
-	})
+	err := repository.CreateSession(context.Background(), SessionRecord{UserID: " user-1 ", Token: "raw-token", ExpiresAt: expiresAt})
 
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}
-	if !store.execCalled {
-		t.Fatal("expected store exec")
-	}
-	if store.execQuery != insertSessionSQL {
+	if !store.execCalled || store.execQuery != insertSessionSQL {
 		t.Fatal("expected insert session SQL")
 	}
-	expectedHash := mustSessionHash(t, "raw-session-token")
 	assertSessionArg(t, store.execArgs[0], "user-1")
-	assertSessionArg(t, store.execArgs[1], expectedHash)
+	assertSessionArg(t, store.execArgs[1], mustSessionHash(t, "raw-token"))
 	assertSessionArg(t, store.execArgs[2], expiresAt)
-	if store.execArgs[1] == "raw-session-token" {
-		t.Fatal("expected repository to store a token hash, not the raw token")
+	if store.execArgs[1] == "raw-token" {
+		t.Fatal("expected token hash, not raw token")
 	}
 }
 
@@ -48,40 +40,21 @@ func TestPostgresSessionRepositoryRejectsInvalidSessionRecords(t *testing.T) {
 
 	now := fixedSessionTime()
 	repository := mustSessionRepository(t, &fakeSessionStore{}, now)
-
 	cases := []struct {
 		name     string
 		record   SessionRecord
 		expected error
 	}{
-		{
-			name:     "missing user",
-			record:   SessionRecord{Token: "token", ExpiresAt: now.Add(time.Hour)},
-			expected: ErrMissingUserID,
-		},
-		{
-			name:     "missing token",
-			record:   SessionRecord{UserID: "user-1", ExpiresAt: now.Add(time.Hour)},
-			expected: ErrMissingSessionToken,
-		},
-		{
-			name:     "missing expiry",
-			record:   SessionRecord{UserID: "user-1", Token: "token"},
-			expected: ErrMissingSessionExpiry,
-		},
-		{
-			name:     "expired session",
-			record:   SessionRecord{UserID: "user-1", Token: "token", ExpiresAt: now.Add(-time.Second)},
-			expected: ErrExpiredSession,
-		},
+		{"missing user", SessionRecord{Token: "token", ExpiresAt: now.Add(time.Hour)}, ErrMissingUserID},
+		{"missing token", SessionRecord{UserID: "user-1", ExpiresAt: now.Add(time.Hour)}, ErrMissingSessionToken},
+		{"missing expiry", SessionRecord{UserID: "user-1", Token: "token"}, ErrMissingSessionExpiry},
+		{"expired session", SessionRecord{UserID: "user-1", Token: "token", ExpiresAt: now.Add(-time.Second)}, ErrExpiredSession},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-
-			err := repository.CreateSession(context.Background(), tc.record)
-			if !errors.Is(err, tc.expected) {
+			if err := repository.CreateSession(context.Background(), tc.record); !errors.Is(err, tc.expected) {
 				t.Fatalf("expected %v, got %v", tc.expected, err)
 			}
 		})
@@ -93,11 +66,8 @@ func TestPostgresSessionRepositoryWrapsCreateErrors(t *testing.T) {
 
 	expected := errors.New("database unavailable")
 	repository := mustSessionRepository(t, &fakeSessionStore{execErr: expected}, fixedSessionTime())
-
 	err := repository.CreateSession(context.Background(), SessionRecord{
-		UserID:    "user-1",
-		Token:     "token",
-		ExpiresAt: fixedSessionTime().Add(time.Hour),
+		UserID: "user-1", Token: "token", ExpiresAt: fixedSessionTime().Add(time.Hour),
 	})
 
 	if !errors.Is(err, expected) {
@@ -105,73 +75,49 @@ func TestPostgresSessionRepositoryWrapsCreateErrors(t *testing.T) {
 	}
 }
 
-func TestPostgresSessionRepositoryResolvesActiveSession(t *testing.T) {
+func TestPostgresSessionRepositoryResolvesSession(t *testing.T) {
 	t.Parallel()
 
 	now := fixedSessionTime()
-	store := &fakeSessionStore{
-		row: fakeSessionRow{values: []any{"user-1", now.Add(time.Hour)}},
+	expectedErr := errors.New("database unavailable")
+	cases := []struct {
+		name       string
+		row        fakeSessionRow
+		wantUserID string
+		expected   error
+	}{
+		{"active", fakeSessionRow{values: []any{"user-1", now.Add(time.Hour)}}, "user-1", nil},
+		{"expired", fakeSessionRow{values: []any{"user-1", now.Add(-time.Second)}}, "", ErrExpiredSession},
+		{"missing", fakeSessionRow{err: pgx.ErrNoRows}, "", ErrSessionNotFound},
+		{"empty user", fakeSessionRow{values: []any{"", now.Add(time.Hour)}}, "", ErrMissingUserID},
+		{"database error", fakeSessionRow{err: expectedErr}, "", expectedErr},
 	}
-	repository := mustSessionRepository(t, store, now)
 
-	identity, err := repository.ResolveSession(context.Background(), "raw-session-token")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	if err != nil {
-		t.Fatalf("resolve session: %v", err)
-	}
-	if identity.UserID != "user-1" {
-		t.Fatalf("expected user-1, got %q", identity.UserID)
-	}
-	if !store.queryCalled {
-		t.Fatal("expected store query")
-	}
-	if store.query != selectSessionSQL {
-		t.Fatal("expected select session SQL")
-	}
-	assertSessionArg(t, store.queryArgs[0], mustSessionHash(t, "raw-session-token"))
-}
+			store := &fakeSessionStore{row: tc.row}
+			repository := mustSessionRepository(t, store, now)
+			identity, err := repository.ResolveSession(context.Background(), "raw-token")
 
-func TestPostgresSessionRepositoryRejectsExpiredResolvedSession(t *testing.T) {
-	t.Parallel()
-
-	now := fixedSessionTime()
-	repository := mustSessionRepository(t, &fakeSessionStore{
-		row: fakeSessionRow{values: []any{"user-1", now.Add(-time.Second)}},
-	}, now)
-
-	_, err := repository.ResolveSession(context.Background(), "raw-session-token")
-
-	if !errors.Is(err, ErrExpiredSession) {
-		t.Fatalf("expected ErrExpiredSession, got %v", err)
-	}
-}
-
-func TestPostgresSessionRepositoryMapsMissingSession(t *testing.T) {
-	t.Parallel()
-
-	repository := mustSessionRepository(t, &fakeSessionStore{
-		row: fakeSessionRow{err: pgx.ErrNoRows},
-	}, fixedSessionTime())
-
-	_, err := repository.ResolveSession(context.Background(), "raw-session-token")
-
-	if !errors.Is(err, ErrSessionNotFound) {
-		t.Fatalf("expected ErrSessionNotFound, got %v", err)
-	}
-}
-
-func TestPostgresSessionRepositoryWrapsResolveErrors(t *testing.T) {
-	t.Parallel()
-
-	expected := errors.New("database unavailable")
-	repository := mustSessionRepository(t, &fakeSessionStore{
-		row: fakeSessionRow{err: expected},
-	}, fixedSessionTime())
-
-	_, err := repository.ResolveSession(context.Background(), "raw-session-token")
-
-	if !errors.Is(err, expected) {
-		t.Fatalf("expected wrapped row error, got %v", err)
+			if tc.expected != nil {
+				if !errors.Is(err, tc.expected) {
+					t.Fatalf("expected %v, got %v", tc.expected, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("resolve session: %v", err)
+			}
+			if identity.UserID != tc.wantUserID {
+				t.Fatalf("expected %q, got %q", tc.wantUserID, identity.UserID)
+			}
+			if !store.queryCalled || store.query != selectSessionSQL {
+				t.Fatal("expected select session SQL")
+			}
+			assertSessionArg(t, store.queryArgs[0], mustSessionHash(t, "raw-token"))
+		})
 	}
 }
 
@@ -179,49 +125,43 @@ func TestPostgresSessionRepositoryRevokesSession(t *testing.T) {
 	t.Parallel()
 
 	now := fixedSessionTime()
-	store := &fakeSessionStore{execTag: pgconn.NewCommandTag("UPDATE 1")}
-	repository := mustSessionRepository(t, store, now)
-
-	revoked, err := repository.RevokeSession(context.Background(), "raw-session-token")
-
-	if err != nil {
-		t.Fatalf("revoke session: %v", err)
+	expectedErr := errors.New("database unavailable")
+	cases := []struct {
+		name     string
+		store    *fakeSessionStore
+		revoked  bool
+		expected error
+	}{
+		{"revoked", &fakeSessionStore{execTag: pgconn.NewCommandTag("UPDATE 1")}, true, nil},
+		{"missing", &fakeSessionStore{execTag: pgconn.NewCommandTag("UPDATE 0")}, false, nil},
+		{"error", &fakeSessionStore{execErr: expectedErr}, false, expectedErr},
 	}
-	if !revoked {
-		t.Fatal("expected session to be revoked")
-	}
-	if store.execQuery != revokeSessionSQL {
-		t.Fatal("expected revoke session SQL")
-	}
-	assertSessionArg(t, store.execArgs[0], mustSessionHash(t, "raw-session-token"))
-	assertSessionArg(t, store.execArgs[1], now)
-}
 
-func TestPostgresSessionRepositoryTreatsMissingRevokeAsNoop(t *testing.T) {
-	t.Parallel()
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	repository := mustSessionRepository(t, &fakeSessionStore{execTag: pgconn.NewCommandTag("UPDATE 0")}, fixedSessionTime())
+			repository := mustSessionRepository(t, tc.store, now)
+			revoked, err := repository.RevokeSession(context.Background(), "raw-token")
 
-	revoked, err := repository.RevokeSession(context.Background(), "raw-session-token")
-
-	if err != nil {
-		t.Fatalf("revoke session: %v", err)
-	}
-	if revoked {
-		t.Fatal("expected missing session revoke to be a noop")
-	}
-}
-
-func TestPostgresSessionRepositoryWrapsRevokeErrors(t *testing.T) {
-	t.Parallel()
-
-	expected := errors.New("database unavailable")
-	repository := mustSessionRepository(t, &fakeSessionStore{execErr: expected}, fixedSessionTime())
-
-	_, err := repository.RevokeSession(context.Background(), "raw-session-token")
-
-	if !errors.Is(err, expected) {
-		t.Fatalf("expected wrapped store error, got %v", err)
+			if tc.expected != nil {
+				if !errors.Is(err, tc.expected) {
+					t.Fatalf("expected %v, got %v", tc.expected, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("revoke session: %v", err)
+			}
+			if revoked != tc.revoked {
+				t.Fatalf("expected revoked=%v, got %v", tc.revoked, revoked)
+			}
+			if tc.store.execQuery != revokeSessionSQL {
+				t.Fatal("expected revoke session SQL")
+			}
+			assertSessionArg(t, tc.store.execArgs[0], mustSessionHash(t, "raw-token"))
+			assertSessionArg(t, tc.store.execArgs[1], now)
+		})
 	}
 }
 
@@ -229,7 +169,6 @@ func TestPostgresSessionRepositoryRequiresStore(t *testing.T) {
 	t.Parallel()
 
 	_, err := NewPostgresSessionRepository(nil)
-
 	if !errors.Is(err, ErrMissingSessionStore) {
 		t.Fatalf("expected ErrMissingSessionStore, got %v", err)
 	}
@@ -237,23 +176,19 @@ func TestPostgresSessionRepositoryRequiresStore(t *testing.T) {
 
 func mustSessionRepository(t *testing.T, store SessionStore, now time.Time) *PostgresSessionRepository {
 	t.Helper()
-
 	repository, err := NewPostgresSessionRepositoryWithClock(store, func() time.Time { return now })
 	if err != nil {
 		t.Fatalf("new repository: %v", err)
 	}
-
 	return repository
 }
 
 func mustSessionHash(t *testing.T, token string) string {
 	t.Helper()
-
 	value, err := hashSessionToken(token)
 	if err != nil {
 		t.Fatalf("hash session token: %v", err)
 	}
-
 	return value
 }
 
@@ -267,7 +202,6 @@ type fakeSessionStore struct {
 	execArgs   []any
 	execTag    pgconn.CommandTag
 	execErr    error
-
 	queryCalled bool
 	query       string
 	queryArgs   []any
@@ -278,7 +212,6 @@ func (s *fakeSessionStore) Exec(_ context.Context, query string, args ...any) (p
 	s.execCalled = true
 	s.execQuery = query
 	s.execArgs = args
-
 	return s.execTag, s.execErr
 }
 
@@ -286,7 +219,6 @@ func (s *fakeSessionStore) QueryRow(_ context.Context, query string, args ...any
 	s.queryCalled = true
 	s.query = query
 	s.queryArgs = args
-
 	return s.row
 }
 
@@ -302,7 +234,6 @@ func (r fakeSessionRow) Scan(dest ...any) error {
 	if len(dest) != len(r.values) {
 		return fmt.Errorf("expected %d scan destinations, got %d", len(r.values), len(dest))
 	}
-
 	for index, destination := range dest {
 		switch target := destination.(type) {
 		case *string:
@@ -321,13 +252,11 @@ func (r fakeSessionRow) Scan(dest ...any) error {
 			return fmt.Errorf("unsupported scan destination %T", destination)
 		}
 	}
-
 	return nil
 }
 
 func assertSessionArg(t *testing.T, got any, want any) {
 	t.Helper()
-
 	if got != want {
 		t.Fatalf("expected arg %v, got %v", want, got)
 	}
