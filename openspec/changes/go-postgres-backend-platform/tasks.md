@@ -53,8 +53,8 @@ Chained PRs recommended: Yes.
 - [x] 4.2 Add session persistence repository with hashed-token identity lookup.
 - [x] 4.3 Associate progress awards with resolved user identity.
 - [x] 4.4 Add repository-level session invalidation behavior.
-- [ ] 4.5 Add logout endpoint and session cookie clearing.
-- [ ] 4.6 Add tests for session security and progress isolation.
+- [x] 4.5 Add logout endpoint and session cookie clearing.
+- [x] 4.6 Add tests for session security and progress isolation.
 
 ## Phase 5: RAIO / YouTalk Curriculum
 
