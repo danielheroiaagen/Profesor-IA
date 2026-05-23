@@ -5,18 +5,29 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 )
 
 type AwardRecorder interface {
 	RecordAward(ctx context.Context, record AwardRecord) (bool, error)
 }
 
+type SessionResolver interface {
+	ResolveSessionUserID(ctx context.Context, token string) (string, error)
+}
+
 type Handler struct {
-	awards AwardRecorder
+	awards            AwardRecorder
+	sessions          SessionResolver
+	sessionCookieName string
 }
 
 func NewHandler(awards AwardRecorder) Handler {
 	return Handler{awards: awards}
+}
+
+func NewHandlerWithSessions(awards AwardRecorder, sessions SessionResolver, sessionCookieName string) Handler {
+	return Handler{awards: awards, sessions: sessions, sessionCookieName: sessionCookieName}
 }
 
 type awardRequest struct {
@@ -70,19 +81,18 @@ func (h Handler) RegisterAward(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if !decision.Awarded {
-		writeProgressJSON(w, http.StatusOK, awardResponse{
-			Awarded: false,
-			XP:      0,
-			Reason:  decision.Reason,
-		})
+		writeProgressJSON(w, http.StatusOK, awardResponse{Awarded: false, XP: 0, Reason: decision.Reason})
+		return
+	}
+
+	identity, err := h.awardIdentity(r, request)
+	if err != nil {
+		writeProgressJSON(w, http.StatusUnauthorized, errorResponse{Error: "invalid_session"})
 		return
 	}
 
 	inserted, err := h.awards.RecordAward(r.Context(), AwardRecord{
-		Identity: AwardIdentity{
-			UserID:              request.UserID,
-			AnonymousProgressID: request.AnonymousProgressID,
-		},
+		Identity:  identity,
 		AttemptID: request.AttemptID,
 		Decision:  decision,
 	})
@@ -103,6 +113,32 @@ func (h Handler) RegisterAward(w http.ResponseWriter, r *http.Request) {
 		Reason:   decision.Reason,
 		Inserted: inserted,
 	})
+}
+
+func (h Handler) awardIdentity(r *http.Request, request awardRequest) (AwardIdentity, error) {
+	identity := AwardIdentity{UserID: request.UserID, AnonymousProgressID: request.AnonymousProgressID}
+	if h.sessions == nil || strings.TrimSpace(h.sessionCookieName) == "" {
+		return identity, nil
+	}
+
+	cookie, err := r.Cookie(h.sessionCookieName)
+	if errors.Is(err, http.ErrNoCookie) {
+		return identity, nil
+	}
+	if err != nil {
+		return AwardIdentity{}, err
+	}
+
+	userID, err := h.sessions.ResolveSessionUserID(r.Context(), cookie.Value)
+	if err != nil {
+		return AwardIdentity{}, err
+	}
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return AwardIdentity{}, ErrInvalidAwardIdentity
+	}
+
+	return AwardIdentity{UserID: userID}, nil
 }
 
 func writeProgressJSON(w http.ResponseWriter, statusCode int, body any) {
