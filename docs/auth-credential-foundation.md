@@ -18,12 +18,12 @@ Implemented now:
 - Case-insensitive email uniqueness index.
 - Go password hash/verify service.
 - Go email normalization.
+- Go credential user repository for create and find-by-email flows.
 
 Deferred to next slices:
 
 - `POST /v1/auth/register`.
 - `POST /v1/auth/login`.
-- User repository create/find-by-email.
 - Next.js login/register UI.
 
 ## Security Notes

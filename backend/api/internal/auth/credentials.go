@@ -16,6 +16,7 @@ var (
 	ErrInvalidEmail        = errors.New("email is invalid")
 	ErrWeakPassword        = errors.New("password does not meet minimum requirements")
 	ErrMissingPasswordHash = errors.New("password hash is required")
+	ErrInvalidPasswordHash = errors.New("password hash is invalid")
 	ErrPasswordMismatch    = errors.New("password does not match")
 )
 
@@ -60,6 +61,9 @@ func VerifyPassword(hash string, password string) error {
 	value := strings.TrimSpace(hash)
 	if value == "" {
 		return ErrMissingPasswordHash
+	}
+	if _, err := bcrypt.Cost([]byte(value)); err != nil {
+		return ErrInvalidPasswordHash
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(value), []byte(password)); err != nil {
 		return ErrPasswordMismatch

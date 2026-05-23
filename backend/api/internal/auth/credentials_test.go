@@ -96,6 +96,7 @@ func TestVerifyPasswordRejectsInvalidCredentials(t *testing.T) {
 		expected error
 	}{
 		{name: "missing hash", password: "correct horse battery staple", expected: ErrMissingPasswordHash},
+		{name: "invalid hash", hash: "not-a-bcrypt-hash", password: "correct horse battery staple", expected: ErrInvalidPasswordHash},
 		{name: "wrong password", hash: hash, password: "wrong horse battery staple", expected: ErrPasswordMismatch},
 	}
 
