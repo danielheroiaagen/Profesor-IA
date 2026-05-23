@@ -70,6 +70,7 @@ Chained PRs recommended: Yes.
 - [ ] 6.3 Add backend-mediated avatar action endpoints only after provider spike.
 - [x] 6.4 Preserve fallback: avatar failure must not break voice lesson.
 - [x] 6.5 Add provider-neutral avatar action reducer with no raw-audio payload.
+- [x] 6.6 Add browser runtime dispatcher for trusted avatar action state.
 
 ## Verification Gates
 
