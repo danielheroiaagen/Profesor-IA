@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/curriculum"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/progress"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/session"
 )
@@ -24,6 +25,7 @@ type Config struct {
 	SessionResolver progress.SessionResolver
 	SessionRevoker  session.Revoker
 	SecureCookies   bool
+	Curriculum       curriculum.Provider
 }
 
 type statusResponse struct {
@@ -69,6 +71,8 @@ func NewHandler(config Config) http.Handler {
 	mux.HandleFunc("POST /v1/progress/awards", progressHandler.RegisterAward)
 	sessionHandler := session.NewHandler(config.SessionRevoker, session.NewCookiePolicy(config.SecureCookies))
 	mux.HandleFunc("POST /v1/session/logout", sessionHandler.Logout)
+	curriculumHandler := curriculum.NewHandler(config.Curriculum)
+	mux.HandleFunc("GET /v1/curriculum/next", curriculumHandler.NextLesson)
 
 	return withSecurityHeaders(mux)
 }
