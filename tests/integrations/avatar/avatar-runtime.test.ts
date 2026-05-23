@@ -42,11 +42,14 @@ describe("avatar runtime dispatcher", () => {
   });
 
   it("dispatches tutor text into a speaking action", () => {
-    const state = reduceAvatarRuntimeEvent(createAvatarRuntimeState(BASE_STATE), {
-      type: "tutor.speech_delta",
-      tutorText: "Nice pronunciation.",
-      occurredAt: "2026-05-23T00:00:02Z",
-    });
+    const state = reduceAvatarRuntimeEvent(
+      createAvatarRuntimeState(BASE_STATE),
+      {
+        type: "tutor.speech_delta",
+        tutorText: "Nice pronunciation.",
+        occurredAt: "2026-05-23T00:00:02Z",
+      },
+    );
 
     expect(state.status).toBe("speaking");
     expect(state.lastAction).toMatchObject({
@@ -60,34 +63,40 @@ describe("avatar runtime dispatcher", () => {
     });
   });
 
-  it("keeps runtime identity trusted even if event input contains spoofed fields", () => {
-    const unsafeEvent = {
-      type: "tutor.speech_delta" as const,
-      attemptId: "spoofed-attempt",
-      lessonPlanSlug: "spoofed-lesson",
-      rawAudio: "raw-audio-secret",
-      tutorText: "Approved tutor text.",
-      occurredAt: "2026-05-23T00:00:03Z",
-    };
+  it(
+    "keeps runtime identity trusted even if event input contains spoofed fields",
+    () => {
+      const unsafeEvent = {
+        type: "tutor.speech_delta" as const,
+        attemptId: "spoofed-attempt",
+        lessonPlanSlug: "spoofed-lesson",
+        rawAudio: "raw-audio-secret",
+        tutorText: "Approved tutor text.",
+        occurredAt: "2026-05-23T00:00:03Z",
+      };
 
-    const state = reduceAvatarRuntimeEvent(
-      createAvatarRuntimeState(BASE_STATE),
-      unsafeEvent,
-    );
-    const serialized = JSON.stringify(state.lastAction);
+      const state = reduceAvatarRuntimeEvent(
+        createAvatarRuntimeState(BASE_STATE),
+        unsafeEvent,
+      );
+      const serialized = JSON.stringify(state.lastAction);
 
-    expect(state.lastAction?.attemptId).toBe("attempt-1");
-    expect(state.lastAction?.lessonPlanSlug).toBe("raio-a1-linking");
-    expect(serialized).not.toContain("spoofed-attempt");
-    expect(serialized).not.toContain("spoofed-lesson");
-    expect(serialized).not.toContain("raw-audio-secret");
-  });
+      expect(state.lastAction?.attemptId).toBe("attempt-1");
+      expect(state.lastAction?.lessonPlanSlug).toBe("raio-a1-linking");
+      expect(serialized).not.toContain("spoofed-attempt");
+      expect(serialized).not.toContain("spoofed-lesson");
+      expect(serialized).not.toContain("raw-audio-secret");
+    },
+  );
 
   it("preserves fallback status for degraded connections", () => {
-    const state = reduceAvatarRuntimeEvent(createAvatarRuntimeState(BASE_STATE), {
-      type: "connection.degraded",
-      occurredAt: "2026-05-23T00:00:04Z",
-    });
+    const state = reduceAvatarRuntimeEvent(
+      createAvatarRuntimeState(BASE_STATE),
+      {
+        type: "connection.degraded",
+        occurredAt: "2026-05-23T00:00:04Z",
+      },
+    );
 
     expect(state.status).toBe("fallback");
     expect(state.lastAction?.action).toEqual({
