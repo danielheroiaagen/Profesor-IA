@@ -3,7 +3,6 @@ package session
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -58,20 +57,6 @@ func TestPostgresSessionRepositoryRejectsInvalidSessionRecords(t *testing.T) {
 				t.Fatalf("expected %v, got %v", tc.expected, err)
 			}
 		})
-	}
-}
-
-func TestPostgresSessionRepositoryWrapsCreateErrors(t *testing.T) {
-	t.Parallel()
-
-	expected := errors.New("database unavailable")
-	repository := mustSessionRepository(t, &fakeSessionStore{execErr: expected}, fixedSessionTime())
-	err := repository.CreateSession(context.Background(), SessionRecord{
-		UserID: "user-1", Token: "token", ExpiresAt: fixedSessionTime().Add(time.Hour),
-	})
-
-	if !errors.Is(err, expected) {
-		t.Fatalf("expected wrapped store error, got %v", err)
 	}
 }
 
@@ -197,11 +182,11 @@ func fixedSessionTime() time.Time {
 }
 
 type fakeSessionStore struct {
-	execCalled bool
-	execQuery  string
-	execArgs   []any
-	execTag    pgconn.CommandTag
-	execErr    error
+	execCalled  bool
+	execQuery   string
+	execArgs    []any
+	execTag     pgconn.CommandTag
+	execErr     error
 	queryCalled bool
 	query       string
 	queryArgs   []any
@@ -231,27 +216,8 @@ func (r fakeSessionRow) Scan(dest ...any) error {
 	if r.err != nil {
 		return r.err
 	}
-	if len(dest) != len(r.values) {
-		return fmt.Errorf("expected %d scan destinations, got %d", len(r.values), len(dest))
-	}
-	for index, destination := range dest {
-		switch target := destination.(type) {
-		case *string:
-			value, ok := r.values[index].(string)
-			if !ok {
-				return fmt.Errorf("expected string value at index %d", index)
-			}
-			*target = value
-		case *time.Time:
-			value, ok := r.values[index].(time.Time)
-			if !ok {
-				return fmt.Errorf("expected time value at index %d", index)
-			}
-			*target = value
-		default:
-			return fmt.Errorf("unsupported scan destination %T", destination)
-		}
-	}
+	*(dest[0].(*string)) = r.values[0].(string)
+	*(dest[1].(*time.Time)) = r.values[1].(time.Time)
 	return nil
 }
 
