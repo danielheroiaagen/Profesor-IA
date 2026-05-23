@@ -19,10 +19,10 @@ Implemented now:
 - Go password hash/verify service.
 - Go email normalization.
 - Go credential user repository for create and find-by-email flows.
+- Go register endpoint that creates a credential user and HTTP-only session cookie.
 
 Deferred to next slices:
 
-- `POST /v1/auth/register`.
 - `POST /v1/auth/login`.
 - Next.js login/register UI.
 

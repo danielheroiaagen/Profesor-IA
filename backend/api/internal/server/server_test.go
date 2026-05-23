@@ -6,8 +6,37 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+
+	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/auth"
+	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/session"
 )
+
+func TestRegisterRouteCreatesSessionCookie(t *testing.T) {
+	t.Parallel()
+
+	users := &fakeAuthUsers{user: auth.CredentialUser{ID: "user-1", Email: "teacher@example.com"}}
+	sessions := &fakeAuthSessions{}
+	handler := NewHandler(Config{AuthUsers: users, AuthSessions: sessions})
+	request := httptest.NewRequest(http.MethodPost, "/v1/auth/register", strings.NewReader(`{"email":"teacher@example.com","password":"correct horse battery staple"}`))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusCreated, response.Code, response.Body.String())
+	}
+	if users.record.PasswordHash == "" || strings.Contains(response.Body.String(), users.record.PasswordHash) {
+		t.Fatalf("expected private password hash, body=%s", response.Body.String())
+	}
+	if sessions.record.UserID != "user-1" {
+		t.Fatalf("expected user session, got %+v", sessions.record)
+	}
+	if got := response.Result().Cookies()[0].Name; got != session.CookieName {
+		t.Fatalf("expected session cookie, got %q", got)
+	}
+}
 
 func TestHealthzReturnsServiceStatus(t *testing.T) {
 	t.Parallel()
@@ -147,4 +176,23 @@ type fakeDatabasePinger struct {
 func (p *fakeDatabasePinger) Ping(context.Context) error {
 	p.called = true
 	return p.err
+}
+
+type fakeAuthUsers struct {
+	record auth.CredentialUserRecord
+	user   auth.CredentialUser
+}
+
+func (u *fakeAuthUsers) CreateCredentialUser(_ context.Context, record auth.CredentialUserRecord) (auth.CredentialUser, error) {
+	u.record = record
+	return u.user, nil
+}
+
+type fakeAuthSessions struct {
+	record session.SessionRecord
+}
+
+func (s *fakeAuthSessions) CreateSession(_ context.Context, record session.SessionRecord) error {
+	s.record = record
+	return nil
 }

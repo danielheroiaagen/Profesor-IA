@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/auth"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/curriculum"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/database"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/progress"
@@ -18,6 +19,7 @@ import (
 type sessionStore interface {
 	progress.SessionResolver
 	session.Revoker
+	auth.SessionCreator
 }
 
 func main() {
@@ -48,6 +50,11 @@ func main() {
 		slog.Error("curriculum repository is unavailable", "error", err)
 		os.Exit(1)
 	}
+	credentialUsers, err := openCredentialUsersIfConfigured(pool)
+	if err != nil {
+		slog.Error("credential user repository is unavailable", "error", err)
+		os.Exit(1)
+	}
 
 	config := server.Config{
 		Addr:            envOrDefault("GO_API_ADDR", ":8080"),
@@ -57,7 +64,9 @@ func main() {
 		SessionResolver: sessions,
 		SessionRevoker:  sessions,
 		SecureCookies:   secureCookiesFromEnv(),
-		Curriculum:       curriculumProvider,
+		Curriculum:      curriculumProvider,
+		AuthUsers:       credentialUsers,
+		AuthSessions:    sessions,
 	}
 
 	httpServer := server.NewHTTPServer(config)
@@ -100,6 +109,14 @@ func openCurriculumIfConfigured(pool database.Pool) (curriculum.Provider, error)
 	}
 
 	return curriculum.NewPostgresRepository(pool)
+}
+
+func openCredentialUsersIfConfigured(pool database.Pool) (auth.CredentialUserCreator, error) {
+	if pool == nil {
+		return nil, nil
+	}
+
+	return auth.NewPostgresUserRepository(pool)
 }
 
 func envOrDefault(name string, fallback string) string {

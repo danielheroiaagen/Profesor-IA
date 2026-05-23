@@ -7,8 +7,9 @@ Current slice:
 - `GET /healthz` — process health.
 - `GET /readyz` — readiness with optional PostgreSQL health when `POSTGRES_URL` is configured.
 - `POST /v1/progress/awards` — records a server-trusted lesson completion XP award when PostgreSQL is configured.
+- `POST /v1/auth/register` — creates a credential user and HTTP-only session cookie when PostgreSQL is configured.
 - Progress award domain and persistence exist in Go, but the current Next.js lesson UI is not integrated yet.
-- Session logout, session-backed progress identity, curriculum selection, credential password hashing, and credential user persistence now exist in Go; login/register routes are still deferred.
+- Session logout, session-backed progress identity, curriculum selection, credential password hashing, credential user persistence, and registration now exist in Go; login route and auth UI are still deferred.
 
 ## Local commands
 
