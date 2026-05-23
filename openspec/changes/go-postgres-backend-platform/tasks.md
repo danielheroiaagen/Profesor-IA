@@ -71,6 +71,7 @@ Chained PRs recommended: Yes.
 - [x] 6.4 Preserve fallback: avatar failure must not break voice lesson.
 - [x] 6.5 Add provider-neutral avatar action reducer with no raw-audio payload.
 - [x] 6.6 Add browser runtime dispatcher for trusted avatar action state.
+- [x] 6.7 Add Realtime signal adapter for avatar runtime events.
 
 ## Verification Gates
 
