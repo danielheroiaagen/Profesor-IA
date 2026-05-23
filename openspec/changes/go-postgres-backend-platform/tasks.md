@@ -58,9 +58,9 @@ Chained PRs recommended: Yes.
 
 ## Phase 5: RAIO / YouTalk Curriculum
 
-- [ ] 5.1 Define lesson plan schema: level, objective, phonetic focus, linking rule, matrix drill, story prompt, rubric, correction criteria.
+- [x] 5.1 Define lesson plan schema: level, objective, phonetic focus, linking rule, matrix drill, story prompt, rubric, correction criteria.
 - [ ] 5.2 Add curriculum seed/import strategy.
-- [ ] 5.3 Add API for selecting the next lesson.
+- [x] 5.3 Add API for selecting the next lesson.
 - [ ] 5.4 Keep prompts auditable and versioned.
 
 ## Phase 6: Live Avatar Event Bridge
