@@ -244,11 +244,32 @@ Behavior added:
 - Session cookie `Secure` behavior is now controlled by `GO_API_SECURE_COOKIES`; it defaults to secure unless explicitly set to `false`.
 - Added unit coverage for revocation, cookie clearing, idempotent no-cookie logout, revoker failure, and unsupported methods.
 
+### Phase 5a: RAIO Next Lesson API
+
+Added the first RAIO curriculum API in the Go backend.
+
+Files changed/added:
+
+- `backend/api/internal/curriculum/curriculum.go`
+- `backend/api/internal/curriculum/curriculum_test.go`
+- `backend/api/internal/server/server.go`
+- `backend/api/cmd/server/main.go`
+- `openspec/changes/go-postgres-backend-platform/tasks.md`
+- `openspec/changes/go-postgres-backend-platform/apply-progress.md`
+
+Behavior added:
+
+- `GET /v1/curriculum/next?level=A1` selects the first active PostgreSQL lesson plan for a CEFR level.
+- Empty `level` defaults to `A1`; invalid CEFR values return `invalid_cefr_level`.
+- The response includes objective, phonetic focus, linking rule, matrix drill, story prompt, rubric, correction criteria, and prompt version.
+- The Go server wires `PostgresRepository` for curriculum when `POSTGRES_URL` is configured.
+- Added deterministic tests for repository selection, missing lessons, invalid levels, handler success, and safe public errors.
+
 Important boundaries:
 
-- No login endpoint yet.
-- Next.js does not call the Go logout endpoint yet.
-- Durable progress read API remains deferred.
+- No RAIO curriculum seed/import workflow yet.
+- Next-lesson selection is not personalized by progress history yet.
+- Next.js does not consume this endpoint yet.
 - Avatar-live behavior remains deferred until the event contract slice.
 
 ## Verification
@@ -284,4 +305,4 @@ Local shell execution is unavailable in this Codex desktop thread, so database m
 
 ## Next Recommended
 
-Run CI for the logout slice, then start the RAIO curriculum API slice or write the avatar-live event contract spec.
+Run CI for the RAIO next lesson API slice, then add curriculum seed/import or write the avatar-live event contract spec.
