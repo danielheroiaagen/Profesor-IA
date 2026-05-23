@@ -296,6 +296,31 @@ Important boundaries:
 - No avatar backend endpoints yet.
 - No browser animation implementation yet.
 
+### Phase 6b: Avatar Action Reducer
+
+Added the first provider-neutral avatar action implementation slice.
+
+Files added/changed:
+
+- `src/integrations/avatar/avatar-actions.ts`
+- `tests/integrations/avatar/avatar-actions.test.ts`
+- `openspec/changes/go-postgres-backend-platform/tasks.md`
+- `openspec/changes/go-postgres-backend-platform/apply-progress.md`
+
+Behavior added:
+
+- Maps normalized lesson/Realtime events to `avatar.action` envelopes.
+- Supports listening, thinking, speaking, feedback, completion, and fallback actions.
+- Uses tutor-approved text only for speech actions.
+- Preserves degraded connection fallback as a non-blocking avatar action.
+- Adds deterministic tests proving raw learner audio is not copied into avatar actions.
+
+Important boundaries:
+
+- The reducer is not wired into the lesson runtime yet.
+- No backend-mediated avatar action endpoint yet.
+- No browser avatar renderer changes yet.
+
 ## Verification
 
 GitHub Actions verifies chained PRs with:
@@ -330,4 +355,4 @@ Local shell execution is unavailable in this Codex desktop thread, so database m
 
 ## Next Recommended
 
-Run CI for the avatar contract slice, then perform the avatar provider spike or add the curriculum seed/import workflow.
+Run CI for the avatar reducer slice, then wire the reducer into the browser lesson runtime or perform the avatar provider spike.
