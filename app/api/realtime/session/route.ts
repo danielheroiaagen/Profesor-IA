@@ -8,6 +8,7 @@ import {
   hasLessonAccess,
   parseLessonAccessRequest,
 } from "@/server/lesson-access";
+import { getTrackedLessonPlan } from "@/server/lesson-store";
 import { rateLimitPolicies } from "@/server/rate-limit";
 import { checkRateLimitResponse } from "@/server/rate-limit-response";
 import { enforceSameOriginRequest } from "@/server/request-guard";
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
   try {
     const realtime = await mintRealtimeSessionFromConfig({
       lessonId,
+      lessonPlan: getTrackedLessonPlan(lessonId) ?? undefined,
       safetyIdentifier: lessonId,
     });
 

@@ -97,9 +97,11 @@ describe("LessonClient smoke", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Practicá inglés con una mini clase de voz.",
+        name: "Clase RAIO A1: escuchá en español, respondé en inglés.",
       }),
     ).toBeVisible();
+    expect(screen.getByText("Decí en inglés: «Es un libro.»")).toBeVisible();
+    expect(screen.getByText("“It's a book.”")).toBeVisible();
     expect(
       screen.getByRole("heading", {
         name: "Avatar visual listo para tu clase",
@@ -379,6 +381,19 @@ describe("LessonClient smoke", () => {
     const connectUrl = "https://example.test/realtime/calls";
     const connectAttempts: RequestInit[] = [];
     const requestedUrls: string[] = [];
+    const dataChannel: {
+      close: ReturnType<typeof vi.fn>;
+      onmessage: ((event: MessageEvent) => void) | null;
+      onopen: (() => void) | null;
+      readyState: RTCDataChannelState;
+      send: ReturnType<typeof vi.fn>;
+    } = {
+      close: vi.fn(),
+      onmessage: null,
+      onopen: null,
+      readyState: "open",
+      send: vi.fn(),
+    };
     const realtimeAudio = {
       autoplay: false,
       srcObject: null as MediaStream | null,
@@ -394,7 +409,7 @@ describe("LessonClient smoke", () => {
       "RTCPeerConnection",
       vi.fn(() => ({
         addTrack: vi.fn(),
-        createDataChannel: vi.fn(() => ({ close: vi.fn(), onmessage: null })),
+        createDataChannel: vi.fn(() => dataChannel),
         createOffer: vi.fn(async () => ({ sdp: "offer-sdp", type: "offer" })),
         setLocalDescription: vi.fn(async () => undefined),
         setRemoteDescription: vi.fn(async () => undefined),
@@ -486,6 +501,16 @@ describe("LessonClient smoke", () => {
       "Content-Type": "application/sdp",
     });
     expect(connectAttempts[0]?.body).toBe("offer-sdp");
+    act(() => dataChannel.onopen?.());
+    expect(dataChannel.send).toHaveBeenCalledWith(
+      expect.stringContaining('"type":"response.create"'),
+    );
+    expect(dataChannel.send).toHaveBeenCalledWith(
+      expect.stringContaining("Tu frase de hoy es: Es un libro."),
+    );
+    expect(dataChannel.send).toHaveBeenCalledWith(
+      expect.stringContaining("It's a book."),
+    );
     expect(realtimeAudio.autoplay).toBe(true);
     expect(realtimeAudio.srcObject).toBe(stream);
     expect(realtimeAudio.play).toHaveBeenCalled();
@@ -822,7 +847,9 @@ describe("LessonClient smoke", () => {
         screen.getByRole("heading", { name: "Profesor IA respondiendo" }),
       ).toBeVisible(),
     );
-    expect(screen.getAllByText("avatar hablando en vivo")[0]).toBeVisible();
+    expect(
+      screen.getAllByText("tutor hablando; avatar reacciona")[0],
+    ).toBeVisible();
     expect(screen.queryByText("raw-audio-secret")).not.toBeInTheDocument();
   });
 

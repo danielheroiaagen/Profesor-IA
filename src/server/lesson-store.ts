@@ -9,27 +9,35 @@ import {
   recordLearnerTurn,
   type LessonSession,
 } from "@/domain/lesson";
+import {
+  getDefaultRaioSpeakingLesson,
+  type RaioSpeakingLesson,
+} from "@/domain/raio-curriculum";
 
 const lessonStoreKey = "__profesorIaLessonStore";
 
 type TrackedLessonRecord = {
   lesson: LessonSession;
   accessToken: string;
+  lessonPlan: RaioSpeakingLesson;
 };
 
 const lessons = getProcessLessonStore();
 
 export function createTrackedLesson({
   lessonId,
+  lessonPlan = getDefaultRaioSpeakingLesson(),
   now,
 }: {
   lessonId: string;
+  lessonPlan?: RaioSpeakingLesson;
   now?: Date;
 }): LessonSession {
   const lesson = createLessonSession({ lessonId, now });
   lessons.set(lesson.id, {
     lesson,
     accessToken: randomUUID(),
+    lessonPlan,
   });
 
   return lesson;
@@ -41,6 +49,12 @@ export function getTrackedLesson(lessonId: string): LessonSession | null {
 
 export function getTrackedLessonAccessToken(lessonId: string): string | null {
   return lessons.get(lessonId)?.accessToken ?? null;
+}
+
+export function getTrackedLessonPlan(
+  lessonId: string,
+): RaioSpeakingLesson | null {
+  return lessons.get(lessonId)?.lessonPlan ?? null;
 }
 
 export function canAccessTrackedLesson({
@@ -73,8 +87,14 @@ export function completeTrackedLesson(lessonId: string, now = new Date()) {
   }
 
   const completion = completeLesson(lesson, { canVerify: true }, now);
-  const accessToken = getTrackedLessonAccessToken(lessonId) ?? randomUUID();
-  lessons.set(lessonId, { lesson: completion.lesson, accessToken });
+  const tracked = lessons.get(lessonId);
+  const accessToken = tracked?.accessToken ?? randomUUID();
+  const lessonPlan = tracked?.lessonPlan ?? getDefaultRaioSpeakingLesson();
+  lessons.set(lessonId, {
+    lesson: completion.lesson,
+    accessToken,
+    lessonPlan,
+  });
 
   return completion;
 }
@@ -94,8 +114,10 @@ function updateTrackedLesson(
   }
 
   const updated = update(lesson);
-  const accessToken = getTrackedLessonAccessToken(lessonId) ?? randomUUID();
-  lessons.set(lessonId, { lesson: updated, accessToken });
+  const tracked = lessons.get(lessonId);
+  const accessToken = tracked?.accessToken ?? randomUUID();
+  const lessonPlan = tracked?.lessonPlan ?? getDefaultRaioSpeakingLesson();
+  lessons.set(lessonId, { lesson: updated, accessToken, lessonPlan });
 
   return updated;
 }

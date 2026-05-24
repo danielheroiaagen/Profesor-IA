@@ -9,6 +9,11 @@ import {
   reduceLessonAvatarRealtimePayload,
   startLessonAvatarRuntime,
 } from "@/integrations/avatar/avatar-lesson-runtime";
+import {
+  buildRaioRealtimeOpeningInstructions,
+  DEFAULT_RAIO_SPEAKING_LESSON,
+  type RaioSpeakingLesson,
+} from "@/domain/raio-curriculum";
 import type {
   AvatarRuntimeEventInput,
   AvatarRuntimeState,
@@ -50,6 +55,7 @@ type AvatarLiveSession = {
 
 type LessonStartResponse = {
   lesson: LessonSession;
+  lessonPlan?: RaioSpeakingLesson;
   lessonAccessToken: string;
   avatar: AvatarStatus;
 };
@@ -93,8 +99,9 @@ type RealtimeConnection = {
   audioElement: HTMLAudioElement;
 };
 
-const INITIAL_FEEDBACK_SUMMARY =
-  "Objetivo: decir con naturalidad 'I am practicing English today.'";
+const INITIAL_FEEDBACK_SUMMARY = formatLessonObjective(
+  DEFAULT_RAIO_SPEAKING_LESSON,
+);
 const REQUIRED_LEARNER_TURNS = 1;
 const REQUIRED_FEEDBACK_EVENTS = 1;
 const DEFAULT_HEYGEN_AVATAR_ID = "e29e792a-41e7-4df0-84a8-349e099fb50f";
@@ -119,6 +126,9 @@ export default function LessonClient() {
   const [connectionStatus, setConnectionStatus] =
     useState<ConnectionStatus>("not-started");
   const [lesson, setLesson] = useState<LessonSession | null>(null);
+  const [lessonPlan, setLessonPlan] = useState<RaioSpeakingLesson>(
+    DEFAULT_RAIO_SPEAKING_LESSON,
+  );
   const [avatar, setAvatar] = useState<AvatarStatus | null>(null);
   const [liveAvatarStatus, setLiveAvatarStatus] =
     useState<LiveAvatarStatus>("idle");
@@ -180,6 +190,7 @@ export default function LessonClient() {
     setConnectionStatus("requesting-mic");
     lessonAccessTokenRef.current = null;
     setLesson(null);
+    setLessonPlan(DEFAULT_RAIO_SPEAKING_LESSON);
     setAvatar(null);
     setLiveAvatarStatus("idle");
     replaceAvatarRuntime(null);
@@ -196,11 +207,18 @@ export default function LessonClient() {
         {},
       );
       lessonStarted = true;
+      const activeLessonPlan =
+        lessonResponse.lessonPlan ?? DEFAULT_RAIO_SPEAKING_LESSON;
       lessonAccessTokenRef.current = lessonResponse.lessonAccessToken;
       setLesson(lessonResponse.lesson);
+      setLessonPlan(activeLessonPlan);
+      setFeedbackSummary(formatLessonObjective(activeLessonPlan));
       setAvatar(lessonResponse.avatar);
       replaceAvatarRuntime(
-        startLessonAvatarRuntime({ attemptId: lessonResponse.lesson.id }),
+        startLessonAvatarRuntime({
+          attemptId: lessonResponse.lesson.id,
+          lessonPlanSlug: activeLessonPlan.slug,
+        }),
       );
       void startLiveAvatarSession(
         lessonResponse.avatar,
@@ -223,6 +241,7 @@ export default function LessonClient() {
 
       const connection = await connectRealtime(
         realtimeResponse.realtime,
+        activeLessonPlan,
         (payload) => {
           void recordRealtimeEvidence(lessonResponse.lesson.id, payload);
         },
@@ -370,8 +389,7 @@ export default function LessonClient() {
   async function recordVisibleFeedback() {
     if (!lesson) return;
 
-    const visibleFeedback =
-      "Corrección: decí 'I am practicing English today' en lugar de 'I practicing English today'.";
+    const visibleFeedback = lessonPlan.visibleFeedback;
 
     setError(null);
     setFeedbackSummary(visibleFeedback);
@@ -629,9 +647,13 @@ export default function LessonClient() {
             <div className="targetPrompt">
               <p className="targetIntro">Practicá diciendo:</p>
               <h1 id="lesson-title">
-                Practicá inglés con una mini clase de voz.
+                Clase RAIO A1: escuchá en español, respondé en inglés.
               </h1>
-              <p className="targetPhrase">“I am practicing English today.”</p>
+              <p className="targetInstruction">
+                {lessonPlan.spanishInstruction}
+              </p>
+              <p className="targetPhrase">“{lessonPlan.targetEnglish}”</p>
+              <p className="targetSupport">{lessonPlan.pronunciationHint}</p>
             </div>
             <div className="startPanel">
               <span>Clase guiada por voz</span>
@@ -724,7 +746,7 @@ export default function LessonClient() {
               <div>
                 <span aria-hidden="true">○</span>
                 <strong>Próximo objetivo</strong>
-                <small>Usar la frase objetivo con voz clara.</small>
+                <small>{lessonPlan.nextGoal}</small>
               </div>
             </div>
           </section>
@@ -780,8 +802,8 @@ export default function LessonClient() {
             </span>
             <h2 id="teacher-tip-title">Tip del Profesor</h2>
             <p>
-              No te preocupes por la velocidad. Lo importante es que tu voz sea
-              clara para que la IA detecte tu pronunciación correctamente.
+              RAIO prioriza respuesta oral rápida: el tutor te guía en español,
+              vos respondés en inglés y recibís corrección breve en español.
             </p>
           </section>
         </aside>
@@ -1033,6 +1055,10 @@ function readTutorStateIcon(label: TutorStateLabel) {
   };
 
   return icons[label];
+}
+
+function formatLessonObjective(lessonPlan: RaioSpeakingLesson) {
+  return `Objetivo RAIO: ${lessonPlan.spanishInstruction} Respondé en inglés: “${lessonPlan.targetEnglish}”.`;
 }
 
 const premiumClassroomStyles = `
@@ -1496,6 +1522,18 @@ const premiumClassroomStyles = `
     font-weight: 850;
   }
 
+  .targetInstruction,
+  .targetSupport {
+    margin: 0.55rem 0 0;
+    color: #cbd5e1;
+    line-height: 1.45;
+  }
+
+  .targetInstruction {
+    color: #9bffce;
+    font-weight: 800;
+  }
+
   .startPanel {
     display: grid;
     gap: 0.7rem;
@@ -1855,8 +1893,8 @@ function formatAvatarRuntimeStatus(status: AvatarRuntimeStatus) {
     idle: "avatar preparado",
     listening: "avatar escuchando en vivo",
     thinking: "avatar pensando respuesta",
-    speaking: "avatar hablando en vivo",
-    feedback: "avatar corrigiendo en vivo",
+    speaking: "tutor hablando; avatar reacciona",
+    feedback: "tutor corrigiendo; avatar reacciona",
     celebrating: "avatar celebrando progreso",
     fallback: "avatar en modo voz seguro",
   };
@@ -1913,6 +1951,7 @@ async function fetchWithTimeout(
 
 async function connectRealtime(
   realtime: RealtimeSession,
+  lessonPlan: RaioSpeakingLesson,
   onRealtimeEvent: (payload: string) => void,
 ): Promise<RealtimeConnection> {
   if (!navigator.mediaDevices?.getUserMedia) {
@@ -1928,6 +1967,12 @@ async function connectRealtime(
 
     const dataChannel = peerConnection.createDataChannel("oai-events");
     cleanupTarget.dataChannel = dataChannel;
+    dataChannel.onopen = () => {
+      sendRealtimeTutorResponse(
+        dataChannel,
+        buildRaioRealtimeOpeningInstructions(lessonPlan),
+      );
+    };
 
     const audioElement = new Audio();
     audioElement.autoplay = true;
@@ -1996,6 +2041,20 @@ async function connectRealtime(
     closeRealtimeResources(cleanupTarget);
     throw error;
   }
+}
+
+function sendRealtimeTutorResponse(
+  dataChannel: RTCDataChannel,
+  instructions: string,
+) {
+  if (dataChannel.readyState !== "open") return;
+
+  dataChannel.send(
+    JSON.stringify({
+      type: "response.create",
+      response: { instructions },
+    }),
+  );
 }
 
 function closeRealtimeConnection(connection: RealtimeConnection | null) {

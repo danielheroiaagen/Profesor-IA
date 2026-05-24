@@ -7,6 +7,7 @@ import {
   createLessonSession,
   toSafeLessonResponse,
 } from "@/domain/lesson";
+import { getDefaultRaioSpeakingLesson } from "@/domain/raio-curriculum";
 import type { AvatarStatus } from "@/integrations/avatar/avatar-adapter";
 import { createHeyGenAvatarAdapterFromConfig } from "@/integrations/avatar/heygen";
 import { createLiveAvatarAdapterFromConfig } from "@/integrations/avatar/liveavatar";
@@ -35,12 +36,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    const lesson = createTrackedLesson({ lessonId: randomUUID() });
+    const lessonPlan = getDefaultRaioSpeakingLesson();
+    const lesson = createTrackedLesson({ lessonId: randomUUID(), lessonPlan });
     const avatar = await resolveLessonAvatarStatus(lesson.id);
 
     return NextResponse.json(
       {
         lesson: toSafeLessonResponse(lesson),
+        lessonPlan,
         lessonAccessToken: getTrackedLessonAccessToken(lesson.id),
         avatar,
       },

@@ -1,13 +1,14 @@
 import { getServerConfig } from "@/config/server";
+import {
+  buildRaioRealtimeTutorInstructions,
+  getDefaultRaioSpeakingLesson,
+  type RaioSpeakingLesson,
+} from "@/domain/raio-curriculum";
 
 const REALTIME_CLIENT_SECRETS_URL =
   "https://api.openai.com/v1/realtime/client_secrets";
 const REALTIME_CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 const DEFAULT_CLIENT_SECRET_TTL_SECONDS = 600;
-const TUTOR_INSTRUCTIONS = `You are Profesor IA, a warm and direct English teacher.
-Run a short spoken lesson for a Spanish-speaking learner.
-Correct one sentence at a time, explain the correction briefly, and keep the learner encouraged.
-Do not mention hidden system or API details.`;
 
 type FetchLike = typeof fetch;
 
@@ -28,6 +29,7 @@ export type MintRealtimeSessionInput = {
   apiKey: string;
   model: string;
   lessonId: string;
+  lessonPlan?: RaioSpeakingLesson;
   fetchImpl?: FetchLike;
   ttlSeconds?: number;
   safetyIdentifier?: string;
@@ -50,10 +52,12 @@ export class RealtimeSessionError extends Error {
 
 export async function mintRealtimeSessionFromConfig({
   lessonId,
+  lessonPlan,
   fetchImpl,
   safetyIdentifier,
 }: {
   lessonId: string;
+  lessonPlan?: RaioSpeakingLesson;
   fetchImpl?: FetchLike;
   safetyIdentifier?: string;
 }): Promise<RealtimeSessionResponse> {
@@ -63,6 +67,7 @@ export async function mintRealtimeSessionFromConfig({
     apiKey: config.openai.apiKey,
     model: config.openai.realtimeModel,
     lessonId,
+    lessonPlan,
     fetchImpl,
     safetyIdentifier,
   });
@@ -72,6 +77,7 @@ export async function mintRealtimeSession({
   apiKey,
   model,
   lessonId,
+  lessonPlan = getDefaultRaioSpeakingLesson(),
   fetchImpl = fetch,
   ttlSeconds = DEFAULT_CLIENT_SECRET_TTL_SECONDS,
   safetyIdentifier,
@@ -93,7 +99,7 @@ export async function mintRealtimeSession({
       session: {
         type: "realtime",
         model,
-        instructions: TUTOR_INSTRUCTIONS,
+        instructions: buildRaioRealtimeTutorInstructions(lessonPlan),
         audio: {
           input: {
             transcription: {
@@ -101,6 +107,11 @@ export async function mintRealtimeSession({
               language: "en",
               prompt:
                 "The learner is practicing short A1 English phrases in a guided lesson.",
+            },
+            turn_detection: {
+              type: "server_vad",
+              create_response: true,
+              interrupt_response: true,
             },
           },
           output: {

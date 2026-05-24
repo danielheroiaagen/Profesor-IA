@@ -19,11 +19,19 @@ describe("OpenAI realtime integration", () => {
         expect(body.session).toMatchObject({
           type: "realtime",
           model: "gpt-realtime-2",
+          instructions: expect.stringContaining(
+            "Speak to the learner in Spanish",
+          ),
           audio: {
             input: {
               transcription: {
                 model: "gpt-4o-mini-transcribe",
                 language: "en",
+              },
+              turn_detection: {
+                type: "server_vad",
+                create_response: true,
+                interrupt_response: true,
               },
             },
             output: {
@@ -31,6 +39,10 @@ describe("OpenAI realtime integration", () => {
             },
           },
         });
+        expect(body.session.instructions).toContain("It's a book.");
+        expect(body.session.instructions).toContain(
+          "Correct the learner's actual last spoken answer",
+        );
 
         return Response.json({
           expires_at: 1_800_000_000,

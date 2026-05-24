@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/../app/api/lessons/start/route";
+import { DEFAULT_RAIO_SPEAKING_LESSON } from "@/domain/raio-curriculum";
 import { resetRateLimitsForTests } from "@/server/rate-limit";
 
 const HEYGEN_API_KEY = "heygen-secret-never-returned";
@@ -42,6 +43,11 @@ describe("POST /api/lessons/start", () => {
       reason: "avatar-validated",
     });
     expect(body.lesson.state).toBe("active");
+    expect(body.lessonPlan).toMatchObject({
+      slug: DEFAULT_RAIO_SPEAKING_LESSON.slug,
+      spanishInstruction: "Decí en inglés: «Es un libro.»",
+      targetEnglish: "It's a book.",
+    });
     expect(body.lessonAccessToken).toEqual(expect.any(String));
     expect(body.lessonAccessToken).not.toHaveLength(0);
     expect(serialized).not.toContain(HEYGEN_API_KEY);
@@ -96,6 +102,11 @@ describe("POST /api/lessons/start", () => {
       reason: "avatar-provider-not-configured",
     });
     expect(body.lesson.state).toBe("active");
+    expect(body.lessonPlan).toMatchObject({
+      method: "RAIO/YouTalk",
+      sourceNotebook: "Currículo Integral RAIO de Inglés",
+      visibleFeedback: expect.stringContaining("It's a book"),
+    });
     expect(body.lessonAccessToken).toEqual(expect.any(String));
     expect(body.lessonAccessToken).not.toHaveLength(0);
     expect(fetchImpl).not.toHaveBeenCalled();
