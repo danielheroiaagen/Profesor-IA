@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/attempts"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/auth"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/curriculum"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/database"
@@ -55,6 +56,11 @@ func main() {
 		slog.Error("curriculum repository is unavailable", "error", err)
 		os.Exit(1)
 	}
+	attemptStarter, err := openAttemptsIfConfigured(pool)
+	if err != nil {
+		slog.Error("lesson attempts repository is unavailable", "error", err)
+		os.Exit(1)
+	}
 	credentialUsers, err := openCredentialUsersIfConfigured(pool)
 	if err != nil {
 		slog.Error("credential user repository is unavailable", "error", err)
@@ -73,6 +79,7 @@ func main() {
 		Curriculum:      curriculumProvider,
 		AuthUsers:       credentialUsers,
 		AuthSessions:    sessions,
+		AttemptStarter:  attemptStarter,
 	}
 
 	httpServer := server.NewHTTPServer(config)
@@ -115,6 +122,14 @@ func openCurriculumIfConfigured(pool database.Pool) (curriculum.Provider, error)
 	}
 
 	return curriculum.NewPostgresRepository(pool)
+}
+
+func openAttemptsIfConfigured(pool database.Pool) (attempts.Starter, error) {
+	if pool == nil {
+		return nil, nil
+	}
+
+	return attempts.NewPostgresRepository(pool)
 }
 
 func openCredentialUsersIfConfigured(pool database.Pool) (auth.CredentialUserCreator, error) {

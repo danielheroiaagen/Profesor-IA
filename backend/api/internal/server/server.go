@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/attempts"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/auth"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/curriculum"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/progress"
@@ -30,6 +31,7 @@ type Config struct {
 	Curriculum      curriculum.Provider
 	AuthUsers       auth.CredentialUserCreator
 	AuthSessions    auth.SessionCreator
+	AttemptStarter  attempts.Starter
 }
 
 type statusResponse struct {
@@ -83,6 +85,8 @@ func NewHandler(config Config) http.Handler {
 	mux.HandleFunc("GET /v1/session/me", sessionHandler.Current)
 	curriculumHandler := curriculum.NewHandler(config.Curriculum)
 	mux.HandleFunc("GET /v1/curriculum/next", curriculumHandler.NextLesson)
+	attemptHandler := attempts.NewHandler(config.AttemptStarter, config.SessionResolver, session.CookieName)
+	mux.HandleFunc("POST /v1/lesson-attempts/start", attemptHandler.Start)
 
 	return withSecurityHeaders(mux)
 }

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/attempts"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/auth"
 	"github.com/danielheroiaagen/Profesor-IA/backend/api/internal/session"
 )
@@ -80,6 +81,27 @@ func TestCurrentSessionRouteReturnsIdentity(t *testing.T) {
 	}
 	if body := response.Body.String(); !strings.Contains(body, `"authenticated":true`) || !strings.Contains(body, `"id":"user-1"`) {
 		t.Fatalf("expected current session identity, got %s", body)
+	}
+}
+
+func TestStartLessonAttemptRouteCreatesAttempt(t *testing.T) {
+	t.Parallel()
+
+	starter := &fakeAttemptStarter{attempt: attempts.Attempt{ID: "attempt-1", Status: "started"}}
+	handler := NewHandler(Config{AttemptStarter: starter})
+	request := httptest.NewRequest(http.MethodPost, "/v1/lesson-attempts/start", strings.NewReader(`{"anonymousProgressId":"anonymous-1","legacyLessonId":"lesson-1"}`))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusCreated, response.Code, response.Body.String())
+	}
+	if starter.record.Identity.AnonymousProgressID != "anonymous-1" || starter.record.LegacyLessonID != "lesson-1" {
+		t.Fatalf("unexpected attempt record: %+v", starter.record)
+	}
+	if body := response.Body.String(); !strings.Contains(body, `"attemptId":"attempt-1"`) || !strings.Contains(body, `"status":"started"`) {
+		t.Fatalf("expected attempt response, got %s", body)
 	}
 }
 
@@ -254,6 +276,16 @@ type fakeSessionResolver struct {
 func (r *fakeSessionResolver) ResolveSessionUserID(_ context.Context, token string) (string, error) {
 	r.token = token
 	return r.userID, nil
+}
+
+type fakeAttemptStarter struct {
+	record  attempts.StartRecord
+	attempt attempts.Attempt
+}
+
+func (s *fakeAttemptStarter) StartAttempt(_ context.Context, record attempts.StartRecord) (attempts.Attempt, error) {
+	s.record = record
+	return s.attempt, nil
 }
 
 func mustPasswordHash(t *testing.T) string {
