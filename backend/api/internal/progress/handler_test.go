@@ -12,7 +12,7 @@ import (
 
 const validAwardJSON = `{
 	"attemptId":"attempt-1",
-	"userId":"user-1",
+	"anonymousProgressId":"anonymous-1",
 	"evidence":{"verified":true,"learnerTurns":1,"feedbacks":1,"interrupted":false}
 }`
 
@@ -28,7 +28,7 @@ func TestRegisterAwardRecordsValidEvidence(t *testing.T) {
 	if !recorder.called {
 		t.Fatal("expected recorder call")
 	}
-	if recorder.record.AttemptID != "attempt-1" || recorder.record.Identity.UserID != "user-1" {
+	if recorder.record.AttemptID != "attempt-1" || recorder.record.Identity.AnonymousProgressID != "anonymous-1" {
 		t.Fatalf("unexpected record: %+v", recorder.record)
 	}
 	if recorder.record.Decision.XP != LessonCompletionXP {
@@ -43,7 +43,7 @@ func TestRegisterAwardUsesSessionIdentity(t *testing.T) {
 	recorder := &fakeAwardRecorder{inserted: true}
 	resolver := &fakeSessionResolver{userID: "session-user"}
 	handler := NewHandlerWithSessions(recorder, resolver, "profesor-ia.session")
-	request := newAwardRequest(http.MethodPost, strings.Replace(validAwardJSON, `"userId":"user-1"`, `"anonymousProgressId":"anonymous-1"`, 1))
+	request := newAwardRequest(http.MethodPost, validAwardJSON)
 	request.AddCookie(&http.Cookie{Name: "profesor-ia.session", Value: "session-token"})
 	response := httptest.NewRecorder()
 
@@ -57,6 +57,37 @@ func TestRegisterAwardUsesSessionIdentity(t *testing.T) {
 	}
 	if recorder.record.Identity.UserID != "session-user" || recorder.record.Identity.AnonymousProgressID != "" {
 		t.Fatalf("expected session identity to replace request identity, got %+v", recorder.record.Identity)
+	}
+}
+
+func TestRegisterAwardRejectsBodyUserIDWithoutSession(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		handler Handler
+	}{
+		{"session resolver not configured", NewHandler(&fakeAwardRecorder{inserted: true})},
+		{"session cookie missing", NewHandlerWithSessions(&fakeAwardRecorder{inserted: true}, &fakeSessionResolver{userID: "session-user"}, "profesor-ia.session")},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			recorder := &fakeAwardRecorder{inserted: true}
+			tc.handler.awards = recorder
+			response := httptest.NewRecorder()
+			tc.handler.RegisterAward(response, newAwardRequest(http.MethodPost, strings.Replace(validAwardJSON, `"anonymousProgressId":"anonymous-1"`, `"userId":"user-1"`, 1)))
+
+			if response.Code != http.StatusUnauthorized {
+				t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, response.Code)
+			}
+			if recorder.called {
+				t.Fatal("expected body userId without session to skip recorder")
+			}
+			assertBodyContains(t, response, `"error":"invalid_session"`)
+		})
 	}
 }
 
@@ -107,7 +138,7 @@ func TestRegisterAwardErrors(t *testing.T) {
 	}{
 		{"recorder missing", NewHandler(nil), newAwardRequest(http.MethodPost, validAwardJSON), http.StatusServiceUnavailable, "progress_awards_unavailable"},
 		{"invalid json", NewHandler(&fakeAwardRecorder{}), newAwardRequest(http.MethodPost, `{"attemptId":`), http.StatusBadRequest, "invalid_request"},
-		{"invalid award request", NewHandler(&fakeAwardRecorder{err: ErrInvalidAwardIdentity}), newAwardRequest(http.MethodPost, strings.Replace(validAwardJSON, `"userId":"user-1"`, `"userId":"user-1","anonymousProgressId":"anonymous-1"`, 1)), http.StatusBadRequest, "invalid_award_request"},
+		{"invalid award request", NewHandler(&fakeAwardRecorder{err: ErrInvalidAwardIdentity}), newAwardRequest(http.MethodPost, validAwardJSON), http.StatusBadRequest, "invalid_award_request"},
 		{"storage error hidden", NewHandler(&fakeAwardRecorder{err: errors.New("postgres://secret@localhost")}), newAwardRequest(http.MethodPost, validAwardJSON), http.StatusInternalServerError, "progress_award_failed"},
 		{"unsupported method", NewHandler(&fakeAwardRecorder{}), newAwardRequest(http.MethodGet, ""), http.StatusMethodNotAllowed, "method_not_allowed"},
 	}

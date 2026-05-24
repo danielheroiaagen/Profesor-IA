@@ -44,6 +44,32 @@ func TestProgressAwardRouteRecordsValidCompletion(t *testing.T) {
 	}
 }
 
+func TestProgressAwardRouteRejectsBodyUserIDWithoutSession(t *testing.T) {
+	t.Parallel()
+
+	recorder := &fakeProgressAwardRecorder{inserted: true}
+	handler := NewHandler(Config{ProgressAwards: recorder})
+	requestBody := `{
+		"attemptId":"attempt-1",
+		"userId":"user-1",
+		"evidence":{"verified":true,"learnerTurns":1,"feedbacks":1,"interrupted":false}
+	}`
+	request := httptest.NewRequest(http.MethodPost, "/v1/progress/awards", bytes.NewBufferString(requestBody))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, response.Code)
+	}
+	if recorder.called {
+		t.Fatal("expected unauthenticated body userId to skip recorder")
+	}
+	if !strings.Contains(response.Body.String(), `"error":"invalid_session"`) {
+		t.Fatalf("expected invalid_session response, got %q", response.Body.String())
+	}
+}
+
 type fakeProgressAwardRecorder struct {
 	called   bool
 	record   progress.AwardRecord

@@ -116,29 +116,38 @@ func (h Handler) RegisterAward(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) awardIdentity(r *http.Request, request awardRequest) (AwardIdentity, error) {
-	identity := AwardIdentity{UserID: request.UserID, AnonymousProgressID: request.AnonymousProgressID}
+	userID := strings.TrimSpace(request.UserID)
+	anonymousProgressID := strings.TrimSpace(request.AnonymousProgressID)
+	anonymousIdentity := AwardIdentity{AnonymousProgressID: anonymousProgressID}
+
 	if h.sessions == nil || strings.TrimSpace(h.sessionCookieName) == "" {
-		return identity, nil
+		if userID != "" {
+			return AwardIdentity{}, ErrInvalidAwardIdentity
+		}
+		return anonymousIdentity, nil
 	}
 
 	cookie, err := r.Cookie(h.sessionCookieName)
 	if errors.Is(err, http.ErrNoCookie) {
-		return identity, nil
+		if userID != "" {
+			return AwardIdentity{}, ErrInvalidAwardIdentity
+		}
+		return anonymousIdentity, nil
 	}
 	if err != nil {
 		return AwardIdentity{}, err
 	}
 
-	userID, err := h.sessions.ResolveSessionUserID(r.Context(), cookie.Value)
+	resolvedUserID, err := h.sessions.ResolveSessionUserID(r.Context(), cookie.Value)
 	if err != nil {
 		return AwardIdentity{}, err
 	}
-	userID = strings.TrimSpace(userID)
-	if userID == "" {
+	resolvedUserID = strings.TrimSpace(resolvedUserID)
+	if resolvedUserID == "" {
 		return AwardIdentity{}, ErrInvalidAwardIdentity
 	}
 
-	return AwardIdentity{UserID: userID}, nil
+	return AwardIdentity{UserID: resolvedUserID}, nil
 }
 
 func writeProgressJSON(w http.ResponseWriter, statusCode int, body any) {
