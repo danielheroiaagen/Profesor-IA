@@ -22,6 +22,11 @@ type sessionStore interface {
 	auth.SessionCreator
 }
 
+type progressStore interface {
+	progress.AwardRecorder
+	progress.SummaryProvider
+}
+
 func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -35,9 +40,9 @@ func main() {
 		defer pool.Close()
 	}
 
-	progressAwards, err := openProgressAwardsIfConfigured(pool)
+	progressRecords, err := openProgressStoreIfConfigured(pool)
 	if err != nil {
-		slog.Error("progress awards repository is unavailable", "error", err)
+		slog.Error("progress repository is unavailable", "error", err)
 		os.Exit(1)
 	}
 	sessions, err := openSessionsIfConfigured(pool)
@@ -60,7 +65,8 @@ func main() {
 		Addr:            envOrDefault("GO_API_ADDR", ":8080"),
 		Version:         envOrDefault("GO_API_VERSION", "dev"),
 		Database:        pool,
-		ProgressAwards:  progressAwards,
+		ProgressAwards:  progressRecords,
+		ProgressSummary: progressRecords,
 		SessionResolver: sessions,
 		SessionRevoker:  sessions,
 		SecureCookies:   secureCookiesFromEnv(),
@@ -87,7 +93,7 @@ func openDatabaseIfConfigured(ctx context.Context) (database.Pool, error) {
 	return database.Open(ctx, database.Config{URL: postgresURL})
 }
 
-func openProgressAwardsIfConfigured(pool database.Pool) (progress.AwardRecorder, error) {
+func openProgressStoreIfConfigured(pool database.Pool) (progressStore, error) {
 	if pool == nil {
 		return nil, nil
 	}

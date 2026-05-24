@@ -23,6 +23,7 @@ type Config struct {
 	Version         string
 	Database        DatabasePinger
 	ProgressAwards  progress.AwardRecorder
+	ProgressSummary progress.SummaryProvider
 	SessionResolver progress.SessionResolver
 	SessionRevoker  session.Revoker
 	SecureCookies   bool
@@ -70,8 +71,9 @@ func NewHandler(config Config) http.Handler {
 		writeJSON(w, statusCode, response)
 	})
 
-	progressHandler := progress.NewHandlerWithSessions(config.ProgressAwards, config.SessionResolver, session.CookieName)
+	progressHandler := progress.NewHandlerWithSessionsAndSummary(config.ProgressAwards, config.ProgressSummary, config.SessionResolver, session.CookieName)
 	mux.HandleFunc("POST /v1/progress/awards", progressHandler.RegisterAward)
+	mux.HandleFunc("GET /v1/progress/summary", progressHandler.Summary)
 	sessionPolicy := session.NewCookiePolicy(config.SecureCookies)
 	authHandler := auth.NewHandler(config.AuthUsers, config.AuthSessions, sessionPolicy)
 	mux.HandleFunc("POST /v1/auth/register", authHandler.Register)

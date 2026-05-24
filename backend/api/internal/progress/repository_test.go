@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -159,6 +160,75 @@ func TestPostgresAwardRepositoryWrapsStoreError(t *testing.T) {
 	}
 }
 
+func TestPostgresAwardRepositorySummarizesUserProgress(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeAwardStore{row: fakeSummaryRow{values: []any{100, 2}}}
+	repository := mustAwardRepository(t, store)
+
+	summary, err := repository.SummarizeProgress(context.Background(), AwardIdentity{UserID: " user-1 "})
+
+	if err != nil {
+		t.Fatalf("summarize progress: %v", err)
+	}
+	if summary.TotalXP != 100 || summary.CompletedLessons != 2 {
+		t.Fatalf("unexpected summary: %+v", summary)
+	}
+	if store.query != selectUserProgressSummarySQL {
+		t.Fatal("expected user progress summary SQL")
+	}
+	assertArg(t, store.queryArgs[0], "user-1")
+}
+
+func TestPostgresAwardRepositorySummarizesAnonymousProgress(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeAwardStore{row: fakeSummaryRow{values: []any{50, 1}}}
+	repository := mustAwardRepository(t, store)
+
+	summary, err := repository.SummarizeProgress(context.Background(), AwardIdentity{AnonymousProgressID: " anonymous-1 "})
+
+	if err != nil {
+		t.Fatalf("summarize progress: %v", err)
+	}
+	if summary.TotalXP != 50 || summary.CompletedLessons != 1 {
+		t.Fatalf("unexpected summary: %+v", summary)
+	}
+	if store.query != selectAnonymousProgressSummarySQL {
+		t.Fatal("expected anonymous progress summary SQL")
+	}
+	assertArg(t, store.queryArgs[0], "anonymous-1")
+}
+
+func TestPostgresAwardRepositorySummaryRequiresExactlyOneIdentity(t *testing.T) {
+	t.Parallel()
+
+	repository := mustAwardRepository(t, &fakeAwardStore{})
+
+	_, err := repository.SummarizeProgress(context.Background(), AwardIdentity{})
+	if !errors.Is(err, ErrInvalidAwardIdentity) {
+		t.Fatalf("expected ErrInvalidAwardIdentity for missing identity, got %v", err)
+	}
+
+	_, err = repository.SummarizeProgress(context.Background(), AwardIdentity{UserID: "user-1", AnonymousProgressID: "anonymous-1"})
+	if !errors.Is(err, ErrInvalidAwardIdentity) {
+		t.Fatalf("expected ErrInvalidAwardIdentity for ambiguous identity, got %v", err)
+	}
+}
+
+func TestPostgresAwardRepositoryWrapsSummaryStoreError(t *testing.T) {
+	t.Parallel()
+
+	expected := errors.New("database unavailable")
+	repository := mustAwardRepository(t, &fakeAwardStore{row: fakeSummaryRow{err: expected}})
+
+	_, err := repository.SummarizeProgress(context.Background(), AwardIdentity{UserID: "user-1"})
+
+	if !errors.Is(err, expected) {
+		t.Fatalf("expected wrapped store error, got %v", err)
+	}
+}
+
 func TestNewPostgresAwardRepositoryRequiresStore(t *testing.T) {
 	t.Parallel()
 
@@ -181,11 +251,13 @@ func mustAwardRepository(t *testing.T, store AwardStore) *PostgresAwardRepositor
 }
 
 type fakeAwardStore struct {
-	called bool
-	query  string
-	args   []any
-	tag    pgconn.CommandTag
-	err    error
+	called    bool
+	query     string
+	args      []any
+	tag       pgconn.CommandTag
+	err       error
+	queryArgs []any
+	row       fakeSummaryRow
 }
 
 func (s *fakeAwardStore) Exec(_ context.Context, query string, args ...any) (pgconn.CommandTag, error) {
@@ -194,6 +266,26 @@ func (s *fakeAwardStore) Exec(_ context.Context, query string, args ...any) (pgc
 	s.args = args
 
 	return s.tag, s.err
+}
+
+func (s *fakeAwardStore) QueryRow(_ context.Context, query string, args ...any) pgx.Row {
+	s.query = query
+	s.queryArgs = args
+	return s.row
+}
+
+type fakeSummaryRow struct {
+	values []any
+	err    error
+}
+
+func (r fakeSummaryRow) Scan(dest ...any) error {
+	if r.err != nil {
+		return r.err
+	}
+	*(dest[0].(*int)) = r.values[0].(int)
+	*(dest[1].(*int)) = r.values[1].(int)
+	return nil
 }
 
 func assertArg(t *testing.T, got any, want any) {

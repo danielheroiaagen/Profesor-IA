@@ -158,6 +158,119 @@ func TestRegisterAwardErrors(t *testing.T) {
 	}
 }
 
+func TestSummaryUsesSessionIdentity(t *testing.T) {
+	t.Parallel()
+
+	summaries := &fakeSummaryProvider{summary: ProgressSummary{TotalXP: 100, CompletedLessons: 2}}
+	resolver := &fakeSessionResolver{userID: "session-user"}
+	handler := NewHandlerWithSessionsAndSummary(&fakeAwardRecorder{}, summaries, resolver, "profesor-ia.session")
+	request := httptest.NewRequest(http.MethodGet, "/v1/progress/summary?anonymousProgressId=anonymous-1", nil)
+	request.AddCookie(&http.Cookie{Name: "profesor-ia.session", Value: "session-token"})
+	response := httptest.NewRecorder()
+
+	handler.Summary(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusOK, response.Code, response.Body.String())
+	}
+	if resolver.token != "session-token" {
+		t.Fatalf("expected session resolver token, got %q", resolver.token)
+	}
+	if summaries.identity.UserID != "session-user" || summaries.identity.AnonymousProgressID != "" {
+		t.Fatalf("expected session identity to win, got %+v", summaries.identity)
+	}
+	assertBodyContains(t, response, `"totalXp":100`, `"completedLessons":2`)
+}
+
+func TestSummaryUsesAnonymousIdentityWithoutSession(t *testing.T) {
+	t.Parallel()
+
+	summaries := &fakeSummaryProvider{summary: ProgressSummary{TotalXP: 50, CompletedLessons: 1}}
+	handler := NewHandlerWithSessionsAndSummary(&fakeAwardRecorder{}, summaries, &fakeSessionResolver{}, "profesor-ia.session")
+	request := httptest.NewRequest(http.MethodGet, "/v1/progress/summary?anonymousProgressId=anonymous-1", nil)
+	response := httptest.NewRecorder()
+
+	handler.Summary(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusOK, response.Code, response.Body.String())
+	}
+	if summaries.identity.UserID != "" || summaries.identity.AnonymousProgressID != "anonymous-1" {
+		t.Fatalf("expected anonymous identity, got %+v", summaries.identity)
+	}
+	assertBodyContains(t, response, `"totalXp":50`, `"completedLessons":1`)
+}
+
+func TestSummaryErrors(t *testing.T) {
+	t.Parallel()
+
+	expectedErr := errors.New("database unavailable")
+	cases := []struct {
+		name    string
+		handler Handler
+		request *http.Request
+		status  int
+		code    string
+	}{
+		{
+			name:    "summary provider missing",
+			handler: NewHandlerWithSessionsAndSummary(&fakeAwardRecorder{}, nil, &fakeSessionResolver{}, "profesor-ia.session"),
+			request: httptest.NewRequest(http.MethodGet, "/v1/progress/summary?anonymousProgressId=anonymous-1", nil),
+			status:  http.StatusServiceUnavailable,
+			code:    "progress_summary_unavailable",
+		},
+		{
+			name:    "unsupported method",
+			handler: NewHandlerWithSessionsAndSummary(&fakeAwardRecorder{}, &fakeSummaryProvider{}, &fakeSessionResolver{}, "profesor-ia.session"),
+			request: httptest.NewRequest(http.MethodPost, "/v1/progress/summary?anonymousProgressId=anonymous-1", nil),
+			status:  http.StatusMethodNotAllowed,
+			code:    "method_not_allowed",
+		},
+		{
+			name:    "missing identity",
+			handler: NewHandlerWithSessionsAndSummary(&fakeAwardRecorder{}, &fakeSummaryProvider{}, &fakeSessionResolver{}, "profesor-ia.session"),
+			request: httptest.NewRequest(http.MethodGet, "/v1/progress/summary", nil),
+			status:  http.StatusBadRequest,
+			code:    "invalid_progress_identity",
+		},
+		{
+			name:    "invalid session",
+			handler: NewHandlerWithSessionsAndSummary(&fakeAwardRecorder{}, &fakeSummaryProvider{}, &fakeSessionResolver{err: errors.New("expired")}, "profesor-ia.session"),
+			request: summaryRequestWithCookie("expired-token"),
+			status:  http.StatusUnauthorized,
+			code:    "invalid_session",
+		},
+		{
+			name:    "summary rejected identity",
+			handler: NewHandlerWithSessionsAndSummary(&fakeAwardRecorder{}, &fakeSummaryProvider{err: ErrInvalidAwardIdentity}, &fakeSessionResolver{}, "profesor-ia.session"),
+			request: httptest.NewRequest(http.MethodGet, "/v1/progress/summary?anonymousProgressId=anonymous-1", nil),
+			status:  http.StatusBadRequest,
+			code:    "invalid_progress_identity",
+		},
+		{
+			name:    "summary store failure hidden",
+			handler: NewHandlerWithSessionsAndSummary(&fakeAwardRecorder{}, &fakeSummaryProvider{err: expectedErr}, &fakeSessionResolver{}, "profesor-ia.session"),
+			request: httptest.NewRequest(http.MethodGet, "/v1/progress/summary?anonymousProgressId=anonymous-1", nil),
+			status:  http.StatusInternalServerError,
+			code:    "progress_summary_failed",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			response := httptest.NewRecorder()
+			tc.handler.Summary(response, tc.request)
+
+			if response.Code != tc.status {
+				t.Fatalf("expected status %d, got %d body=%s", tc.status, response.Code, response.Body.String())
+			}
+			assertBodyContains(t, response, `"error":"`+tc.code+`"`)
+		})
+	}
+}
+
 func postAward(t *testing.T, handler Handler, body string) *httptest.ResponseRecorder {
 	t.Helper()
 
@@ -168,6 +281,12 @@ func postAward(t *testing.T, handler Handler, body string) *httptest.ResponseRec
 
 func newAwardRequest(method string, body string) *http.Request {
 	return httptest.NewRequest(method, "/v1/progress/awards", bytes.NewBufferString(body))
+}
+
+func summaryRequestWithCookie(token string) *http.Request {
+	request := httptest.NewRequest(http.MethodGet, "/v1/progress/summary?anonymousProgressId=anonymous-1", nil)
+	request.AddCookie(&http.Cookie{Name: "profesor-ia.session", Value: token})
+	return request
 }
 
 func assertBodyContains(t *testing.T, response *httptest.ResponseRecorder, snippets ...string) {
@@ -193,6 +312,17 @@ func (r *fakeAwardRecorder) RecordAward(_ context.Context, record AwardRecord) (
 	r.record = record
 
 	return r.inserted, r.err
+}
+
+type fakeSummaryProvider struct {
+	identity AwardIdentity
+	summary  ProgressSummary
+	err      error
+}
+
+func (p *fakeSummaryProvider) SummarizeProgress(_ context.Context, identity AwardIdentity) (ProgressSummary, error) {
+	p.identity = identity
+	return p.summary, p.err
 }
 
 type fakeSessionResolver struct {

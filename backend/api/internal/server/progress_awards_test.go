@@ -70,6 +70,27 @@ func TestProgressAwardRouteRejectsBodyUserIDWithoutSession(t *testing.T) {
 	}
 }
 
+func TestProgressSummaryRouteReturnsAnonymousSummary(t *testing.T) {
+	t.Parallel()
+
+	summaries := &fakeProgressSummaryProvider{summary: progress.ProgressSummary{TotalXP: 50, CompletedLessons: 1}}
+	handler := NewHandler(Config{ProgressSummary: summaries})
+	request := httptest.NewRequest(http.MethodGet, "/v1/progress/summary?anonymousProgressId=anonymous-1", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusOK, response.Code, response.Body.String())
+	}
+	if summaries.identity.AnonymousProgressID != "anonymous-1" || summaries.identity.UserID != "" {
+		t.Fatalf("expected anonymous summary identity, got %+v", summaries.identity)
+	}
+	if body := response.Body.String(); !strings.Contains(body, `"totalXp":50`) || !strings.Contains(body, `"completedLessons":1`) {
+		t.Fatalf("expected progress summary response, got %s", body)
+	}
+}
+
 type fakeProgressAwardRecorder struct {
 	called   bool
 	record   progress.AwardRecord
@@ -82,4 +103,14 @@ func (r *fakeProgressAwardRecorder) RecordAward(_ context.Context, record progre
 	r.record = record
 
 	return r.inserted, r.err
+}
+
+type fakeProgressSummaryProvider struct {
+	identity progress.AwardIdentity
+	summary  progress.ProgressSummary
+}
+
+func (p *fakeProgressSummaryProvider) SummarizeProgress(_ context.Context, identity progress.AwardIdentity) (progress.ProgressSummary, error) {
+	p.identity = identity
+	return p.summary, nil
 }
