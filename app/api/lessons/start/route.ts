@@ -7,7 +7,9 @@ import {
   createLessonSession,
   toSafeLessonResponse,
 } from "@/domain/lesson";
+import type { AvatarStatus } from "@/integrations/avatar/avatar-adapter";
 import { createHeyGenAvatarAdapterFromConfig } from "@/integrations/avatar/heygen";
+import { createLiveAvatarAdapterFromConfig } from "@/integrations/avatar/liveavatar";
 import {
   createTrackedLesson,
   getTrackedLessonAccessToken,
@@ -34,9 +36,7 @@ export async function POST(request: Request) {
 
   try {
     const lesson = createTrackedLesson({ lessonId: randomUUID() });
-    const avatar = await createHeyGenAvatarAdapterFromConfig().getStatus({
-      lessonId: lesson.id,
-    });
+    const avatar = await resolveLessonAvatarStatus(lesson.id);
 
     return NextResponse.json(
       {
@@ -63,4 +63,20 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+}
+
+async function resolveLessonAvatarStatus(lessonId: string) {
+  const liveAvatar = await createLiveAvatarAdapterFromConfig().getStatus({
+    lessonId,
+  });
+
+  if (isAvailableLiveAvatar(liveAvatar)) return liveAvatar;
+
+  return createHeyGenAvatarAdapterFromConfig().getStatus({ lessonId });
+}
+
+function isAvailableLiveAvatar(
+  avatar: AvatarStatus,
+): avatar is AvatarStatus & { mode: "live"; available: true } {
+  return avatar.mode === "live" && avatar.available;
 }

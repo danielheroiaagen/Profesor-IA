@@ -48,6 +48,39 @@ describe("POST /api/lessons/start", () => {
     expect(serialized).not.toContain("HEYGEN_API_KEY");
   });
 
+  it("prefers a validated LiveAvatar session when the live provider is configured", async () => {
+    vi.stubEnv("LIVEAVATAR_API_KEY", "liveavatar-secret-never-returned");
+    vi.stubEnv("HEYGEN_AVATAR_ID", "avatar-live");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        expect(String(url)).toBe(
+          "https://api.liveavatar.com/v1/avatars/avatar-live",
+        );
+        expect(init?.headers).toMatchObject({
+          "X-API-KEY": "liveavatar-secret-never-returned",
+          Accept: "application/json",
+        });
+
+        return Response.json({ data: { avatar_id: "avatar-live" } });
+      }),
+    );
+
+    const response = await POST(startRequest());
+    const body = await response.json();
+    const serialized = JSON.stringify(body);
+
+    expect(response.status).toBe(201);
+    expect(body.avatar).toEqual({
+      mode: "live",
+      available: true,
+      avatarId: "avatar-live",
+      reason: "avatar-live-validated",
+    });
+    expect(serialized).not.toContain("liveavatar-secret-never-returned");
+    expect(serialized).not.toContain("LIVEAVATAR_API_KEY");
+  });
+
   it("starts a voice-only lesson when the avatar provider is disabled", async () => {
     const fetchImpl = vi.fn();
     vi.stubGlobal("fetch", fetchImpl);
