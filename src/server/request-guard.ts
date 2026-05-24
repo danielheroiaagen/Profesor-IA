@@ -7,19 +7,19 @@ export function enforceSameOriginRequest(
 ): NextResponse | null {
   const origin = request.headers.get("origin");
   const secFetchSite = request.headers.get("sec-fetch-site");
+  const requestUrl = new URL(request.url);
 
-  if (secFetchSite === "cross-site") {
-    return forbiddenResponse();
-  }
+  if (origin) {
+    const originUrl = safeUrl(origin);
 
-  if (!origin) {
+    if (!originUrl || !sameTrustedOrigin(originUrl, requestUrl)) {
+      return forbiddenResponse();
+    }
+
     return null;
   }
 
-  const requestUrl = new URL(request.url);
-  const originUrl = safeUrl(origin);
-
-  if (!originUrl || originUrl.origin !== requestUrl.origin) {
+  if (secFetchSite === "cross-site") {
     return forbiddenResponse();
   }
 
@@ -44,4 +44,21 @@ function safeUrl(value: string): URL | null {
   } catch {
     return null;
   }
+}
+
+function sameTrustedOrigin(originUrl: URL, requestUrl: URL): boolean {
+  if (originUrl.origin === requestUrl.origin) return true;
+
+  return (
+    originUrl.protocol === requestUrl.protocol &&
+    originUrl.port === requestUrl.port &&
+    isLoopbackHost(originUrl.hostname) &&
+    isLoopbackHost(requestUrl.hostname)
+  );
+}
+
+function isLoopbackHost(hostname: string): boolean {
+  return (
+    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]"
+  );
 }
