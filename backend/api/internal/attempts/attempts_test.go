@@ -1,0 +1,142 @@
+package attempts
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/jackc/pgx/v5"
+)
+
+func TestPostgresRepositoryStartsAttempt(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeStore{row: fakeRow{values: []any{"attempt-1", "started"}}}
+	repository := mustRepository(t, store)
+
+	attempt, err := repository.StartAttempt(context.Background(), StartRecord{
+		Identity:       Identity{UserID: " user-1 "},
+		LegacyLessonID: " lesson-1 ",
+	})
+
+	if err != nil {
+		t.Fatalf("start attempt: %v", err)
+	}
+	if attempt.ID != "attempt-1" || attempt.Status != "started" {
+		t.Fatalf("unexpected attempt: %+v", attempt)
+	}
+	assertArg(t, store.args[0], "user-1")
+	assertArg(t, store.args[1], nil)
+	assertArg(t, store.args[2], nil)
+	assertArg(t, store.args[3], "lesson-1")
+	assertArg(t, store.args[4], DefaultRealtimeModel)
+}
+
+func TestPostgresRepositoryStartsAnonymousLessonPlanAttempt(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeStore{row: fakeRow{values: []any{"attempt-1", "started"}}}
+	repository := mustRepository(t, store)
+
+	_, err := repository.StartAttempt(context.Background(), StartRecord{
+		Identity:      Identity{AnonymousProgressID: " anonymous-1 "},
+		LessonPlanID:  " lesson-plan-1 ",
+		RealtimeModel: " custom-realtime ",
+	})
+
+	if err != nil {
+		t.Fatalf("start attempt: %v", err)
+	}
+	assertArg(t, store.args[0], nil)
+	assertArg(t, store.args[1], "anonymous-1")
+	assertArg(t, store.args[2], "lesson-plan-1")
+	assertArg(t, store.args[3], nil)
+	assertArg(t, store.args[4], "custom-realtime")
+}
+
+func TestPostgresRepositoryRejectsInvalidRecords(t *testing.T) {
+	t.Parallel()
+
+	repository := mustRepository(t, &fakeStore{})
+	cases := []struct {
+		name     string
+		record   StartRecord
+		expected error
+	}{
+		{"missing identity", StartRecord{LegacyLessonID: "lesson-1"}, ErrInvalidIdentity},
+		{"ambiguous identity", StartRecord{Identity: Identity{UserID: "user-1", AnonymousProgressID: "anonymous-1"}, LegacyLessonID: "lesson-1"}, ErrInvalidIdentity},
+		{"missing lesson reference", StartRecord{Identity: Identity{UserID: "user-1"}}, ErrMissingLessonReference},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := repository.StartAttempt(context.Background(), tc.record)
+			if !errors.Is(err, tc.expected) {
+				t.Fatalf("expected %v, got %v", tc.expected, err)
+			}
+		})
+	}
+}
+
+func TestPostgresRepositoryWrapsStoreError(t *testing.T) {
+	t.Parallel()
+
+	expected := errors.New("database unavailable")
+	repository := mustRepository(t, &fakeStore{row: fakeRow{err: expected}})
+
+	_, err := repository.StartAttempt(context.Background(), StartRecord{Identity: Identity{UserID: "user-1"}, LegacyLessonID: "lesson-1"})
+
+	if !errors.Is(err, expected) {
+		t.Fatalf("expected wrapped store error, got %v", err)
+	}
+}
+
+func TestNewPostgresRepositoryRequiresStore(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewPostgresRepository(nil)
+	if !errors.Is(err, ErrMissingStore) {
+		t.Fatalf("expected ErrMissingStore, got %v", err)
+	}
+}
+
+func mustRepository(t *testing.T, store Store) *PostgresRepository {
+	t.Helper()
+	repository, err := NewPostgresRepository(store)
+	if err != nil {
+		t.Fatalf("new repository: %v", err)
+	}
+	return repository
+}
+
+type fakeStore struct {
+	args []any
+	row  fakeRow
+}
+
+func (s *fakeStore) QueryRow(_ context.Context, _ string, args ...any) pgx.Row {
+	s.args = args
+	return s.row
+}
+
+type fakeRow struct {
+	values []any
+	err    error
+}
+
+func (r fakeRow) Scan(dest ...any) error {
+	if r.err != nil {
+		return r.err
+	}
+	*(dest[0].(*string)) = r.values[0].(string)
+	*(dest[1].(*string)) = r.values[1].(string)
+	return nil
+}
+
+func assertArg(t *testing.T, got any, want any) {
+	t.Helper()
+	if got != want {
+		t.Fatalf("expected arg %v, got %v", want, got)
+	}
+}
