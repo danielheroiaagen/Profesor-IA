@@ -15,6 +15,10 @@ type CredentialUserCreator interface {
 	CreateCredentialUser(ctx context.Context, record CredentialUserRecord) (CredentialUser, error)
 }
 
+type CredentialUserFinder interface {
+	FindCredentialUserByEmail(ctx context.Context, email string) (CredentialUser, error)
+}
+
 type SessionCreator interface {
 	CreateSession(ctx context.Context, record session.SessionRecord) error
 }
@@ -24,21 +28,23 @@ type TokenGenerator interface {
 }
 
 type RegisterConfig struct {
-	Users    CredentialUserCreator
-	Sessions SessionCreator
-	Tokens   TokenGenerator
-	Hasher   PasswordHasher
-	Policy   session.CookiePolicy
-	Now      func() time.Time
+	Users      CredentialUserCreator
+	UserFinder CredentialUserFinder
+	Sessions   SessionCreator
+	Tokens     TokenGenerator
+	Hasher     PasswordHasher
+	Policy     session.CookiePolicy
+	Now        func() time.Time
 }
 
 type Handler struct {
-	users    CredentialUserCreator
-	sessions SessionCreator
-	tokens   TokenGenerator
-	hasher   PasswordHasher
-	policy   session.CookiePolicy
-	now      func() time.Time
+	users      CredentialUserCreator
+	userFinder CredentialUserFinder
+	sessions   SessionCreator
+	tokens     TokenGenerator
+	hasher     PasswordHasher
+	policy     session.CookiePolicy
+	now        func() time.Time
 }
 
 func NewHandler(users CredentialUserCreator, sessions SessionCreator, policy session.CookiePolicy) Handler {
@@ -55,14 +61,21 @@ func NewHandlerWithConfig(config RegisterConfig) Handler {
 	if now == nil {
 		now = time.Now
 	}
+	userFinder := config.UserFinder
+	if userFinder == nil {
+		if finder, ok := config.Users.(CredentialUserFinder); ok {
+			userFinder = finder
+		}
+	}
 
 	return Handler{
-		users:    config.Users,
-		sessions: config.Sessions,
-		tokens:   tokens,
-		hasher:   config.Hasher,
-		policy:   config.Policy,
-		now:      now,
+		users:      config.Users,
+		userFinder: userFinder,
+		sessions:   config.Sessions,
+		tokens:     tokens,
+		hasher:     config.Hasher,
+		policy:     config.Policy,
+		now:        now,
 	}
 }
 
@@ -70,6 +83,11 @@ type registerRequest struct {
 	Email       string `json:"email"`
 	Password    string `json:"password"`
 	DisplayName string `json:"displayName"`
+}
+
+type loginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 type registerResponse struct {
@@ -131,19 +149,58 @@ func (h Handler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.tokens.NewToken()
-	if err != nil {
-		writeRegisterJSON(w, http.StatusInternalServerError, registerErrorResponse{Error: "register_failed"})
-		return
-	}
-	cookie := h.policy.NewCookie(token, h.now())
-	if err := h.sessions.CreateSession(r.Context(), session.SessionRecord{UserID: user.ID, Token: token, ExpiresAt: cookie.Expires}); err != nil {
+	if err := h.issueSessionCookie(r.Context(), w, user.ID); err != nil {
 		writeRegisterJSON(w, http.StatusInternalServerError, registerErrorResponse{Error: "register_failed"})
 		return
 	}
 
-	http.SetCookie(w, cookie)
 	writeRegisterJSON(w, http.StatusCreated, registerResponse{User: registerUserResponse{ID: user.ID, Email: user.Email, DisplayName: strings.TrimSpace(user.DisplayName)}})
+}
+
+func (h Handler) Login(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeRegisterJSON(w, http.StatusMethodNotAllowed, registerErrorResponse{Error: "method_not_allowed"})
+		return
+	}
+	if h.userFinder == nil || h.sessions == nil {
+		writeRegisterJSON(w, http.StatusServiceUnavailable, registerErrorResponse{Error: "auth_unavailable"})
+		return
+	}
+
+	request, err := decodeLoginRequest(r)
+	if err != nil {
+		writeRegisterJSON(w, http.StatusBadRequest, registerErrorResponse{Error: "invalid_login_request"})
+		return
+	}
+
+	email, err := NormalizeEmail(request.Email)
+	if err != nil {
+		writeRegisterJSON(w, http.StatusBadRequest, registerErrorResponse{Error: "invalid_login_request"})
+		return
+	}
+	user, err := h.userFinder.FindCredentialUserByEmail(r.Context(), email)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			writeRegisterJSON(w, http.StatusUnauthorized, registerErrorResponse{Error: "invalid_credentials"})
+			return
+		}
+		writeRegisterJSON(w, http.StatusInternalServerError, registerErrorResponse{Error: "login_failed"})
+		return
+	}
+	if err := VerifyPassword(user.PasswordHash, request.Password); err != nil {
+		if errors.Is(err, ErrPasswordMismatch) || errors.Is(err, ErrMissingPasswordHash) {
+			writeRegisterJSON(w, http.StatusUnauthorized, registerErrorResponse{Error: "invalid_credentials"})
+			return
+		}
+		writeRegisterJSON(w, http.StatusInternalServerError, registerErrorResponse{Error: "login_failed"})
+		return
+	}
+	if err := h.issueSessionCookie(r.Context(), w, user.ID); err != nil {
+		writeRegisterJSON(w, http.StatusInternalServerError, registerErrorResponse{Error: "login_failed"})
+		return
+	}
+
+	writeRegisterJSON(w, http.StatusOK, registerResponse{User: registerUserResponse{ID: user.ID, Email: user.Email, DisplayName: strings.TrimSpace(user.DisplayName)}})
 }
 
 func decodeRegisterRequest(r *http.Request) (registerRequest, error) {
@@ -155,6 +212,31 @@ func decodeRegisterRequest(r *http.Request) (registerRequest, error) {
 	}
 
 	return request, nil
+}
+
+func decodeLoginRequest(r *http.Request) (loginRequest, error) {
+	defer r.Body.Close()
+
+	var request loginRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		return loginRequest{}, err
+	}
+
+	return request, nil
+}
+
+func (h Handler) issueSessionCookie(ctx context.Context, w http.ResponseWriter, userID string) error {
+	token, err := h.tokens.NewToken()
+	if err != nil {
+		return err
+	}
+	cookie := h.policy.NewCookie(token, h.now())
+	if err := h.sessions.CreateSession(ctx, session.SessionRecord{UserID: userID, Token: token, ExpiresAt: cookie.Expires}); err != nil {
+		return err
+	}
+
+	http.SetCookie(w, cookie)
+	return nil
 }
 
 func writeRegisterJSON(w http.ResponseWriter, statusCode int, body any) {

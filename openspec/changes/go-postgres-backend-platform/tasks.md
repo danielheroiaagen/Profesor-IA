@@ -58,6 +58,7 @@ Chained PRs recommended: Yes.
 - [x] 4.7 Add credential password-hash foundation for future login/register.
 - [x] 4.8 Add credential user repository for future register/login endpoints.
 - [x] 4.9 Add Go credential register endpoint with HTTP-only session cookie.
+- [x] 4.10 Add Go credential login endpoint with HTTP-only session cookie.
 
 ## Phase 5: RAIO / YouTalk Curriculum
 

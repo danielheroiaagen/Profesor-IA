@@ -75,6 +75,7 @@ func NewHandler(config Config) http.Handler {
 	sessionPolicy := session.NewCookiePolicy(config.SecureCookies)
 	authHandler := auth.NewHandler(config.AuthUsers, config.AuthSessions, sessionPolicy)
 	mux.HandleFunc("POST /v1/auth/register", authHandler.Register)
+	mux.HandleFunc("POST /v1/auth/login", authHandler.Login)
 	sessionHandler := session.NewHandler(config.SessionRevoker, sessionPolicy)
 	mux.HandleFunc("POST /v1/session/logout", sessionHandler.Logout)
 	curriculumHandler := curriculum.NewHandler(config.Curriculum)

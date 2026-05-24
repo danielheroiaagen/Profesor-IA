@@ -38,6 +38,29 @@ func TestRegisterRouteCreatesSessionCookie(t *testing.T) {
 	}
 }
 
+func TestLoginRouteCreatesSessionCookie(t *testing.T) {
+	t.Parallel()
+
+	hash := mustPasswordHash(t)
+	users := &fakeAuthUsers{user: auth.CredentialUser{ID: "user-1", Email: "teacher@example.com", PasswordHash: hash}}
+	sessions := &fakeAuthSessions{}
+	handler := NewHandler(Config{AuthUsers: users, AuthSessions: sessions})
+	request := httptest.NewRequest(http.MethodPost, "/v1/auth/login", strings.NewReader(`{"email":"teacher@example.com","password":"correct horse battery staple"}`))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusOK, response.Code, response.Body.String())
+	}
+	if sessions.record.UserID != "user-1" {
+		t.Fatalf("expected user session, got %+v", sessions.record)
+	}
+	if got := response.Result().Cookies()[0].Name; got != session.CookieName {
+		t.Fatalf("expected session cookie, got %q", got)
+	}
+}
+
 func TestHealthzReturnsServiceStatus(t *testing.T) {
 	t.Parallel()
 
@@ -188,6 +211,10 @@ func (u *fakeAuthUsers) CreateCredentialUser(_ context.Context, record auth.Cred
 	return u.user, nil
 }
 
+func (u *fakeAuthUsers) FindCredentialUserByEmail(_ context.Context, _ string) (auth.CredentialUser, error) {
+	return u.user, nil
+}
+
 type fakeAuthSessions struct {
 	record session.SessionRecord
 }
@@ -195,4 +222,15 @@ type fakeAuthSessions struct {
 func (s *fakeAuthSessions) CreateSession(_ context.Context, record session.SessionRecord) error {
 	s.record = record
 	return nil
+}
+
+func mustPasswordHash(t *testing.T) string {
+	t.Helper()
+
+	hash, err := auth.PasswordHasher{Cost: 4}.HashPassword("correct horse battery staple")
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+
+	return hash
 }

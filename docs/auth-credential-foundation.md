@@ -1,6 +1,6 @@
 # Auth Credential Foundation
 
-This slice starts real Go-owned credential auth without adding login/register routes yet.
+This set of slices starts real Go-owned credential auth and now includes register/login endpoints.
 
 ## Decision
 
@@ -20,10 +20,10 @@ Implemented now:
 - Go email normalization.
 - Go credential user repository for create and find-by-email flows.
 - Go register endpoint that creates a credential user and HTTP-only session cookie.
+- Go login endpoint that verifies credentials and creates an HTTP-only session cookie.
 
 Deferred to next slices:
 
-- `POST /v1/auth/login`.
 - Next.js login/register UI.
 
 ## Security Notes
