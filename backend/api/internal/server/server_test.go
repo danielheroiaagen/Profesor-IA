@@ -61,6 +61,28 @@ func TestLoginRouteCreatesSessionCookie(t *testing.T) {
 	}
 }
 
+func TestCurrentSessionRouteReturnsIdentity(t *testing.T) {
+	t.Parallel()
+
+	resolver := &fakeSessionResolver{userID: "user-1"}
+	handler := NewHandler(Config{SessionResolver: resolver})
+	request := httptest.NewRequest(http.MethodGet, "/v1/session/me", nil)
+	request.AddCookie(&http.Cookie{Name: session.CookieName, Value: "session-token"})
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusOK, response.Code, response.Body.String())
+	}
+	if resolver.token != "session-token" {
+		t.Fatalf("expected resolved session token, got %q", resolver.token)
+	}
+	if body := response.Body.String(); !strings.Contains(body, `"authenticated":true`) || !strings.Contains(body, `"id":"user-1"`) {
+		t.Fatalf("expected current session identity, got %s", body)
+	}
+}
+
 func TestHealthzReturnsServiceStatus(t *testing.T) {
 	t.Parallel()
 
@@ -222,6 +244,16 @@ type fakeAuthSessions struct {
 func (s *fakeAuthSessions) CreateSession(_ context.Context, record session.SessionRecord) error {
 	s.record = record
 	return nil
+}
+
+type fakeSessionResolver struct {
+	token  string
+	userID string
+}
+
+func (r *fakeSessionResolver) ResolveSessionUserID(_ context.Context, token string) (string, error) {
+	r.token = token
+	return r.userID, nil
 }
 
 func mustPasswordHash(t *testing.T) string {

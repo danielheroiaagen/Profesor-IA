@@ -94,8 +94,103 @@ func TestLogoutErrors(t *testing.T) {
 	}
 }
 
+func TestCurrentSessionReturnsSafeIdentity(t *testing.T) {
+	t.Parallel()
+
+	resolver := &fakeSessionResolver{userID: "user-1"}
+	handler := NewHandlerWithResolver(&fakeSessionRevoker{}, resolver, NewCookiePolicy(true))
+	request := httptest.NewRequest(http.MethodGet, "/v1/session/me", nil)
+	request.AddCookie(&http.Cookie{Name: CookieName, Value: "session-token"})
+	response := httptest.NewRecorder()
+
+	handler.Current(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusOK, response.Code, response.Body.String())
+	}
+	if resolver.token != "session-token" {
+		t.Fatalf("expected resolved token, got %q", resolver.token)
+	}
+	body := response.Body.String()
+	if !strings.Contains(body, `"authenticated":true`) || !strings.Contains(body, `"id":"user-1"`) {
+		t.Fatalf("expected safe session identity, got %s", body)
+	}
+	if strings.Contains(body, "session-token") {
+		t.Fatalf("session token leaked in response: %s", body)
+	}
+}
+
+func TestCurrentSessionErrors(t *testing.T) {
+	t.Parallel()
+
+	expectedErr := errors.New("database unavailable")
+	cases := []struct {
+		name    string
+		handler Handler
+		request *http.Request
+		status  int
+		code    string
+	}{
+		{
+			name:    "unsupported method",
+			handler: NewHandlerWithResolver(&fakeSessionRevoker{}, &fakeSessionResolver{}, NewCookiePolicy(true)),
+			request: currentRequestWithSessionCookie(http.MethodPost, "session-token"),
+			status:  http.StatusMethodNotAllowed,
+			code:    "method_not_allowed",
+		},
+		{
+			name:    "resolver unavailable",
+			handler: NewHandler(&fakeSessionRevoker{}, NewCookiePolicy(true)),
+			request: currentRequestWithSessionCookie(http.MethodGet, "session-token"),
+			status:  http.StatusServiceUnavailable,
+			code:    "session_unavailable",
+		},
+		{
+			name:    "missing cookie",
+			handler: NewHandlerWithResolver(&fakeSessionRevoker{}, &fakeSessionResolver{}, NewCookiePolicy(true)),
+			request: httptest.NewRequest(http.MethodGet, "/v1/session/me", nil),
+			status:  http.StatusUnauthorized,
+			code:    "unauthenticated",
+		},
+		{
+			name:    "expired session",
+			handler: NewHandlerWithResolver(&fakeSessionRevoker{}, &fakeSessionResolver{err: ErrExpiredSession}, NewCookiePolicy(true)),
+			request: currentRequestWithSessionCookie(http.MethodGet, "session-token"),
+			status:  http.StatusUnauthorized,
+			code:    "unauthenticated",
+		},
+		{
+			name:    "resolver failure",
+			handler: NewHandlerWithResolver(&fakeSessionRevoker{}, &fakeSessionResolver{err: expectedErr}, NewCookiePolicy(true)),
+			request: currentRequestWithSessionCookie(http.MethodGet, "session-token"),
+			status:  http.StatusInternalServerError,
+			code:    "session_lookup_failed",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			response := httptest.NewRecorder()
+			tc.handler.Current(response, tc.request)
+
+			if response.Code != tc.status {
+				t.Fatalf("expected status %d, got %d body=%s", tc.status, response.Code, response.Body.String())
+			}
+			assertSessionBodyContains(t, response, `"error":"`+tc.code+`"`)
+		})
+	}
+}
+
 func requestWithSessionCookie(method string, value string) *http.Request {
 	request := httptest.NewRequest(method, "/v1/session/logout", nil)
+	request.AddCookie(&http.Cookie{Name: CookieName, Value: value})
+	return request
+}
+
+func currentRequestWithSessionCookie(method string, value string) *http.Request {
+	request := httptest.NewRequest(method, "/v1/session/me", nil)
 	request.AddCookie(&http.Cookie{Name: CookieName, Value: value})
 	return request
 }
@@ -138,4 +233,15 @@ func (r *fakeSessionRevoker) RevokeSession(_ context.Context, token string) (boo
 	r.called = true
 	r.token = token
 	return r.revoked, r.err
+}
+
+type fakeSessionResolver struct {
+	token  string
+	userID string
+	err    error
+}
+
+func (r *fakeSessionResolver) ResolveSessionUserID(_ context.Context, token string) (string, error) {
+	r.token = token
+	return r.userID, r.err
 }

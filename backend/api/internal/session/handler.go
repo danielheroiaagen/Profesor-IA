@@ -13,26 +13,48 @@ type Revoker interface {
 	RevokeSession(ctx context.Context, token string) (bool, error)
 }
 
+type Resolver interface {
+	ResolveSessionUserID(ctx context.Context, token string) (string, error)
+}
+
 type Handler struct {
-	revoker Revoker
-	policy  CookiePolicy
-	now     func() time.Time
+	revoker  Revoker
+	resolver Resolver
+	policy   CookiePolicy
+	now      func() time.Time
 }
 
 func NewHandler(revoker Revoker, policy CookiePolicy) Handler {
-	return NewHandlerWithClock(revoker, policy, time.Now)
+	return NewHandlerWithResolverAndClock(revoker, nil, policy, time.Now)
+}
+
+func NewHandlerWithResolver(revoker Revoker, resolver Resolver, policy CookiePolicy) Handler {
+	return NewHandlerWithResolverAndClock(revoker, resolver, policy, time.Now)
 }
 
 func NewHandlerWithClock(revoker Revoker, policy CookiePolicy, now func() time.Time) Handler {
+	return NewHandlerWithResolverAndClock(revoker, nil, policy, now)
+}
+
+func NewHandlerWithResolverAndClock(revoker Revoker, resolver Resolver, policy CookiePolicy, now func() time.Time) Handler {
 	if now == nil {
 		now = time.Now
 	}
 
-	return Handler{revoker: revoker, policy: policy, now: now}
+	return Handler{revoker: revoker, resolver: resolver, policy: policy, now: now}
 }
 
 type logoutResponse struct {
 	Revoked bool `json:"revoked"`
+}
+
+type currentSessionResponse struct {
+	Authenticated bool                        `json:"authenticated"`
+	User          *currentSessionUserResponse `json:"user,omitempty"`
+}
+
+type currentSessionUserResponse struct {
+	ID string `json:"id"`
 }
 
 type sessionErrorResponse struct {
@@ -53,6 +75,51 @@ func (h Handler) Logout(w http.ResponseWriter, r *http.Request) {
 
 	http.SetCookie(w, h.policy.ExpiredCookie(h.now()))
 	writeSessionJSON(w, http.StatusOK, logoutResponse{Revoked: revoked})
+}
+
+func (h Handler) Current(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeSessionJSON(w, http.StatusMethodNotAllowed, sessionErrorResponse{Error: "method_not_allowed"})
+		return
+	}
+	if h.resolver == nil {
+		writeSessionJSON(w, http.StatusServiceUnavailable, sessionErrorResponse{Error: "session_unavailable"})
+		return
+	}
+
+	cookie, err := r.Cookie(h.policy.cookieName())
+	if errors.Is(err, http.ErrNoCookie) {
+		writeSessionJSON(w, http.StatusUnauthorized, sessionErrorResponse{Error: "unauthenticated"})
+		return
+	}
+	if err != nil {
+		writeSessionJSON(w, http.StatusUnauthorized, sessionErrorResponse{Error: "unauthenticated"})
+		return
+	}
+	if strings.TrimSpace(cookie.Value) == "" {
+		writeSessionJSON(w, http.StatusUnauthorized, sessionErrorResponse{Error: "unauthenticated"})
+		return
+	}
+
+	userID, err := h.resolver.ResolveSessionUserID(r.Context(), cookie.Value)
+	if err != nil {
+		if errors.Is(err, ErrSessionNotFound) || errors.Is(err, ErrExpiredSession) || errors.Is(err, ErrMissingSessionToken) {
+			writeSessionJSON(w, http.StatusUnauthorized, sessionErrorResponse{Error: "unauthenticated"})
+			return
+		}
+		writeSessionJSON(w, http.StatusInternalServerError, sessionErrorResponse{Error: "session_lookup_failed"})
+		return
+	}
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		writeSessionJSON(w, http.StatusUnauthorized, sessionErrorResponse{Error: "unauthenticated"})
+		return
+	}
+
+	writeSessionJSON(w, http.StatusOK, currentSessionResponse{
+		Authenticated: true,
+		User:          &currentSessionUserResponse{ID: userID},
+	})
 }
 
 func (h Handler) revokeRequestSession(r *http.Request) (bool, error) {
