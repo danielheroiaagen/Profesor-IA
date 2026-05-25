@@ -126,6 +126,54 @@ func TestCompleteLessonAttemptRouteCompletesAttempt(t *testing.T) {
 	}
 }
 
+func TestRecordLessonEventRouteRecordsEvent(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeAttemptStore{event: attempts.RecordedEvent{ID: 42}}
+	handler := NewHandler(Config{AttemptStarter: store})
+	request := httptest.NewRequest(http.MethodPost, "/v1/lesson-attempts/events", strings.NewReader(`{"attemptId":"attempt-1","anonymousProgressId":"anonymous-1","eventType":"learner_turn","payload":{"transcript":"hello"}}`))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusCreated, response.Code, response.Body.String())
+	}
+	if store.eventRecord.Identity.AnonymousProgressID != "anonymous-1" || store.eventRecord.AttemptID != "attempt-1" {
+		t.Fatalf("unexpected event record: %+v", store.eventRecord)
+	}
+	if store.eventRecord.EventType != "learner_turn" {
+		t.Fatalf("expected learner_turn event, got %q", store.eventRecord.EventType)
+	}
+	if body := response.Body.String(); !strings.Contains(body, `"eventId":42`) {
+		t.Fatalf("expected event response, got %s", body)
+	}
+}
+
+func TestRecordLessonFeedbackRouteRecordsFeedback(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeAttemptStore{feedback: attempts.RecordedFeedback{ID: "feedback-1"}}
+	handler := NewHandler(Config{AttemptStarter: store})
+	request := httptest.NewRequest(http.MethodPost, "/v1/lesson-attempts/feedback", strings.NewReader(`{"attemptId":"attempt-1","anonymousProgressId":"anonymous-1","correctionText":"Use past tense.","rubricResult":{"score":3}}`))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusCreated, response.Code, response.Body.String())
+	}
+	if store.feedbackRecord.Identity.AnonymousProgressID != "anonymous-1" || store.feedbackRecord.AttemptID != "attempt-1" {
+		t.Fatalf("unexpected feedback record: %+v", store.feedbackRecord)
+	}
+	if store.feedbackRecord.CorrectionText != "Use past tense." {
+		t.Fatalf("expected correction text, got %q", store.feedbackRecord.CorrectionText)
+	}
+	if body := response.Body.String(); !strings.Contains(body, `"feedbackId":"feedback-1"`) {
+		t.Fatalf("expected feedback response, got %s", body)
+	}
+}
+
 func TestHealthzReturnsServiceStatus(t *testing.T) {
 	t.Parallel()
 
@@ -313,11 +361,25 @@ type fakeAttemptStore struct {
 	fakeAttemptStarter
 	completeRecord  attempts.CompleteRecord
 	completeAttempt attempts.Attempt
+	eventRecord     attempts.EventRecord
+	event           attempts.RecordedEvent
+	feedbackRecord  attempts.FeedbackRecord
+	feedback        attempts.RecordedFeedback
 }
 
 func (s *fakeAttemptStore) CompleteAttempt(_ context.Context, record attempts.CompleteRecord) (attempts.Attempt, error) {
 	s.completeRecord = record
 	return s.completeAttempt, nil
+}
+
+func (s *fakeAttemptStore) RecordEvent(_ context.Context, record attempts.EventRecord) (attempts.RecordedEvent, error) {
+	s.eventRecord = record
+	return s.event, nil
+}
+
+func (s *fakeAttemptStore) RecordFeedback(_ context.Context, record attempts.FeedbackRecord) (attempts.RecordedFeedback, error) {
+	s.feedbackRecord = record
+	return s.feedback, nil
 }
 
 func mustPasswordHash(t *testing.T) string {

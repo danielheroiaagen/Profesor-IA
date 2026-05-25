@@ -88,6 +88,8 @@ func NewHandler(config Config) http.Handler {
 	attemptHandler := attempts.NewHandler(config.AttemptStarter, config.SessionResolver, session.CookieName)
 	mux.HandleFunc("POST /v1/lesson-attempts/start", attemptHandler.Start)
 	mux.HandleFunc("POST /v1/lesson-attempts/complete", attemptHandler.Complete)
+	mux.HandleFunc("POST /v1/lesson-attempts/events", attemptHandler.RecordEvent)
+	mux.HandleFunc("POST /v1/lesson-attempts/feedback", attemptHandler.RecordFeedback)
 
 	return withSecurityHeaders(mux)
 }
