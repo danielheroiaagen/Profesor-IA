@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/font/google", () => ({
-  Inter: () => ({ variable: "font-body" }),
-  Space_Grotesk: () => ({ variable: "font-display" }),
+  Bricolage_Grotesque: () => ({ variable: "font-display-src" }),
+  Hanken_Grotesk: () => ({ variable: "font-body-src" }),
 }));
 
 import { metadata } from "@/../app/layout";
