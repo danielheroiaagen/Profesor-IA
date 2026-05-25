@@ -54,6 +54,11 @@ type FeedbackRecord struct {
 	RubricResult   json.RawMessage
 }
 
+type HistoryRecord struct {
+	Identity  Identity
+	AttemptID string
+}
+
 type Attempt struct {
 	ID     string
 	Status string
@@ -65,6 +70,27 @@ type RecordedEvent struct {
 
 type RecordedFeedback struct {
 	ID string
+}
+
+type AttemptHistory struct {
+	AttemptID string            `json:"attemptId"`
+	Status    string            `json:"status"`
+	Events    []HistoryEvent    `json:"events"`
+	Feedback  []HistoryFeedback `json:"feedback"`
+}
+
+type HistoryEvent struct {
+	ID         int64           `json:"id"`
+	EventType  string          `json:"eventType"`
+	Payload    json.RawMessage `json:"payload"`
+	OccurredAt string          `json:"occurredAt"`
+}
+
+type HistoryFeedback struct {
+	ID             string          `json:"id"`
+	CorrectionText string          `json:"correctionText"`
+	RubricResult   json.RawMessage `json:"rubricResult"`
+	CreatedAt      string          `json:"createdAt"`
 }
 
 type Starter interface {
@@ -81,6 +107,10 @@ type EventRecorder interface {
 
 type FeedbackRecorder interface {
 	RecordFeedback(ctx context.Context, record FeedbackRecord) (RecordedFeedback, error)
+}
+
+type HistoryProvider interface {
+	GetHistory(ctx context.Context, record HistoryRecord) (AttemptHistory, error)
 }
 
 type Store interface {
@@ -197,6 +227,38 @@ func (r *PostgresRepository) RecordFeedback(ctx context.Context, record Feedback
 	return feedback, nil
 }
 
+func (r *PostgresRepository) GetHistory(ctx context.Context, record HistoryRecord) (AttemptHistory, error) {
+	normalized, err := normalizeHistoryRecord(record)
+	if err != nil {
+		return AttemptHistory{}, err
+	}
+
+	query := selectUserAttemptHistorySQL
+	identityArg := normalized.Identity.UserID
+	if normalized.Identity.UserID == "" {
+		query = selectAnonymousAttemptHistorySQL
+		identityArg = normalized.Identity.AnonymousProgressID
+	}
+
+	var history AttemptHistory
+	var eventsJSON []byte
+	var feedbackJSON []byte
+	if err := r.store.QueryRow(ctx, query, normalized.AttemptID, identityArg).Scan(&history.AttemptID, &history.Status, &eventsJSON, &feedbackJSON); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return AttemptHistory{}, ErrAttemptNotFound
+		}
+		return AttemptHistory{}, fmt.Errorf("select attempt history: %w", err)
+	}
+	if err := json.Unmarshal(eventsJSON, &history.Events); err != nil {
+		return AttemptHistory{}, fmt.Errorf("decode attempt events: %w", err)
+	}
+	if err := json.Unmarshal(feedbackJSON, &history.Feedback); err != nil {
+		return AttemptHistory{}, fmt.Errorf("decode feedback events: %w", err)
+	}
+
+	return history, nil
+}
+
 func normalizeStartRecord(record StartRecord) (StartRecord, error) {
 	identity, err := normalizeIdentity(record.Identity)
 	if err != nil {
@@ -270,6 +332,15 @@ func normalizeFeedbackRecord(record FeedbackRecord) (FeedbackRecord, error) {
 	}
 
 	return FeedbackRecord{Identity: identity, AttemptID: attemptID, CorrectionText: correctionText, RubricResult: rubricResult}, nil
+}
+
+func normalizeHistoryRecord(record HistoryRecord) (HistoryRecord, error) {
+	identity, attemptID, err := normalizeOwnedAttempt(record.Identity, record.AttemptID)
+	if err != nil {
+		return HistoryRecord{}, err
+	}
+
+	return HistoryRecord{Identity: identity, AttemptID: attemptID}, nil
 }
 
 func normalizeOwnedAttempt(identity Identity, attemptID string) (Identity, string, error) {
@@ -365,6 +436,62 @@ SELECT id, $3, $4
 FROM lesson_attempts
 WHERE id = $1 AND anonymous_progress_id = $2
 RETURNING id::text
+`
+
+const selectUserAttemptHistorySQL = `
+SELECT
+  la.id::text,
+  la.status,
+  COALESCE((
+    SELECT jsonb_agg(jsonb_build_object(
+      'id', le.id,
+      'eventType', le.event_type,
+      'payload', le.payload,
+      'occurredAt', le.occurred_at
+    ) ORDER BY le.occurred_at, le.id)
+    FROM lesson_events le
+    WHERE le.attempt_id = la.id
+  ), '[]'::jsonb),
+  COALESCE((
+    SELECT jsonb_agg(jsonb_build_object(
+      'id', fe.id::text,
+      'correctionText', fe.correction_text,
+      'rubricResult', fe.rubric_result,
+      'createdAt', fe.created_at
+    ) ORDER BY fe.created_at, fe.id)
+    FROM feedback_events fe
+    WHERE fe.attempt_id = la.id
+  ), '[]'::jsonb)
+FROM lesson_attempts la
+WHERE la.id = $1 AND la.user_id = $2
+`
+
+const selectAnonymousAttemptHistorySQL = `
+SELECT
+  la.id::text,
+  la.status,
+  COALESCE((
+    SELECT jsonb_agg(jsonb_build_object(
+      'id', le.id,
+      'eventType', le.event_type,
+      'payload', le.payload,
+      'occurredAt', le.occurred_at
+    ) ORDER BY le.occurred_at, le.id)
+    FROM lesson_events le
+    WHERE le.attempt_id = la.id
+  ), '[]'::jsonb),
+  COALESCE((
+    SELECT jsonb_agg(jsonb_build_object(
+      'id', fe.id::text,
+      'correctionText', fe.correction_text,
+      'rubricResult', fe.rubric_result,
+      'createdAt', fe.created_at
+    ) ORDER BY fe.created_at, fe.id)
+    FROM feedback_events fe
+    WHERE fe.attempt_id = la.id
+  ), '[]'::jsonb)
+FROM lesson_attempts la
+WHERE la.id = $1 AND la.anonymous_progress_id = $2
 `
 
 const completeUserAttemptSQL = `

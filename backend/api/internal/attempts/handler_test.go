@@ -139,6 +139,29 @@ func TestHandlerRecordsAnonymousFeedback(t *testing.T) {
 	assertBodyContains(t, response, `"feedbackId":"feedback-1"`)
 }
 
+func TestHandlerReturnsAnonymousAttemptHistory(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeAttemptStore{history: AttemptHistory{
+		AttemptID: "attempt-1",
+		Status:    "completed",
+		Events:    []HistoryEvent{{ID: 42, EventType: "learner_turn", Payload: []byte(`{"transcript":"hello"}`), OccurredAt: "2026-05-25T10:00:00Z"}},
+		Feedback:  []HistoryFeedback{{ID: "feedback-1", CorrectionText: "Use past tense.", RubricResult: []byte(`{"score":3}`), CreatedAt: "2026-05-25T10:01:00Z"}},
+	}}
+	handler := NewHandler(store, &fakeResolver{}, "profesor-ia.session")
+	response := httptest.NewRecorder()
+
+	handler.History(response, newHistoryRequest("attemptId=attempt-1&anonymousProgressId=anonymous-1"))
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusOK, response.Code, response.Body.String())
+	}
+	if store.historyRecord.Identity.AnonymousProgressID != "anonymous-1" || store.historyRecord.AttemptID != "attempt-1" {
+		t.Fatalf("unexpected history record: %+v", store.historyRecord)
+	}
+	assertBodyContains(t, response, `"attemptId":"attempt-1"`, `"eventType":"learner_turn"`, `"correctionText":"Use past tense."`)
+}
+
 func TestHandlerStartErrors(t *testing.T) {
 	t.Parallel()
 
@@ -274,6 +297,38 @@ func TestHandlerRecordFeedbackErrors(t *testing.T) {
 	}
 }
 
+func TestHandlerHistoryErrors(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name    string
+		handler Handler
+		request *http.Request
+		status  int
+		code    string
+	}{
+		{"provider missing", NewHandler(nil, nil, "profesor-ia.session"), newHistoryRequest("attemptId=attempt-1&anonymousProgressId=anonymous-1"), http.StatusServiceUnavailable, "lesson_attempt_history_unavailable"},
+		{"unsupported method", NewHandler(&fakeAttemptStore{}, nil, "profesor-ia.session"), httptest.NewRequest(http.MethodPost, "/v1/lesson-attempts/history", nil), http.StatusMethodNotAllowed, "method_not_allowed"},
+		{"body user without session", NewHandler(&fakeAttemptStore{}, nil, "profesor-ia.session"), newHistoryRequest("attemptId=attempt-1&userId=user-1"), http.StatusBadRequest, "invalid_attempt_identity"},
+		{"invalid session", NewHandler(&fakeAttemptStore{}, &fakeResolver{err: errors.New("expired")}, "profesor-ia.session"), historyRequestWithCookie("expired-token"), http.StatusUnauthorized, "invalid_session"},
+		{"missing attempt", NewHandler(&fakeAttemptStore{historyErr: ErrMissingAttemptID}, nil, "profesor-ia.session"), newHistoryRequest("anonymousProgressId=anonymous-1"), http.StatusBadRequest, "invalid_attempt"},
+		{"not found", NewHandler(&fakeAttemptStore{historyErr: ErrAttemptNotFound}, nil, "profesor-ia.session"), newHistoryRequest("attemptId=attempt-1&anonymousProgressId=anonymous-1"), http.StatusNotFound, "attempt_not_found"},
+		{"storage failure", NewHandler(&fakeAttemptStore{historyErr: errors.New("database unavailable")}, nil, "profesor-ia.session"), newHistoryRequest("attemptId=attempt-1&anonymousProgressId=anonymous-1"), http.StatusInternalServerError, "lesson_attempt_history_failed"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			response := httptest.NewRecorder()
+			tc.handler.History(response, tc.request)
+			if response.Code != tc.status {
+				t.Fatalf("expected status %d, got %d body=%s", tc.status, response.Code, response.Body.String())
+			}
+			assertBodyContains(t, response, `"error":"`+tc.code+`"`)
+		})
+	}
+}
+
 type fakeAttemptStore struct {
 	record          StartRecord
 	attempt         Attempt
@@ -287,6 +342,9 @@ type fakeAttemptStore struct {
 	feedbackRecord  FeedbackRecord
 	feedback        RecordedFeedback
 	feedbackErr     error
+	historyRecord   HistoryRecord
+	history         AttemptHistory
+	historyErr      error
 }
 
 func (s *fakeAttemptStore) StartAttempt(_ context.Context, record StartRecord) (Attempt, error) {
@@ -307,6 +365,11 @@ func (s *fakeAttemptStore) RecordEvent(_ context.Context, record EventRecord) (R
 func (s *fakeAttemptStore) RecordFeedback(_ context.Context, record FeedbackRecord) (RecordedFeedback, error) {
 	s.feedbackRecord = record
 	return s.feedback, s.feedbackErr
+}
+
+func (s *fakeAttemptStore) GetHistory(_ context.Context, record HistoryRecord) (AttemptHistory, error) {
+	s.historyRecord = record
+	return s.history, s.historyErr
 }
 
 type fakeResolver struct {
@@ -336,6 +399,10 @@ func newFeedbackRequest(body string) *http.Request {
 	return httptest.NewRequest(http.MethodPost, "/v1/lesson-attempts/feedback", strings.NewReader(body))
 }
 
+func newHistoryRequest(query string) *http.Request {
+	return httptest.NewRequest(http.MethodGet, "/v1/lesson-attempts/history?"+query, nil)
+}
+
 func startRequestWithCookie(token string) *http.Request {
 	request := newStartRequest(`{"anonymousProgressId":"anonymous-1","legacyLessonId":"lesson-1"}`)
 	request.AddCookie(&http.Cookie{Name: "profesor-ia.session", Value: token})
@@ -356,6 +423,12 @@ func eventRequestWithCookie(token string) *http.Request {
 
 func feedbackRequestWithCookie(token string) *http.Request {
 	request := newFeedbackRequest(`{"attemptId":"attempt-1","anonymousProgressId":"anonymous-1","correctionText":"Use past tense."}`)
+	request.AddCookie(&http.Cookie{Name: "profesor-ia.session", Value: token})
+	return request
+}
+
+func historyRequestWithCookie(token string) *http.Request {
+	request := newHistoryRequest("attemptId=attempt-1&anonymousProgressId=anonymous-1")
 	request.AddCookie(&http.Cookie{Name: "profesor-ia.session", Value: token})
 	return request
 }

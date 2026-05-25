@@ -174,6 +174,32 @@ func TestRecordLessonFeedbackRouteRecordsFeedback(t *testing.T) {
 	}
 }
 
+func TestLessonAttemptHistoryRouteReturnsHistory(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeAttemptStore{history: attempts.AttemptHistory{
+		AttemptID: "attempt-1",
+		Status:    "completed",
+		Events:    []attempts.HistoryEvent{{ID: 42, EventType: "learner_turn", Payload: []byte(`{"transcript":"hello"}`), OccurredAt: "2026-05-25T10:00:00Z"}},
+		Feedback:  []attempts.HistoryFeedback{{ID: "feedback-1", CorrectionText: "Use past tense.", RubricResult: []byte(`{"score":3}`), CreatedAt: "2026-05-25T10:01:00Z"}},
+	}}
+	handler := NewHandler(Config{AttemptStarter: store})
+	request := httptest.NewRequest(http.MethodGet, "/v1/lesson-attempts/history?attemptId=attempt-1&anonymousProgressId=anonymous-1", nil)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusOK, response.Code, response.Body.String())
+	}
+	if store.historyRecord.Identity.AnonymousProgressID != "anonymous-1" || store.historyRecord.AttemptID != "attempt-1" {
+		t.Fatalf("unexpected history record: %+v", store.historyRecord)
+	}
+	if body := response.Body.String(); !strings.Contains(body, `"eventType":"learner_turn"`) || !strings.Contains(body, `"correctionText":"Use past tense."`) {
+		t.Fatalf("expected history response, got %s", body)
+	}
+}
+
 func TestHealthzReturnsServiceStatus(t *testing.T) {
 	t.Parallel()
 
@@ -365,6 +391,8 @@ type fakeAttemptStore struct {
 	event           attempts.RecordedEvent
 	feedbackRecord  attempts.FeedbackRecord
 	feedback        attempts.RecordedFeedback
+	historyRecord   attempts.HistoryRecord
+	history         attempts.AttemptHistory
 }
 
 func (s *fakeAttemptStore) CompleteAttempt(_ context.Context, record attempts.CompleteRecord) (attempts.Attempt, error) {
@@ -380,6 +408,11 @@ func (s *fakeAttemptStore) RecordEvent(_ context.Context, record attempts.EventR
 func (s *fakeAttemptStore) RecordFeedback(_ context.Context, record attempts.FeedbackRecord) (attempts.RecordedFeedback, error) {
 	s.feedbackRecord = record
 	return s.feedback, nil
+}
+
+func (s *fakeAttemptStore) GetHistory(_ context.Context, record attempts.HistoryRecord) (attempts.AttemptHistory, error) {
+	s.historyRecord = record
+	return s.history, nil
 }
 
 func mustPasswordHash(t *testing.T) string {

@@ -17,6 +17,7 @@ type Handler struct {
 	completer         Completer
 	events            EventRecorder
 	feedback          FeedbackRecorder
+	history           HistoryProvider
 	sessions          SessionResolver
 	sessionCookieName string
 }
@@ -25,7 +26,8 @@ func NewHandler(attempts Starter, sessions SessionResolver, sessionCookieName st
 	completer, _ := attempts.(Completer)
 	events, _ := attempts.(EventRecorder)
 	feedback, _ := attempts.(FeedbackRecorder)
-	return Handler{starter: attempts, completer: completer, events: events, feedback: feedback, sessions: sessions, sessionCookieName: sessionCookieName}
+	history, _ := attempts.(HistoryProvider)
+	return Handler{starter: attempts, completer: completer, events: events, feedback: feedback, history: history, sessions: sessions, sessionCookieName: sessionCookieName}
 }
 
 type startRequest struct {
@@ -228,6 +230,30 @@ func (h Handler) RecordFeedback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, feedbackResponse{FeedbackID: feedback.ID})
+}
+
+func (h Handler) History(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, errorResponse{Error: "method_not_allowed"})
+		return
+	}
+	if h.history == nil {
+		writeJSON(w, http.StatusServiceUnavailable, errorResponse{Error: "lesson_attempt_history_unavailable"})
+		return
+	}
+
+	identity, ok := h.requestIdentity(w, r, r.URL.Query().Get("userId"), r.URL.Query().Get("anonymousProgressId"))
+	if !ok {
+		return
+	}
+
+	history, err := h.history.GetHistory(r.Context(), HistoryRecord{Identity: identity, AttemptID: r.URL.Query().Get("attemptId")})
+	if err != nil {
+		writeAttemptWriteError(w, err, "lesson_attempt_history_failed")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, history)
 }
 
 func (h Handler) identity(r *http.Request, request startRequest) (Identity, error) {

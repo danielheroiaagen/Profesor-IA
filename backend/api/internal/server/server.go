@@ -90,6 +90,7 @@ func NewHandler(config Config) http.Handler {
 	mux.HandleFunc("POST /v1/lesson-attempts/complete", attemptHandler.Complete)
 	mux.HandleFunc("POST /v1/lesson-attempts/events", attemptHandler.RecordEvent)
 	mux.HandleFunc("POST /v1/lesson-attempts/feedback", attemptHandler.RecordFeedback)
+	mux.HandleFunc("GET /v1/lesson-attempts/history", attemptHandler.History)
 
 	return withSecurityHeaders(mux)
 }

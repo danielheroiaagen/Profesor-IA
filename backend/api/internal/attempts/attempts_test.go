@@ -154,6 +154,61 @@ func TestPostgresRepositoryRecordsOwnedFeedback(t *testing.T) {
 	assertArg(t, string(store.args[3].([]byte)), `{"score":1}`)
 }
 
+func TestPostgresRepositoryGetsOwnedAttemptHistory(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeStore{row: fakeRow{values: []any{
+		"attempt-1",
+		"completed",
+		[]byte(`[{"id":42,"eventType":"learner_turn","payload":{"transcript":"hello"},"occurredAt":"2026-05-25T10:00:00Z"}]`),
+		[]byte(`[{"id":"feedback-1","correctionText":"Use past tense.","rubricResult":{"score":3},"createdAt":"2026-05-25T10:01:00Z"}]`),
+	}}}
+	repository := mustRepository(t, store)
+
+	history, err := repository.GetHistory(context.Background(), HistoryRecord{
+		Identity:  Identity{UserID: " user-1 "},
+		AttemptID: " attempt-1 ",
+	})
+
+	if err != nil {
+		t.Fatalf("get history: %v", err)
+	}
+	if store.query != selectUserAttemptHistorySQL {
+		t.Fatal("expected user history SQL")
+	}
+	assertArg(t, store.args[0], "attempt-1")
+	assertArg(t, store.args[1], "user-1")
+	if history.AttemptID != "attempt-1" || history.Status != "completed" {
+		t.Fatalf("unexpected history: %+v", history)
+	}
+	if len(history.Events) != 1 || history.Events[0].EventType != "learner_turn" {
+		t.Fatalf("unexpected events: %+v", history.Events)
+	}
+	if len(history.Feedback) != 1 || history.Feedback[0].CorrectionText != "Use past tense." {
+		t.Fatalf("unexpected feedback: %+v", history.Feedback)
+	}
+}
+
+func TestPostgresRepositoryGetsAnonymousAttemptHistory(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeStore{row: fakeRow{values: []any{"attempt-1", "started", []byte(`[]`), []byte(`[]`)}}}
+	repository := mustRepository(t, store)
+
+	_, err := repository.GetHistory(context.Background(), HistoryRecord{
+		Identity:  Identity{AnonymousProgressID: " anonymous-1 "},
+		AttemptID: "attempt-1",
+	})
+
+	if err != nil {
+		t.Fatalf("get anonymous history: %v", err)
+	}
+	if store.query != selectAnonymousAttemptHistorySQL {
+		t.Fatal("expected anonymous history SQL")
+	}
+	assertArg(t, store.args[1], "anonymous-1")
+}
+
 func TestPostgresRepositoryRejectsInvalidRecords(t *testing.T) {
 	t.Parallel()
 
@@ -256,6 +311,31 @@ func TestPostgresRepositoryRejectsInvalidFeedback(t *testing.T) {
 	}
 }
 
+func TestPostgresRepositoryRejectsInvalidHistory(t *testing.T) {
+	t.Parallel()
+
+	repository := mustRepository(t, &fakeStore{})
+	cases := []struct {
+		name     string
+		record   HistoryRecord
+		expected error
+	}{
+		{"missing identity", HistoryRecord{AttemptID: "attempt-1"}, ErrInvalidIdentity},
+		{"ambiguous identity", HistoryRecord{Identity: Identity{UserID: "user-1", AnonymousProgressID: "anonymous-1"}, AttemptID: "attempt-1"}, ErrInvalidIdentity},
+		{"missing attempt", HistoryRecord{Identity: Identity{UserID: "user-1"}}, ErrMissingAttemptID},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := repository.GetHistory(context.Background(), tc.record)
+			if !errors.Is(err, tc.expected) {
+				t.Fatalf("expected %v, got %v", tc.expected, err)
+			}
+		})
+	}
+}
+
 func TestPostgresRepositoryReturnsAttemptNotFound(t *testing.T) {
 	t.Parallel()
 
@@ -277,6 +357,18 @@ func TestPostgresRepositoryReturnsAttemptNotFoundForOwnedEventWrites(t *testing.
 	repository := mustRepository(t, &fakeStore{row: fakeRow{err: pgx.ErrNoRows}})
 
 	_, err := repository.RecordEvent(context.Background(), EventRecord{Identity: Identity{UserID: "user-1"}, AttemptID: "attempt-1", EventType: "system"})
+
+	if !errors.Is(err, ErrAttemptNotFound) {
+		t.Fatalf("expected ErrAttemptNotFound, got %v", err)
+	}
+}
+
+func TestPostgresRepositoryReturnsAttemptNotFoundForHistory(t *testing.T) {
+	t.Parallel()
+
+	repository := mustRepository(t, &fakeStore{row: fakeRow{err: pgx.ErrNoRows}})
+
+	_, err := repository.GetHistory(context.Background(), HistoryRecord{Identity: Identity{UserID: "user-1"}, AttemptID: "attempt-1"})
 
 	if !errors.Is(err, ErrAttemptNotFound) {
 		t.Fatalf("expected ErrAttemptNotFound, got %v", err)
@@ -341,6 +433,8 @@ func (r fakeRow) Scan(dest ...any) error {
 			*target = value.(string)
 		case *int64:
 			*target = value.(int64)
+		case *[]byte:
+			*target = value.([]byte)
 		default:
 			panic("unsupported scan target")
 		}
