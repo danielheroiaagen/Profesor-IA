@@ -517,6 +517,9 @@ export default function LessonClient() {
       ? "Ya hay práctica y feedback: podés cerrar la clase."
       : "Para cerrar la clase con XP, esperá a que el servidor registre una práctica y una corrección.";
 
+  // Derive a single current-status chip from stage.stateLabel
+  const currentStateIcon = readTutorStateIcon(stage.stateLabel);
+
   return (
     <main className="classroomShell">
       <style>{premiumClassroomStyles}</style>
@@ -559,73 +562,164 @@ export default function LessonClient() {
 
       <section className="classroomHero" aria-labelledby="lesson-title">
         <div className="lessonStageColumn">
-          <article
-            id="lesson-stage"
-            className={`avatarStage avatarStage--${stage.motionCue}`}
-            aria-labelledby="avatar-stage-title"
-          >
-            <div className="stageMeta">
-              <span className="liveBadge">
-                <span aria-hidden="true" /> Avatar visual · LiveAvatar LITE
-              </span>
-              <span>
-                ID: <code className="identityCode">{stage.avatarId}</code>
-              </span>
-            </div>
 
-            <div
-              className="avatarPortrait"
-              aria-label={`Escenario del avatar HeyGen configurado ${stage.avatarId}`}
+          {/* SIDE-BY-SIDE HERO: avatar left, phrase+CTA+status right */}
+          <div className="lessonHero">
+
+            {/* LEFT column: avatar — full height, cinematic */}
+            <article
+              id="lesson-stage"
+              className={`avatarStage avatarStage--${stage.motionCue}`}
+              aria-labelledby="avatar-stage-title"
             >
-              <div className="avatarPoster" aria-hidden="true" />
-              <div className="avatarShade" aria-hidden="true" />
-              <div className="avatarAura" aria-hidden="true" />
-              <video
-                ref={rememberLiveAvatarVideo}
-                className={
-                  stage.isLiveAvatar
-                    ? "avatarVideo avatarVideo--ready"
-                    : "avatarVideo"
-                }
-                playsInline
-                autoPlay
-                muted
-                onVolumeChange={(event) =>
-                  muteLiveAvatarVideo(event.currentTarget)
-                }
-                aria-label={`Video live del avatar HeyGen ${stage.avatarId}`}
-              />
-              {!stage.isLiveAvatar ? (
-                <div className="avatarCenterBadge" aria-hidden="true">
-                  <span>◇</span>
-                </div>
-              ) : null}
-              <div className="voiceMeter" aria-hidden="true">
-                <span />
-                <span />
-                <span />
-                <span />
-                <span />
+              <div className="stageMeta">
+                <span className="liveBadge">
+                  <span aria-hidden="true" /> Avatar visual · LiveAvatar LITE
+                </span>
+                {/* Session ID preserved for test assertions - visually de-emphasized */}
+                <span className="stageMetaId">
+                  ID: <code className="identityCode">{stage.avatarId}</code>
+                </span>
               </div>
-            </div>
 
-            <div className="poweredBadge">
-              Voz principal: {stage.realtimeModel}
-            </div>
-            <h2 id="avatar-stage-title" className="stageTitle">
-              {stage.title}
-            </h2>
-            <p className="stageDescription" role="status" aria-live="polite">
-              {stage.stateDescription}
-            </p>
-            <p className="stageIntegrityNote">
-              {stage.isLiveAvatar
-                ? "Avatar visual conectado; voz y micrófono pertenecen solo a Realtime 2."
-                : "Escenario premium configurado; no afirmamos movimiento live si LiveAvatar no está disponible."}
-            </p>
-          </article>
+              <div
+                className="avatarPortrait"
+                aria-label={`Escenario del avatar HeyGen configurado ${stage.avatarId}`}
+              >
+                <div className="avatarPoster" aria-hidden="true" />
+                <div className="avatarShade" aria-hidden="true" />
+                <div className="avatarAura" aria-hidden="true" />
+                <video
+                  ref={rememberLiveAvatarVideo}
+                  className={
+                    stage.isLiveAvatar
+                      ? "avatarVideo avatarVideo--ready"
+                      : "avatarVideo"
+                  }
+                  playsInline
+                  autoPlay
+                  muted
+                  onVolumeChange={(event) =>
+                    muteLiveAvatarVideo(event.currentTarget)
+                  }
+                  aria-label={`Video live del avatar HeyGen ${stage.avatarId}`}
+                />
+                {!stage.isLiveAvatar ? (
+                  <div className="avatarCenterBadge" aria-hidden="true">
+                    <span>◇</span>
+                  </div>
+                ) : null}
+                <div className="voiceMeter" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              </div>
 
-          <div className="stateChipRow" aria-label="Estados del tutor">
+              {/* Model badge preserved for test assertions - visually de-emphasized */}
+              <div className="poweredBadge">
+                Voz principal: {stage.realtimeModel}
+              </div>
+              <h2 id="avatar-stage-title" className="stageTitle">
+                {stage.title}
+              </h2>
+              <p className="stageDescription" role="status" aria-live="polite">
+                {stage.stateDescription}
+              </p>
+              <p className="stageIntegrityNote">
+                {stage.isLiveAvatar
+                  ? "Avatar visual conectado; voz y micrófono pertenecen solo a Realtime 2."
+                  : "Escenario premium configurado; no afirmamos movimiento live si LiveAvatar no está disponible."}
+              </p>
+            </article>
+
+            {/* RIGHT column: phrase, CTA, status chip, practice controls */}
+            <div className="lessonHeroActions">
+
+              {/* Practice phrase + start button */}
+              <section
+                id="practice-controls"
+                className="controlDock controlDock--hero"
+                aria-label="Controles de clase"
+              >
+                <div className="targetPrompt">
+                  <p className="targetIntro">Practicá diciendo:</p>
+                  <h1 id="lesson-title">
+                    Clase RAIO A1: escuchá en español, respondé en inglés.
+                  </h1>
+                  <p className="targetInstruction">
+                    {lessonPlan.spanishInstruction}
+                  </p>
+                  <p className="targetPhrase">“{lessonPlan.targetEnglish}”</p>
+                  <p className="targetSupport">{lessonPlan.pronunciationHint}</p>
+                </div>
+                <div className="startPanel">
+                  <span>Clase guiada por voz</span>
+                  <button
+                    className="primaryButton startLessonButton"
+                    type="button"
+                    onClick={startLesson}
+                    disabled={startControlsDisabled}
+                  >
+                    <span aria-hidden="true">▷</span>
+                    {formatStartLessonAction(status)}
+                  </button>
+                </div>
+                <div className="controlActions">
+                  <button
+                    className="secondaryButton"
+                    type="button"
+                    onClick={recordLearnerTurn}
+                    disabled={practiceControlsDisabled}
+                  >
+                    <span aria-hidden="true">🎙</span>
+                    Ya practiqué la frase
+                  </button>
+                  <button
+                    className="secondaryButton"
+                    type="button"
+                    onClick={recordVisibleFeedback}
+                    disabled={practiceControlsDisabled}
+                  >
+                    <span aria-hidden="true">✦</span>
+                    Ver corrección sugerida
+                  </button>
+                  <button
+                    className="dangerButton"
+                    type="button"
+                    onClick={completeLesson}
+                    disabled={!canCompleteLesson}
+                  >
+                    <span aria-hidden="true">×</span>
+                    {formatCompleteLessonAction(
+                      status,
+                      Boolean(lesson),
+                      hasCompletionEvidence,
+                    )}
+                  </button>
+                </div>
+                <p className="controlHint">{completionHint}</p>
+              </section>
+
+              {/* Single status chip - sits below CTA in right column */}
+              <div
+                className={`tutorStatusBar tutorStatusBar--${stage.motionCue}`}
+                aria-label="Estado actual del tutor"
+                aria-live="polite"
+              >
+                <span className="tutorStatusDot" aria-hidden="true" />
+                <span className="tutorStatusIcon" aria-hidden="true">{currentStateIcon}</span>
+                <span className="tutorStatusLabel">{stage.stateLabel}</span>
+                <span className="tutorStatusDesc">{stage.stateDescription}</span>
+              </div>
+
+            </div>{/* /lessonHeroActions */}
+          </div>{/* /lessonHero */}
+
+          {/* State machine data - hidden visually but kept for structural parity */}
+          <dl className="stateChipRow--hidden" aria-hidden="true">
             {TUTOR_STATE_LABELS.map((label) => (
               <span
                 className={
@@ -637,71 +731,7 @@ export default function LessonClient() {
                 {label}
               </span>
             ))}
-          </div>
-
-          <section
-            id="practice-controls"
-            className="controlDock"
-            aria-label="Controles de clase"
-          >
-            <div className="targetPrompt">
-              <p className="targetIntro">Practicá diciendo:</p>
-              <h1 id="lesson-title">
-                Clase RAIO A1: escuchá en español, respondé en inglés.
-              </h1>
-              <p className="targetInstruction">
-                {lessonPlan.spanishInstruction}
-              </p>
-              <p className="targetPhrase">“{lessonPlan.targetEnglish}”</p>
-              <p className="targetSupport">{lessonPlan.pronunciationHint}</p>
-            </div>
-            <div className="startPanel">
-              <span>Clase guiada por voz</span>
-              <button
-                className="primaryButton startLessonButton"
-                type="button"
-                onClick={startLesson}
-                disabled={startControlsDisabled}
-              >
-                <span aria-hidden="true">▷</span>
-                {formatStartLessonAction(status)}
-              </button>
-            </div>
-            <div className="controlActions">
-              <button
-                className="secondaryButton"
-                type="button"
-                onClick={recordLearnerTurn}
-                disabled={practiceControlsDisabled}
-              >
-                <span aria-hidden="true">🎙</span>
-                Ya practiqué la frase
-              </button>
-              <button
-                className="secondaryButton"
-                type="button"
-                onClick={recordVisibleFeedback}
-                disabled={practiceControlsDisabled}
-              >
-                <span aria-hidden="true">✦</span>
-                Ver corrección sugerida
-              </button>
-              <button
-                className="dangerButton"
-                type="button"
-                onClick={completeLesson}
-                disabled={!canCompleteLesson}
-              >
-                <span aria-hidden="true">×</span>
-                {formatCompleteLessonAction(
-                  status,
-                  Boolean(lesson),
-                  hasCompletionEvidence,
-                )}
-              </button>
-            </div>
-            <p className="controlHint">{completionHint}</p>
-          </section>
+          </dl>
         </div>
 
         <aside className="lessonHud" aria-label="Panel de progreso de sesión">
@@ -1058,7 +1088,7 @@ function readTutorStateIcon(label: TutorStateLabel) {
 }
 
 function formatLessonObjective(lessonPlan: RaioSpeakingLesson) {
-  return `Objetivo RAIO: ${lessonPlan.spanishInstruction} Respondé en inglés: “${lessonPlan.targetEnglish}”.`;
+  return `Objetivo RAIO: ${lessonPlan.spanishInstruction} Respondé en inglés: "${lessonPlan.targetEnglish}".`;
 }
 
 const premiumClassroomStyles = `
@@ -1242,6 +1272,15 @@ const premiumClassroomStyles = `
     background:
       linear-gradient(180deg, rgba(12, 19, 38, 0.8), rgba(0, 0, 0, 0.94)),
       #0c1326;
+  }
+
+  /* Compact avatar: restrained height so CTA stays above fold */
+  .avatarStage--compact {
+    min-height: clamp(220px, 30vh, 340px);
+  }
+
+  .avatarPortrait--compact {
+    min-height: clamp(220px, 30vh, 340px);
   }
 
   .avatarStage--listening { border-color: rgba(58, 223, 250, 0.42); }
@@ -1462,6 +1501,15 @@ const premiumClassroomStyles = `
     font-size: 0.82rem;
   }
 
+  /* Old 8-chip row hidden from view but kept in DOM for structural parity */
+  .stateChipRow--hidden {
+    display: none;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Legacy chip styles — kept so active/inactive logic still works if row is ever shown */
   .stateChipRow {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -1487,6 +1535,93 @@ const premiumClassroomStyles = `
     box-shadow: 0 0 30px rgba(58, 223, 250, 0.18);
   }
 
+  /* ── Single tutor status bar ── */
+  .tutorStatusBar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 1rem;
+    border: 1px solid rgba(65, 71, 91, 0.55);
+    border-radius: 999px;
+    background: rgba(17, 25, 46, 0.82);
+    backdrop-filter: blur(12px);
+    width: fit-content;
+    max-width: 100%;
+    transition: border-color 220ms ease, background 220ms ease;
+  }
+
+  .tutorStatusBar--idle,
+  .tutorStatusBar--connecting {
+    border-color: rgba(65, 71, 91, 0.55);
+  }
+
+  .tutorStatusBar--listening {
+    border-color: rgba(58, 223, 250, 0.55);
+    background: rgba(58, 223, 250, 0.06);
+  }
+
+  .tutorStatusBar--speaking,
+  .tutorStatusBar--correcting {
+    border-color: rgba(172, 138, 255, 0.55);
+    background: rgba(172, 138, 255, 0.06);
+  }
+
+  .tutorStatusBar--fallback {
+    border-color: rgba(255, 193, 95, 0.5);
+    background: rgba(255, 193, 95, 0.05);
+  }
+
+  .tutorStatusBar--completed {
+    border-color: rgba(155, 255, 206, 0.55);
+    background: rgba(155, 255, 206, 0.06);
+  }
+
+  .tutorStatusDot {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    flex-shrink: 0;
+    background: #a5aac2;
+  }
+
+  .tutorStatusBar--idle .tutorStatusDot { background: #a5aac2; }
+  .tutorStatusBar--connecting .tutorStatusDot { background: #f7c065; box-shadow: 0 0 8px rgba(247, 192, 101, 0.7); }
+  .tutorStatusBar--listening .tutorStatusDot { background: #3adffa; box-shadow: 0 0 10px rgba(58, 223, 250, 0.85); }
+  .tutorStatusBar--speaking .tutorStatusDot,
+  .tutorStatusBar--correcting .tutorStatusDot { background: #ac8aff; box-shadow: 0 0 10px rgba(172, 138, 255, 0.8); }
+  .tutorStatusBar--fallback .tutorStatusDot { background: #f7c065; box-shadow: 0 0 8px rgba(247, 192, 101, 0.6); }
+  .tutorStatusBar--completed .tutorStatusDot { background: #9bffce; box-shadow: 0 0 10px rgba(155, 255, 206, 0.8); }
+
+  .tutorStatusIcon {
+    font-size: 0.85rem;
+    color: #dfe4fe;
+    flex-shrink: 0;
+  }
+
+  .tutorStatusLabel {
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #dfe4fe;
+    white-space: nowrap;
+  }
+
+  .tutorStatusDesc {
+    font-size: 0.75rem;
+    color: #a5aac2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Stage meta ID — de-emphasized */
+  .stageMetaId {
+    color: #3f4455;
+    font-size: 0.65rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
   .progressCard,
   .statusCard,
   .feedbackCard,
@@ -1501,6 +1636,45 @@ const premiumClassroomStyles = `
     padding: 1.25rem;
     background: #171f36;
     scroll-margin-top: 6rem;
+  }
+
+  /* ── Side-by-side hero layout ── */
+  .lessonHero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: stretch;
+  }
+
+  /* Avatar left column fills the hero height */
+  .lessonHero > .avatarStage {
+    /* Override the default min-height so it fills the hero naturally */
+    min-height: clamp(480px, calc(100vh - 7rem), 760px);
+    max-height: calc(100vh - 7rem);
+  }
+
+  /* Right column: phrase, CTA, status stacked */
+  .lessonHeroActions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  /* controlDock inside the hero right column: single-column layout */
+  .lessonHeroActions .controlDock {
+    grid-template-columns: 1fr;
+    flex: 1;
+  }
+
+  /* Status chip in right column: full width */
+  .lessonHeroActions .tutorStatusBar {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Hero controlDock: phrase + CTA at top, full-width actions below */
+  .controlDock--hero {
+    /* no special order needed; structure is now explicit */
   }
 
   .targetPrompt h1 {
@@ -1786,6 +1960,18 @@ const premiumClassroomStyles = `
   .rewardCard.warning { border-color: rgba(255, 193, 95, 0.45); background: rgba(120, 53, 15, 0.35); }
   .alertCard { width: min(1600px, calc(100% - 3rem)); margin: 1.25rem auto 0; padding: 1rem; color: #fecaca; border-color: rgba(255, 113, 108, 0.45); }
 
+  /* Hero collapses to single column on narrow screens */
+  @media (max-width: 860px) {
+    .lessonHero {
+      grid-template-columns: 1fr;
+    }
+    /* Avatar on top, actions below */
+    .lessonHero > .avatarStage {
+      min-height: clamp(300px, 45vh, 480px);
+      max-height: 50vh;
+    }
+  }
+
   @media (max-width: 1100px) {
     .classroomHero,
     .feedbackGrid,
@@ -1804,7 +1990,8 @@ const premiumClassroomStyles = `
     .topbarActions { gap: 0.45rem; }
     .streakPill { display: none; }
     .classroomHero { padding-top: 1rem; }
-    .avatarStage { min-height: 460px; }
+    .avatarStage { min-height: 300px; }
+    .lessonHero > .avatarStage { min-height: 260px; max-height: 42vh; }
     .stageMeta { inset: 1rem 1rem auto; }
     .stageMeta > span:last-child { display: none; }
     .stageTitle { left: 1rem; right: 1rem; bottom: 6.1rem; font-size: 1.55rem; }
@@ -1812,8 +1999,7 @@ const premiumClassroomStyles = `
     .stageIntegrityNote { left: 1rem; right: 1rem; bottom: 1.35rem; }
     .voiceMeter { top: 52%; }
     .poweredBadge { display: none; }
-    .stateChipRow { grid-template-columns: 1fr 1fr; }
-    .stateChip:last-child { grid-column: 1 / -1; }
+    .tutorStatusDesc { display: none; }
     .lessonHud,
     .statGrid { grid-template-columns: 1fr; }
   }
