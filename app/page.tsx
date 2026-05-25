@@ -21,16 +21,16 @@ export default function HomePage() {
       <section className="hero">
         <p className="eyebrow">Profesor IA</p>
         <h1 className="hero__title">
-          Tu profesor privado de inglés con voz, avatar y XP real.
+          Tu profesor privado de inglés con voz, avatar visual y XP.
         </h1>
         <p className="hero__lead">
-          Entrá a una clase premium con voz en tiempo real, avatar visual y
-          corrección visible. Sumás XP solo cuando hubo práctica real y feedback
-          verificado.
+          Entrá a una clase premium con voz en tiempo real, avatar visual
+          seguro, corrección visible y progreso con XP solo cuando hubo práctica
+          real y feedback verificado.
         </p>
         <div className="hero__actions">
           <Link href="/lesson" className="btn btn-primary">
-            Entrar a la clase
+            Entrar a la clase premium
             <span aria-hidden="true">→</span>
           </Link>
           <a href="#como-funciona" className="btn btn-ghost">

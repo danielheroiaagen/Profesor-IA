@@ -1169,7 +1169,7 @@ const premiumClassroomStyles = `
   .classroomNav ul {
     display: flex;
     align-items: center;
-    gap: clamp(0.7rem, 2vw, 1.45rem);
+    gap: clamp(0.25rem, 1.5vw, 1.45rem);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -1178,28 +1178,55 @@ const premiumClassroomStyles = `
   .classroomNav a {
     display: inline-flex;
     align-items: center;
-    min-height: 2.35rem;
+    min-height: 2.5rem;
     padding: 0 0.85rem;
     border: 1px solid transparent;
     border-radius: 999px;
     color: inherit;
     text-decoration: none;
+    white-space: nowrap;
     transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
   }
 
   .classroomNav a:hover,
-  .classroomNav a:focus-visible,
-  .classroomNav a[aria-current="page"] {
+  .classroomNav a:focus-visible {
     border-color: rgba(58, 223, 250, 0.28);
     background: rgba(58, 223, 250, 0.08);
     color: #3adffa;
     outline: none;
   }
 
+  /* Active tab: brand underline + tinted background, clearly distinct */
+  .classroomNav a[aria-current="page"] {
+    position: relative;
+    border-color: rgba(58, 223, 250, 0.35);
+    background: rgba(58, 223, 250, 0.12);
+    color: #3adffa;
+    font-weight: 800;
+    outline: none;
+  }
+
+  .classroomNav a[aria-current="page"]::after {
+    content: "";
+    position: absolute;
+    left: 0.6rem;
+    right: 0.6rem;
+    bottom: 0.3rem;
+    height: 2px;
+    border-radius: 999px;
+    background: #3adffa;
+    box-shadow: 0 0 8px rgba(58, 223, 250, 0.7);
+  }
+
+  .classroomNav a:focus-visible {
+    outline: 2px solid #3adffa;
+    outline-offset: 2px;
+  }
+
   .topbarActions {
     display: flex;
     align-items: center;
-    gap: 0.8rem;
+    gap: 0.65rem;
   }
 
   .xpPill,
@@ -1214,15 +1241,23 @@ const premiumClassroomStyles = `
 
   .xpPill,
   .streakPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     margin: 0;
-    padding: 0.55rem 0.8rem;
+    padding: 0 0.8rem;
+    height: 2.5rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
   }
 
   .profileOrb {
     display: grid;
     place-items: center;
     width: 2.5rem;
-    aspect-ratio: 1;
+    height: 2.5rem;
     border: 2px solid rgba(58, 223, 250, 0.24);
     border-radius: 999px;
     background:
@@ -1231,6 +1266,7 @@ const premiumClassroomStyles = `
     color: #dff7ff;
     font-size: 0.7rem;
     font-weight: 900;
+    flex-shrink: 0;
   }
 
   .classroomHero {
@@ -1731,7 +1767,7 @@ const premiumClassroomStyles = `
   .controlActions {
     display: grid;
     grid-column: 1 / -1;
-    grid-template-columns: repeat(3, minmax(9rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
     gap: 0.75rem;
     align-items: stretch;
   }
@@ -1965,19 +2001,23 @@ const premiumClassroomStyles = `
     .lessonHero {
       grid-template-columns: 1fr;
     }
-    /* Avatar on top, actions below */
+    /* Avatar on top, actions below — sensible height so CTA stays reachable */
     .lessonHero > .avatarStage {
-      min-height: clamp(300px, 45vh, 480px);
-      max-height: 50vh;
+      min-height: clamp(240px, 40vh, 420px);
+      max-height: 45vh;
     }
   }
 
   @media (max-width: 1100px) {
-    .classroomHero,
+    /* Stack main column + aside vertically; aside goes full-width below */
+    .classroomHero {
+      grid-template-columns: 1fr;
+    }
     .feedbackGrid,
     .controlDock,
     .controlActions { grid-template-columns: 1fr; }
     .startPanel { order: -1; }
+    /* Aside: two side-by-side cards at tablet, readable width */
     .lessonHud { grid-template-columns: 1fr 1fr; }
     .statusCard,
     .tipCard { min-height: 100%; }
@@ -1985,13 +2025,29 @@ const premiumClassroomStyles = `
 
   @media (max-width: 760px) {
     .classroomTopbar, .classroomHero, .feedbackGrid, .alertCard { width: calc(100% - 1rem); }
-    .classroomTopbar { border-radius: 0 0 1.25rem 1.25rem; padding-inline: 1rem; }
-    .classroomNav { display: none; }
-    .topbarActions { gap: 0.45rem; }
+    .classroomTopbar {
+      border-radius: 0 0 1.25rem 1.25rem;
+      padding-inline: 0.75rem;
+      gap: 0.75rem;
+      flex-wrap: nowrap;
+    }
+    /* On narrow screens: nav scrolls horizontally rather than hiding */
+    .classroomNav {
+      flex: 1 1 0;
+      min-width: 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .classroomNav::-webkit-scrollbar { display: none; }
+    .classroomNav ul { flex-wrap: nowrap; gap: 0.35rem; }
+    .classroomNav a { min-height: 2.75rem; padding: 0 0.65rem; font-size: 0.78rem; }
+    .topbarActions { gap: 0.4rem; flex-shrink: 0; }
     .streakPill { display: none; }
     .classroomHero { padding-top: 1rem; }
-    .avatarStage { min-height: 300px; }
-    .lessonHero > .avatarStage { min-height: 260px; max-height: 42vh; }
+    .avatarStage { min-height: 260px; }
+    .lessonHero > .avatarStage { min-height: 220px; max-height: 38vh; }
     .stageMeta { inset: 1rem 1rem auto; }
     .stageMeta > span:last-child { display: none; }
     .stageTitle { left: 1rem; right: 1rem; bottom: 6.1rem; font-size: 1.55rem; }
@@ -2000,8 +2056,28 @@ const premiumClassroomStyles = `
     .voiceMeter { top: 52%; }
     .poweredBadge { display: none; }
     .tutorStatusDesc { display: none; }
+    /* Aside cards stack to single column on mobile */
     .lessonHud,
     .statGrid { grid-template-columns: 1fr; }
+    /* Control buttons: 2-column grid for comfortable touch targets */
+    .controlActions { grid-template-columns: 1fr 1fr; }
+    /* Danger button spans full width at bottom for prominent placement */
+    .controlActions > .dangerButton { grid-column: 1 / -1; }
+    /* Ensure buttons are tall enough for touch */
+    button { min-height: 2.875rem; }
+    /* Status bar: allow description to wrap rather than being hidden only */
+    .tutorStatusBar { flex-wrap: wrap; }
+    /* Status card: allow dd to wrap on very long values */
+    .statusCard div { flex-wrap: wrap; }
+    .statusCard dd { text-align: left; }
+  }
+
+  /* Extra-narrow guard: 390px phones */
+  @media (max-width: 430px) {
+    .controlActions { grid-template-columns: 1fr; }
+    .controlActions > .dangerButton { grid-column: auto; }
+    .xpPill { display: none; }
+    .brandMark { font-size: 1.05rem; }
   }
 
   @media (prefers-reduced-motion: reduce) {
