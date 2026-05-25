@@ -2,7 +2,6 @@
 
 import "./lesson.css";
 
-import type { LiveAvatarSession as LiveAvatarSessionType } from "@heygen/liveavatar-web-sdk";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -12,7 +11,6 @@ import {
   startLessonAvatarRuntime,
 } from "@/integrations/avatar/avatar-lesson-runtime";
 import {
-  buildRaioRealtimeOpeningInstructions,
   DEFAULT_RAIO_SPEAKING_LESSON,
   type RaioSpeakingLesson,
 } from "@/domain/raio-curriculum";
@@ -27,6 +25,8 @@ import { LessonControls } from "./components/LessonControls";
 import { LessonHeader } from "./components/LessonHeader";
 import { ProgressPanel } from "./components/ProgressPanel";
 import { SessionStatusPanel } from "./components/SessionStatusPanel";
+import { useRealtimeAudio } from "./hooks/useRealtimeAudio";
+import { useLiveAvatar, type LiveAvatarStatus } from "./hooks/useLiveAvatar";
 
 type LessonSession = {
   id: string;
@@ -43,22 +43,6 @@ type AvatarStatus = {
   available: boolean;
   reason?: string;
   avatarId?: string;
-};
-
-type RealtimeSession = {
-  clientSecret: string;
-  model: string;
-  expiresAt: string;
-  lessonId: string;
-  connectUrl: string;
-};
-
-type AvatarLiveSession = {
-  provider: "liveavatar";
-  mode: "live";
-  avatarId: string;
-  sessionId: string;
-  sessionToken: string;
 };
 
 type LessonStartResponse = {
@@ -98,15 +82,6 @@ type ConnectionStatus =
   | "ended"
   | "failed";
 
-type LiveAvatarStatus = "idle" | "starting" | "ready" | "unavailable";
-
-type RealtimeConnection = {
-  peerConnection: RTCPeerConnection;
-  dataChannel: RTCDataChannel;
-  stream: MediaStream;
-  audioElement: HTMLAudioElement;
-};
-
 const INITIAL_FEEDBACK_SUMMARY = formatLessonObjective(
   DEFAULT_RAIO_SPEAKING_LESSON,
 );
@@ -115,7 +90,6 @@ const REQUIRED_FEEDBACK_EVENTS = 1;
 const DEFAULT_HEYGEN_AVATAR_ID = "e29e792a-41e7-4df0-84a8-349e099fb50f";
 const DEFAULT_OPENAI_REALTIME_MODEL = "gpt-realtime-2";
 const API_REQUEST_TIMEOUT_MS = 8_000;
-const REALTIME_CONNECT_TIMEOUT_MS = 25_000;
 const STITCH_TUTOR_POSTER_URL =
   "https://lh3.googleusercontent.com/aida-public/AB6AXuDdzHwAwTAvUVLRwMGfxmkra0pwSCyt_9MBzo5amWwIOuiJT0YWdMgIfb-dxqXs4qCM4XJbck5TKVEd1jb4fTgALsRsy1fguXSxALC0Z_hr3me3Tvr42VYUF7f9e09fiQagGE6Qjrigk60gkak4EYTVcFN5bm6sgX55vfZD3-6dDKWbpTNDPPDxEN4cJFgwl8BDNDZgUEN1SH-uP_TWcxWiAACNltXBJF036PQzam6cpb75NIg-I2eH0ttoYWNUkRUix26Iy55uN-0g";
 const TUTOR_STATE_LABELS = [
@@ -138,12 +112,10 @@ export default function LessonClient() {
     DEFAULT_RAIO_SPEAKING_LESSON,
   );
   const [avatar, setAvatar] = useState<AvatarStatus | null>(null);
-  const [liveAvatarStatus, setLiveAvatarStatus] =
-    useState<LiveAvatarStatus>("idle");
-  const [realtime, setRealtime] = useState<Pick<
-    RealtimeSession,
-    "model" | "lessonId"
-  > | null>(null);
+  const [realtime, setRealtime] = useState<{
+    model: string;
+    lessonId: string;
+  } | null>(null);
   const [learnerTurns, setLearnerTurns] = useState(0);
   const [feedbackEvents, setFeedbackEvents] = useState(0);
   const [feedbackSummary, setFeedbackSummary] = useState(
@@ -155,13 +127,27 @@ export default function LessonClient() {
     null,
   );
   const [error, setError] = useState<string | null>(null);
-  const connectionRef = useRef<RealtimeConnection | null>(null);
   const avatarRuntimeRef = useRef<AvatarRuntimeState | null>(null);
   const lessonAccessTokenRef = useRef<string | null>(null);
   const progressVersionRef = useRef(0);
-  const liveAvatarRef = useRef<LiveAvatarSessionType | null>(null);
-  const liveAvatarVideoRef = useRef<HTMLVideoElement | null>(null);
 
+  const { connectionRef, connectRealtime, replaceConnection } =
+    useRealtimeAudio();
+
+  const {
+    liveAvatarStatus,
+    setLiveAvatarStatus,
+    liveAvatarRef,
+    liveAvatarVideoRef,
+    startSession: startLiveAvatarSession,
+    stopSession: stopLiveAvatarSession,
+    rememberLiveAvatarVideo,
+  } = useLiveAvatar(dispatchAvatarConnectionDegraded);
+
+  // Mount-once cleanup: tear down realtime mic capture and avatar session on
+  // unmount. We access the refs directly (not the functions) so that the
+  // exhaustive-deps rule does not fire — refs are stable across renders and
+  // their identity is guaranteed by React.
   useEffect(() => {
     let mounted = true;
     const hydrationVersion = progressVersionRef.current;
@@ -172,12 +158,36 @@ export default function LessonClient() {
       }
     });
 
+    // Capture stable ref objects for the cleanup closure. The ref objects
+    // themselves are stable (same identity across renders); only .current
+    // changes. Capturing the ref object (not .current) is the correct pattern.
+    const capturedConnectionRef = connectionRef;
+    const capturedAvatarRef = liveAvatarRef;
+    const capturedVideoRef = liveAvatarVideoRef;
+
     return () => {
       mounted = false;
-      closeRealtimeConnection(connectionRef.current);
-      void stopLiveAvatarSession({ resetState: false });
+      // Inline teardown via stable refs — no function deps needed.
+      const conn = capturedConnectionRef.current;
+      capturedConnectionRef.current = null;
+      if (conn) {
+        conn.stream?.getTracks().forEach((track) => {
+          try { track.stop(); } catch { /* noop */ }
+        });
+        try { conn.dataChannel?.close(); } catch { /* noop */ }
+        try { conn.peerConnection?.close(); } catch { /* noop */ }
+        try { conn.audioElement?.pause?.(); } catch { /* noop */ }
+        try { if (conn.audioElement) conn.audioElement.srcObject = null; } catch { /* noop */ }
+      }
+      const session = capturedAvatarRef.current;
+      capturedAvatarRef.current = null;
+      const video = capturedVideoRef.current;
+      if (video) {
+        video.srcObject = null;
+      }
+      void session?.stop().catch(() => undefined);
     };
-  }, []);
+  }, [connectionRef, liveAvatarRef, liveAvatarVideoRef]);
 
   const hasCompletionEvidence =
     learnerTurns >= REQUIRED_LEARNER_TURNS &&
@@ -190,7 +200,7 @@ export default function LessonClient() {
   const practiceControlsDisabled = !lesson || lessonEnded;
 
   async function startLesson() {
-    replaceRealtimeConnection(null);
+    replaceConnection(null);
     await stopLiveAvatarSession({ resetState: false });
     let lessonStarted = false;
 
@@ -234,13 +244,18 @@ export default function LessonClient() {
         lessonResponse.lessonAccessToken,
       );
 
-      const realtimeResponse = await postJson<{ realtime: RealtimeSession }>(
-        "/api/realtime/session",
-        {
-          lessonId: lessonResponse.lesson.id,
-          lessonAccessToken: lessonResponse.lessonAccessToken,
-        },
-      );
+      const realtimeResponse = await postJson<{
+        realtime: {
+          clientSecret: string;
+          model: string;
+          expiresAt: string;
+          lessonId: string;
+          connectUrl: string;
+        };
+      }>("/api/realtime/session", {
+        lessonId: lessonResponse.lesson.id,
+        lessonAccessToken: lessonResponse.lessonAccessToken,
+      });
 
       setRealtime({
         model: realtimeResponse.realtime.model,
@@ -255,7 +270,7 @@ export default function LessonClient() {
         },
       );
 
-      replaceRealtimeConnection(connection);
+      replaceConnection(connection);
       setConnectionStatus("connected");
       setStatus("active");
     } catch (startError) {
@@ -268,72 +283,6 @@ export default function LessonClient() {
           : "No pudimos preparar el audio de forma segura.",
       );
     }
-  }
-
-  async function startLiveAvatarSession(
-    nextAvatar: AvatarStatus,
-    lessonId: string,
-    lessonAccessToken: string,
-  ) {
-    if (
-      nextAvatar.mode !== "live" ||
-      !nextAvatar.available ||
-      !nextAvatar.avatarId
-    ) {
-      return;
-    }
-
-    await stopLiveAvatarSession({ resetState: false });
-    setLiveAvatarStatus("starting");
-
-    try {
-      const response = await postJson<{ liveAvatar: AvatarLiveSession }>(
-        "/api/avatar/live-session",
-        { lessonId, lessonAccessToken },
-      );
-      const { LiveAvatarSession, SessionEvent } =
-        await import("@heygen/liveavatar-web-sdk");
-      const session = new LiveAvatarSession(response.liveAvatar.sessionToken, {
-        voiceChat: false,
-      });
-
-      liveAvatarRef.current = session;
-      session.on(SessionEvent.SESSION_STREAM_READY, () => {
-        if (liveAvatarRef.current !== session) return;
-
-        if (liveAvatarVideoRef.current) {
-          muteLiveAvatarVideo(liveAvatarVideoRef.current);
-          session.attach(liveAvatarVideoRef.current);
-          muteLiveAvatarVideo(liveAvatarVideoRef.current);
-        }
-        setLiveAvatarStatus("ready");
-      });
-      session.on(SessionEvent.SESSION_DISCONNECTED, () => {
-        if (liveAvatarRef.current !== session) return;
-        setLiveAvatarStatus("unavailable");
-        dispatchAvatarConnectionDegraded();
-      });
-
-      await session.start();
-    } catch {
-      liveAvatarRef.current = null;
-      setLiveAvatarStatus("unavailable");
-      dispatchAvatarConnectionDegraded();
-    }
-  }
-
-  async function stopLiveAvatarSession(
-    options: { resetState?: boolean } = { resetState: true },
-  ) {
-    const session = liveAvatarRef.current;
-    liveAvatarRef.current = null;
-
-    if (liveAvatarVideoRef.current) {
-      liveAvatarVideoRef.current.srcObject = null;
-    }
-
-    if (options.resetState) setLiveAvatarStatus("idle");
-    await session?.stop().catch(() => undefined);
   }
 
   async function recordRealtimeEvidence(lessonId: string, payload: string) {
@@ -436,7 +385,7 @@ export default function LessonClient() {
       setError("No pudimos verificar la práctica. No se otorgó XP sin ganar.");
       setStatus("failed");
     } finally {
-      replaceRealtimeConnection(null);
+      replaceConnection(null);
       void stopLiveAvatarSession();
       setConnectionStatus("ended");
     }
@@ -470,13 +419,6 @@ export default function LessonClient() {
     return "active";
   }
 
-  function replaceRealtimeConnection(
-    nextConnection: RealtimeConnection | null,
-  ) {
-    closeRealtimeConnection(connectionRef.current);
-    connectionRef.current = nextConnection;
-  }
-
   function replaceAvatarRuntime(nextRuntime: AvatarRuntimeState | null) {
     avatarRuntimeRef.current = nextRuntime;
     setAvatarRuntime(nextRuntime);
@@ -494,11 +436,6 @@ export default function LessonClient() {
     if (!runtime) return;
 
     replaceAvatarRuntime(reduceLessonAvatarConnectionDegraded(runtime));
-  }
-
-  function rememberLiveAvatarVideo(video: HTMLVideoElement | null) {
-    liveAvatarVideoRef.current = video;
-    if (video) muteLiveAvatarVideo(video);
   }
 
   const lessonStatusLabel = formatLessonStatus(status);
@@ -964,142 +901,6 @@ async function fetchWithTimeout(
     throw error;
   } finally {
     window.clearTimeout(timeoutId);
-  }
-}
-
-async function connectRealtime(
-  realtime: RealtimeSession,
-  lessonPlan: RaioSpeakingLesson,
-  onRealtimeEvent: (payload: string) => void,
-): Promise<RealtimeConnection> {
-  if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error("Microphone APIs are unavailable in this browser.");
-  }
-
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  const cleanupTarget: Partial<RealtimeConnection> = { stream };
-
-  try {
-    const peerConnection = new RTCPeerConnection();
-    cleanupTarget.peerConnection = peerConnection;
-
-    const dataChannel = peerConnection.createDataChannel("oai-events");
-    cleanupTarget.dataChannel = dataChannel;
-    dataChannel.onopen = () => {
-      sendRealtimeTutorResponse(
-        dataChannel,
-        buildRaioRealtimeOpeningInstructions(lessonPlan),
-      );
-    };
-
-    const audioElement = new Audio();
-    audioElement.autoplay = true;
-    cleanupTarget.audioElement = audioElement;
-
-    stream
-      .getTracks()
-      .forEach((track) => peerConnection.addTrack(track, stream));
-
-    peerConnection.ontrack = (event) => {
-      const [remoteStream] = event.streams;
-      audioElement.srcObject = remoteStream;
-      void audioElement.play?.().catch(() => undefined);
-    };
-
-    dataChannel.onmessage = (event) => {
-      if (typeof event.data === "string") {
-        onRealtimeEvent(event.data);
-      }
-    };
-
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(
-      () => controller.abort(),
-      REALTIME_CONNECT_TIMEOUT_MS,
-    );
-
-    let response: Response;
-
-    try {
-      response = await fetch(realtime.connectUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${realtime.clientSecret}`,
-          "Content-Type": "application/sdp",
-        },
-        body: offer.sdp,
-        signal: controller.signal,
-      });
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        throw new Error(
-          "Realtime tardó demasiado en responder. Activamos modo voz seguro.",
-        );
-      }
-
-      throw error;
-    } finally {
-      window.clearTimeout(timeoutId);
-    }
-
-    if (!response.ok) {
-      throw new Error("Realtime connection failed safely. Retry the lesson.");
-    }
-
-    await peerConnection.setRemoteDescription({
-      type: "answer",
-      sdp: await response.text(),
-    });
-
-    return { peerConnection, dataChannel, stream, audioElement };
-  } catch (error) {
-    closeRealtimeResources(cleanupTarget);
-    throw error;
-  }
-}
-
-function sendRealtimeTutorResponse(
-  dataChannel: RTCDataChannel,
-  instructions: string,
-) {
-  if (dataChannel.readyState !== "open") return;
-
-  dataChannel.send(
-    JSON.stringify({
-      type: "response.create",
-      response: { instructions },
-    }),
-  );
-}
-
-function closeRealtimeConnection(connection: RealtimeConnection | null) {
-  closeRealtimeResources(connection);
-}
-
-function closeRealtimeResources(
-  connection: Partial<RealtimeConnection> | null,
-) {
-  if (!connection) return;
-
-  connection.stream
-    ?.getTracks()
-    .forEach((track) => runSafely(() => track.stop()));
-  runSafely(() => connection.dataChannel?.close());
-  runSafely(() => connection.peerConnection?.close());
-  runSafely(() => connection.audioElement?.pause?.());
-  runSafely(() => {
-    if (connection.audioElement) connection.audioElement.srcObject = null;
-  });
-}
-
-function runSafely(action: () => void) {
-  try {
-    action();
-  } catch {
-    // Cleanup should never block retrying or leaving the lesson safely.
   }
 }
 
