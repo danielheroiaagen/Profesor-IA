@@ -14,12 +14,14 @@ type SessionResolver interface {
 
 type Handler struct {
 	starter           Starter
+	completer         Completer
 	sessions          SessionResolver
 	sessionCookieName string
 }
 
-func NewHandler(starter Starter, sessions SessionResolver, sessionCookieName string) Handler {
-	return Handler{starter: starter, sessions: sessions, sessionCookieName: sessionCookieName}
+func NewHandler(attempts Starter, sessions SessionResolver, sessionCookieName string) Handler {
+	completer, _ := attempts.(Completer)
+	return Handler{starter: attempts, completer: completer, sessions: sessions, sessionCookieName: sessionCookieName}
 }
 
 type startRequest struct {
@@ -28,6 +30,12 @@ type startRequest struct {
 	LessonPlanID        string `json:"lessonPlanId,omitempty"`
 	LegacyLessonID      string `json:"legacyLessonId,omitempty"`
 	RealtimeModel       string `json:"realtimeModel,omitempty"`
+}
+
+type completeRequest struct {
+	UserID              string `json:"userId,omitempty"`
+	AnonymousProgressID string `json:"anonymousProgressId,omitempty"`
+	AttemptID           string `json:"attemptId"`
 }
 
 type startResponse struct {
@@ -86,6 +94,52 @@ func (h Handler) Start(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusCreated, startResponse{AttemptID: attempt.ID, Status: attempt.Status})
+}
+
+func (h Handler) Complete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, errorResponse{Error: "method_not_allowed"})
+		return
+	}
+	if h.completer == nil {
+		writeJSON(w, http.StatusServiceUnavailable, errorResponse{Error: "lesson_attempts_unavailable"})
+		return
+	}
+
+	var request completeRequest
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, errorResponse{Error: "invalid_request"})
+		return
+	}
+
+	identity, err := h.identity(r, startRequest{UserID: request.UserID, AnonymousProgressID: request.AnonymousProgressID})
+	if err != nil {
+		status, code := http.StatusUnauthorized, "invalid_session"
+		if errors.Is(err, ErrInvalidIdentity) {
+			status, code = http.StatusBadRequest, "invalid_attempt_identity"
+		}
+		writeJSON(w, status, errorResponse{Error: code})
+		return
+	}
+
+	attempt, err := h.completer.CompleteAttempt(r.Context(), CompleteRecord{Identity: identity, AttemptID: request.AttemptID})
+	if err != nil {
+		status, code := http.StatusInternalServerError, "lesson_attempt_complete_failed"
+		switch {
+		case errors.Is(err, ErrInvalidIdentity):
+			status, code = http.StatusBadRequest, "invalid_attempt_identity"
+		case errors.Is(err, ErrMissingAttemptID):
+			status, code = http.StatusBadRequest, "invalid_attempt"
+		case errors.Is(err, ErrAttemptNotFound):
+			status, code = http.StatusNotFound, "attempt_not_found"
+		}
+		writeJSON(w, status, errorResponse{Error: code})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, startResponse{AttemptID: attempt.ID, Status: attempt.Status})
 }
 
 func (h Handler) identity(r *http.Request, request startRequest) (Identity, error) {

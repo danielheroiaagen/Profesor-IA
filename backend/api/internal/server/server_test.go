@@ -105,6 +105,27 @@ func TestStartLessonAttemptRouteCreatesAttempt(t *testing.T) {
 	}
 }
 
+func TestCompleteLessonAttemptRouteCompletesAttempt(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeAttemptStore{completeAttempt: attempts.Attempt{ID: "attempt-1", Status: "completed"}}
+	handler := NewHandler(Config{AttemptStarter: store})
+	request := httptest.NewRequest(http.MethodPost, "/v1/lesson-attempts/complete", strings.NewReader(`{"attemptId":"attempt-1","anonymousProgressId":"anonymous-1"}`))
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d body=%s", http.StatusOK, response.Code, response.Body.String())
+	}
+	if store.completeRecord.Identity.AnonymousProgressID != "anonymous-1" || store.completeRecord.AttemptID != "attempt-1" {
+		t.Fatalf("unexpected attempt record: %+v", store.completeRecord)
+	}
+	if body := response.Body.String(); !strings.Contains(body, `"attemptId":"attempt-1"`) || !strings.Contains(body, `"status":"completed"`) {
+		t.Fatalf("expected attempt response, got %s", body)
+	}
+}
+
 func TestHealthzReturnsServiceStatus(t *testing.T) {
 	t.Parallel()
 
@@ -286,6 +307,17 @@ type fakeAttemptStarter struct {
 func (s *fakeAttemptStarter) StartAttempt(_ context.Context, record attempts.StartRecord) (attempts.Attempt, error) {
 	s.record = record
 	return s.attempt, nil
+}
+
+type fakeAttemptStore struct {
+	fakeAttemptStarter
+	completeRecord  attempts.CompleteRecord
+	completeAttempt attempts.Attempt
+}
+
+func (s *fakeAttemptStore) CompleteAttempt(_ context.Context, record attempts.CompleteRecord) (attempts.Attempt, error) {
+	s.completeRecord = record
+	return s.completeAttempt, nil
 }
 
 func mustPasswordHash(t *testing.T) string {
