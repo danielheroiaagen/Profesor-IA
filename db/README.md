@@ -14,11 +14,15 @@ Suggested local flow:
 createdb profesor_ia_dev
 export POSTGRES_URL="postgres://USER:PASSWORD@localhost:5432/profesor_ia_dev?sslmode=disable"
 psql "$POSTGRES_URL" -f db/migrations/0001_learning_core.up.sql
+psql "$POSTGRES_URL" -f db/migrations/0002_auth_credentials.up.sql
+psql "$POSTGRES_URL" -f db/migrations/0003_raio_curriculum_seed.up.sql
 ```
 
 Rollback for local development:
 
 ```bash
+psql "$POSTGRES_URL" -f db/migrations/0003_raio_curriculum_seed.down.sql
+psql "$POSTGRES_URL" -f db/migrations/0002_auth_credentials.down.sql
 psql "$POSTGRES_URL" -f db/migrations/0001_learning_core.down.sql
 ```
 
@@ -41,3 +45,5 @@ The first migration prepares tables for:
 - idempotent XP progress awards.
 
 XP awards are intentionally tied to a unique lesson attempt so the backend can preserve the current rule: no duplicate XP for the same completed attempt.
+
+The RAIO seed migration inserts the first A1 speaking drill from the `Currículo Integral RAIO de Inglés` notebook so `GET /v1/curriculum/next?level=A1` can return real lesson content once PostgreSQL is configured.

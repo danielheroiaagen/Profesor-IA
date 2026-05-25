@@ -68,12 +68,18 @@ func (r *PostgresAwardRepository) RecordAward(ctx context.Context, record AwardR
 		return false, err
 	}
 
+	query := insertUserProgressAwardSQL
+	identityArg := identity.UserID
+	if identity.UserID == "" {
+		query = insertAnonymousProgressAwardSQL
+		identityArg = identity.AnonymousProgressID
+	}
+
 	commandTag, err := r.store.Exec(
 		ctx,
-		insertProgressAwardSQL,
-		nullableString(identity.UserID),
-		nullableString(identity.AnonymousProgressID),
+		query,
 		attemptID,
+		identityArg,
 		record.Decision.XP,
 		record.Decision.Reason,
 	)
@@ -119,15 +125,7 @@ func normalizeAwardIdentity(identity AwardIdentity) (AwardIdentity, error) {
 	}, nil
 }
 
-func nullableString(value string) any {
-	if value == "" {
-		return nil
-	}
-
-	return value
-}
-
-const insertProgressAwardSQL = `
+const insertUserProgressAwardSQL = `
 INSERT INTO progress_awards (
   user_id,
   anonymous_progress_id,
@@ -135,7 +133,49 @@ INSERT INTO progress_awards (
   xp,
   reason
 )
-VALUES ($1, $2, $3, $4, $5)
+SELECT user_id, NULL, id, $3, $4
+FROM lesson_attempts
+WHERE
+  id = $1
+  AND user_id = $2
+  AND status = 'completed'
+  AND EXISTS (
+    SELECT 1
+    FROM lesson_events
+    WHERE attempt_id = lesson_attempts.id AND event_type = 'learner_turn'
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM feedback_events
+    WHERE attempt_id = lesson_attempts.id
+  )
+ON CONFLICT (attempt_id) DO NOTHING
+`
+
+const insertAnonymousProgressAwardSQL = `
+INSERT INTO progress_awards (
+  user_id,
+  anonymous_progress_id,
+  attempt_id,
+  xp,
+  reason
+)
+SELECT NULL, anonymous_progress_id, id, $3, $4
+FROM lesson_attempts
+WHERE
+  id = $1
+  AND anonymous_progress_id = $2
+  AND status = 'completed'
+  AND EXISTS (
+    SELECT 1
+    FROM lesson_events
+    WHERE attempt_id = lesson_attempts.id AND event_type = 'learner_turn'
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM feedback_events
+    WHERE attempt_id = lesson_attempts.id
+  )
 ON CONFLICT (attempt_id) DO NOTHING
 `
 

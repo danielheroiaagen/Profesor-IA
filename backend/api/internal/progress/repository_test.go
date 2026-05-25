@@ -3,6 +3,7 @@ package progress
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -30,14 +31,13 @@ func TestPostgresAwardRepositoryRecordsUserAward(t *testing.T) {
 	if !store.called {
 		t.Fatal("expected store exec")
 	}
-	if store.query != insertProgressAwardSQL {
-		t.Fatal("expected progress award insert SQL")
+	if store.query != insertUserProgressAwardSQL {
+		t.Fatal("expected owner-safe user progress award insert SQL")
 	}
-	assertArg(t, store.args[0], "user-1")
-	assertArg(t, store.args[1], nil)
-	assertArg(t, store.args[2], "attempt-1")
-	assertArg(t, store.args[3], LessonCompletionXP)
-	assertArg(t, store.args[4], "lesson_completed")
+	assertArg(t, store.args[0], "attempt-1")
+	assertArg(t, store.args[1], "user-1")
+	assertArg(t, store.args[2], LessonCompletionXP)
+	assertArg(t, store.args[3], "lesson_completed")
 }
 
 func TestPostgresAwardRepositoryRecordsAnonymousAward(t *testing.T) {
@@ -58,7 +58,10 @@ func TestPostgresAwardRepositoryRecordsAnonymousAward(t *testing.T) {
 	if !inserted {
 		t.Fatal("expected award insert")
 	}
-	assertArg(t, store.args[0], nil)
+	if store.query != insertAnonymousProgressAwardSQL {
+		t.Fatal("expected owner-safe anonymous progress award insert SQL")
+	}
+	assertArg(t, store.args[0], "attempt-1")
 	assertArg(t, store.args[1], "anonymous-1")
 }
 
@@ -79,6 +82,24 @@ func TestPostgresAwardRepositoryTreatsDuplicateAttemptAsNoop(t *testing.T) {
 	}
 	if inserted {
 		t.Fatal("expected duplicate award noop")
+	}
+}
+
+func TestPostgresAwardRepositoryRequiresDurableCompletionEvidence(t *testing.T) {
+	t.Parallel()
+
+	for name, query := range map[string]string{
+		"user award":      insertUserProgressAwardSQL,
+		"anonymous award": insertAnonymousProgressAwardSQL,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			for _, snippet := range []string{"status = 'completed'", "lesson_events", "event_type = 'learner_turn'", "feedback_events"} {
+				if !strings.Contains(query, snippet) {
+					t.Fatalf("expected progress award SQL to require %q, got %s", snippet, query)
+				}
+			}
+		})
 	}
 }
 
