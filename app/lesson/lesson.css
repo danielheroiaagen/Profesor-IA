@@ -1,994 +1,1207 @@
-  body {
-    margin: 0;
-    background: #070d1f;
+body {
+  margin: 0;
+  background: #070d1f;
+}
+
+.classroomShell,
+.classroomShell * {
+  box-sizing: border-box;
+}
+
+.classroomShell {
+  min-height: 100vh;
+  color: #dfe4fe;
+  background:
+    radial-gradient(
+      circle at 14% 10%,
+      rgba(58, 223, 250, 0.16),
+      transparent 28rem
+    ),
+    radial-gradient(
+      circle at 86% 18%,
+      rgba(172, 138, 255, 0.18),
+      transparent 32rem
+    ),
+    linear-gradient(180deg, #070d1f 0%, #080f21 52%, #050916 100%);
+  font-family: var(--font-body), Inter, ui-sans-serif, system-ui, sans-serif;
+  padding-bottom: 2rem;
+}
+
+.classroomTopbar,
+.classroomHero,
+.feedbackGrid {
+  width: min(1600px, calc(100% - 3rem));
+  margin-inline: auto;
+}
+
+.classroomTopbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  min-height: 4.5rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid rgba(65, 71, 91, 0.45);
+  background: rgba(7, 13, 31, 0.84);
+  box-shadow: 0 18px 60px rgba(58, 223, 250, 0.06);
+  backdrop-filter: blur(24px);
+}
+
+.brandMark,
+.eyebrow,
+.liveBadge,
+.streakPill,
+.xpPill,
+.stateChip,
+.targetIntro {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.brandMark {
+  margin: 0;
+  color: #3adffa;
+  font-family: var(--font-display), "Space Grotesk", sans-serif;
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  text-transform: none;
+}
+
+.classroomNav {
+  color: #a5aac2;
+  font-family: var(--font-display), "Space Grotesk", sans-serif;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.classroomNav ul {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.25rem, 1.5vw, 1.45rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.classroomNav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0 0.85rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  color: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.classroomNav a:hover,
+.classroomNav a:focus-visible {
+  border-color: rgba(58, 223, 250, 0.28);
+  background: rgba(58, 223, 250, 0.08);
+  color: #3adffa;
+  outline: none;
+}
+
+/* Active tab: brand underline + tinted background, clearly distinct */
+.classroomNav a[aria-current="page"] {
+  position: relative;
+  border-color: rgba(58, 223, 250, 0.35);
+  background: rgba(58, 223, 250, 0.12);
+  color: #3adffa;
+  font-weight: 800;
+  outline: none;
+}
+
+.classroomNav a[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 0.6rem;
+  right: 0.6rem;
+  bottom: 0.3rem;
+  height: 2px;
+  border-radius: 999px;
+  background: #3adffa;
+  box-shadow: 0 0 8px rgba(58, 223, 250, 0.7);
+}
+
+.classroomNav a:focus-visible {
+  outline: 2px solid #3adffa;
+  outline-offset: 2px;
+}
+
+.topbarActions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.xpPill,
+.streakPill,
+.liveBadge,
+.stateChip {
+  border: 1px solid rgba(65, 71, 91, 0.7);
+  border-radius: 999px;
+  background: rgba(17, 25, 46, 0.7);
+  color: #dff7ff;
+}
+
+.xpPill,
+.streakPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0 0.8rem;
+  height: 2.5rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.profileOrb {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 2px solid rgba(58, 223, 250, 0.24);
+  border-radius: 999px;
+  background:
+    radial-gradient(
+      circle at 50% 35%,
+      rgba(58, 223, 250, 0.95),
+      transparent 0.5rem
+    ),
+    linear-gradient(135deg, #003d46, #5516be);
+  color: #dff7ff;
+  font-size: 0.7rem;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+.classroomHero {
+  display: grid;
+  grid-template-columns: minmax(0, 8fr) minmax(330px, 4fr);
+  gap: 1.5rem;
+  align-items: start;
+  padding-top: 1.5rem;
+}
+
+.lessonStageColumn,
+.lessonHud,
+.feedbackGrid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.avatarStage,
+.progressCard,
+.statusCard,
+.controlDock,
+.feedbackCard,
+.rewardCard,
+.tipCard,
+.alertCard {
+  border: 1px solid rgba(65, 71, 91, 0.58);
+  border-radius: 1.5rem;
+  background: rgba(17, 25, 46, 0.78);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(20px);
+}
+
+.avatarStage {
+  position: relative;
+  overflow: hidden;
+  scroll-margin-top: 6rem;
+  min-height: clamp(520px, 67vh, 720px);
+  padding: 0;
+  background:
+    linear-gradient(180deg, rgba(12, 19, 38, 0.8), rgba(0, 0, 0, 0.94)), #0c1326;
+}
+
+/* Compact avatar: restrained height so CTA stays above fold */
+.avatarStage--compact {
+  min-height: clamp(220px, 30vh, 340px);
+}
+
+.avatarPortrait--compact {
+  min-height: clamp(220px, 30vh, 340px);
+}
+
+.avatarStage--listening {
+  border-color: rgba(58, 223, 250, 0.42);
+}
+.avatarStage--speaking,
+.avatarStage--correcting {
+  border-color: rgba(172, 138, 255, 0.55);
+}
+.avatarStage--fallback {
+  border-color: rgba(255, 193, 95, 0.48);
+}
+.avatarStage--completed {
+  border-color: rgba(155, 255, 206, 0.55);
+}
+
+.stageMeta,
+.cardTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.stageMeta {
+  position: absolute;
+  inset: 1.5rem 1.5rem auto;
+  z-index: 5;
+}
+
+.liveBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.82rem;
+  color: #dfe4fe;
+  background: rgba(7, 13, 31, 0.62);
+  backdrop-filter: blur(14px);
+}
+
+.liveBadge span {
+  width: 0.45rem;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: #3adffa;
+  box-shadow: 0 0 18px rgba(58, 223, 250, 0.95);
+}
+
+.stageMeta > span:last-child {
+  color: #6f758b;
+  font-size: 0.7rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.identityCode,
+.statusCard code {
+  color: #e0f2fe;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    monospace;
+  font-size: 0.78em;
+}
+
+.stageTitle {
+  position: absolute;
+  left: 1.5rem;
+  bottom: 5.2rem;
+  z-index: 5;
+  max-width: 32rem;
+  margin: 0;
+  color: #f8fafc;
+  font-size: clamp(1.6rem, 3vw, 2.7rem);
+  line-height: 1.05;
+  font-family: var(--font-display), "Space Grotesk", sans-serif;
+  letter-spacing: -0.04em;
+  text-shadow: 0 10px 40px rgba(0, 0, 0, 0.65);
+}
+
+.avatarPortrait {
+  position: relative;
+  min-height: inherit;
+  height: 100%;
+  overflow: hidden;
+}
+
+.avatarPoster,
+.avatarVideo,
+.avatarShade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.avatarPoster {
+  background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDdzHwAwTAvUVLRwMGfxmkra0pwSCyt_9MBzo5amWwIOuiJT0YWdMgIfb-dxqXs4qCM4XJbck5TKVEd1jb4fTgALsRsy1fguXSxALC0Z_hr3me3Tvr42VYUF7f9e09fiQagGE6Qjrigk60gkak4EYTVcFN5bm6sgX55vfZD3-6dDKWbpTNDPPDxEN4cJFgwl8BDNDZgUEN1SH-uP_TWcxWiAACNltXBJF036PQzam6cpb75NIg-I2eH0ttoYWNUkRUix26Iy55uN-0g");
+  background-position: center;
+  background-size: cover;
+  opacity: 0.86;
+  transform: scale(1.02);
+}
+
+.avatarShade {
+  z-index: 1;
+  background:
+    radial-gradient(
+      circle at 50% 50%,
+      transparent 0 16rem,
+      rgba(7, 13, 31, 0.42) 27rem
+    ),
+    linear-gradient(
+      180deg,
+      rgba(7, 13, 31, 0.02) 0%,
+      rgba(7, 13, 31, 0.16) 52%,
+      rgba(7, 13, 31, 0.95) 100%
+    );
+}
+
+.avatarAura {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 48%;
+  width: 7rem;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: rgba(58, 223, 250, 0.12);
+  border: 1px solid rgba(58, 223, 250, 0.32);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 42px rgba(58, 223, 250, 0.22);
+}
+
+.avatarVideo {
+  z-index: 3;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.avatarVideo--ready {
+  opacity: 1;
+}
+
+.avatarCenterBadge {
+  position: absolute;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  left: 50%;
+  top: 48%;
+  width: 5.6rem;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  background: rgba(58, 223, 250, 0.08);
+  border: 1px solid rgba(58, 223, 250, 0.38);
+  color: #3adffa;
+  font-weight: 900;
+  font-size: 2rem;
+  backdrop-filter: blur(12px);
+}
+
+.voiceMeter {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  top: calc(50% + 4.6rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 8.4rem;
+  min-height: 2.95rem;
+  padding: 0 1rem;
+  transform: translate(-50%, -50%);
+  gap: 0.32rem;
+  border: 1px solid rgba(58, 223, 250, 0.24);
+  border-radius: 999px;
+  background: rgba(7, 13, 31, 0.48);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(14px);
+}
+
+.voiceMeter span {
+  display: block;
+  width: 0.32rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #3adffa;
+  box-shadow: 0 0 22px rgba(58, 223, 250, 0.8);
+  animation: classroom-wave 1.2s ease-in-out infinite;
+}
+
+.voiceMeter span:nth-child(2),
+.voiceMeter span:nth-child(4) {
+  animation-delay: 120ms;
+}
+.voiceMeter span:nth-child(3) {
+  animation-delay: 240ms;
+}
+
+@keyframes classroom-wave {
+  0%,
+  100% {
+    height: 0.45rem;
+    opacity: 0.62;
   }
-
-  .classroomShell,
-  .classroomShell * {
-    box-sizing: border-box;
-  }
-
-  .classroomShell {
-    min-height: 100vh;
-    color: #dfe4fe;
-    background:
-      radial-gradient(circle at 14% 10%, rgba(58, 223, 250, 0.16), transparent 28rem),
-      radial-gradient(circle at 86% 18%, rgba(172, 138, 255, 0.18), transparent 32rem),
-      linear-gradient(180deg, #070d1f 0%, #080f21 52%, #050916 100%);
-    font-family: var(--font-body), Inter, ui-sans-serif, system-ui, sans-serif;
-    padding-bottom: 2rem;
-  }
-
-  .classroomTopbar,
-  .classroomHero,
-  .feedbackGrid {
-    width: min(1600px, calc(100% - 3rem));
-    margin-inline: auto;
-  }
-
-  .classroomTopbar {
-    position: sticky;
-    top: 0;
-    z-index: 20;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1.5rem;
-    min-height: 4.5rem;
-    padding: 1rem 1.5rem;
-    border-bottom: 1px solid rgba(65, 71, 91, 0.45);
-    background: rgba(7, 13, 31, 0.84);
-    box-shadow: 0 18px 60px rgba(58, 223, 250, 0.06);
-    backdrop-filter: blur(24px);
-  }
-
-  .brandMark,
-  .eyebrow,
-  .liveBadge,
-  .streakPill,
-  .xpPill,
-  .stateChip,
-  .targetIntro {
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  .brandMark {
-    margin: 0;
-    color: #3adffa;
-    font-family: var(--font-display), "Space Grotesk", sans-serif;
-    font-size: 1.3rem;
-    font-weight: 800;
-    letter-spacing: -0.03em;
-    text-transform: none;
-  }
-
-  .classroomNav {
-    color: #a5aac2;
-    font-family: var(--font-display), "Space Grotesk", sans-serif;
-    font-size: 0.86rem;
-    font-weight: 700;
-  }
-
-  .classroomNav ul {
-    display: flex;
-    align-items: center;
-    gap: clamp(0.25rem, 1.5vw, 1.45rem);
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .classroomNav a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 2.5rem;
-    padding: 0 0.85rem;
-    border: 1px solid transparent;
-    border-radius: 999px;
-    color: inherit;
-    text-decoration: none;
-    white-space: nowrap;
-    transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
-  }
-
-  .classroomNav a:hover,
-  .classroomNav a:focus-visible {
-    border-color: rgba(58, 223, 250, 0.28);
-    background: rgba(58, 223, 250, 0.08);
-    color: #3adffa;
-    outline: none;
-  }
-
-  /* Active tab: brand underline + tinted background, clearly distinct */
-  .classroomNav a[aria-current="page"] {
-    position: relative;
-    border-color: rgba(58, 223, 250, 0.35);
-    background: rgba(58, 223, 250, 0.12);
-    color: #3adffa;
-    font-weight: 800;
-    outline: none;
-  }
-
-  .classroomNav a[aria-current="page"]::after {
-    content: "";
-    position: absolute;
-    left: 0.6rem;
-    right: 0.6rem;
-    bottom: 0.3rem;
-    height: 2px;
-    border-radius: 999px;
-    background: #3adffa;
-    box-shadow: 0 0 8px rgba(58, 223, 250, 0.7);
-  }
-
-  .classroomNav a:focus-visible {
-    outline: 2px solid #3adffa;
-    outline-offset: 2px;
-  }
-
-  .topbarActions {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-  }
-
-  .xpPill,
-  .streakPill,
-  .liveBadge,
-  .stateChip {
-    border: 1px solid rgba(65, 71, 91, 0.7);
-    border-radius: 999px;
-    background: rgba(17, 25, 46, 0.7);
-    color: #dff7ff;
-  }
-
-  .xpPill,
-  .streakPill {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    margin: 0;
-    padding: 0 0.8rem;
-    height: 2.5rem;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    white-space: nowrap;
-  }
-
-  .profileOrb {
-    display: grid;
-    place-items: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    border: 2px solid rgba(58, 223, 250, 0.24);
-    border-radius: 999px;
-    background:
-      radial-gradient(circle at 50% 35%, rgba(58, 223, 250, 0.95), transparent 0.5rem),
-      linear-gradient(135deg, #003d46, #5516be);
-    color: #dff7ff;
-    font-size: 0.7rem;
-    font-weight: 900;
-    flex-shrink: 0;
-  }
-
-  .classroomHero {
-    display: grid;
-    grid-template-columns: minmax(0, 8fr) minmax(330px, 4fr);
-    gap: 1.5rem;
-    align-items: start;
-    padding-top: 1.5rem;
-  }
-
-  .lessonStageColumn,
-  .lessonHud,
-  .feedbackGrid {
-    display: grid;
-    gap: 1.25rem;
-  }
-
-  .avatarStage,
-  .progressCard,
-  .statusCard,
-  .controlDock,
-  .feedbackCard,
-  .rewardCard,
-  .tipCard,
-  .alertCard {
-    border: 1px solid rgba(65, 71, 91, 0.58);
-    border-radius: 1.5rem;
-    background: rgba(17, 25, 46, 0.78);
-    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(20px);
-  }
-
-  .avatarStage {
-    position: relative;
-    overflow: hidden;
-    scroll-margin-top: 6rem;
-    min-height: clamp(520px, 67vh, 720px);
-    padding: 0;
-    background:
-      linear-gradient(180deg, rgba(12, 19, 38, 0.8), rgba(0, 0, 0, 0.94)),
-      #0c1326;
-  }
-
-  /* Compact avatar: restrained height so CTA stays above fold */
-  .avatarStage--compact {
-    min-height: clamp(220px, 30vh, 340px);
-  }
-
-  .avatarPortrait--compact {
-    min-height: clamp(220px, 30vh, 340px);
-  }
-
-  .avatarStage--listening { border-color: rgba(58, 223, 250, 0.42); }
-  .avatarStage--speaking,
-  .avatarStage--correcting { border-color: rgba(172, 138, 255, 0.55); }
-  .avatarStage--fallback { border-color: rgba(255, 193, 95, 0.48); }
-  .avatarStage--completed { border-color: rgba(155, 255, 206, 0.55); }
-
-  .stageMeta,
-  .cardTitleRow {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-  }
-
-  .stageMeta {
-    position: absolute;
-    inset: 1.5rem 1.5rem auto;
-    z-index: 5;
-  }
-
-  .liveBadge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.55rem;
-    padding: 0.5rem 0.82rem;
-    color: #dfe4fe;
-    background: rgba(7, 13, 31, 0.62);
-    backdrop-filter: blur(14px);
-  }
-
-  .liveBadge span {
-    width: 0.45rem;
-    aspect-ratio: 1;
-    border-radius: 999px;
-    background: #3adffa;
-    box-shadow: 0 0 18px rgba(58, 223, 250, 0.95);
-  }
-
-  .stageMeta > span:last-child {
-    color: #6f758b;
-    font-size: 0.7rem;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  }
-
-  .identityCode,
-  .statusCard code {
-    color: #e0f2fe;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-    font-size: 0.78em;
-  }
-
-  .stageTitle {
-    position: absolute;
-    left: 1.5rem;
-    bottom: 5.2rem;
-    z-index: 5;
-    max-width: 32rem;
-    margin: 0;
-    color: #f8fafc;
-    font-size: clamp(1.6rem, 3vw, 2.7rem);
-    line-height: 1.05;
-    font-family: var(--font-display), "Space Grotesk", sans-serif;
-    letter-spacing: -0.04em;
-    text-shadow: 0 10px 40px rgba(0, 0, 0, 0.65);
-  }
-
-  .avatarPortrait {
-    position: relative;
-    min-height: inherit;
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .avatarPoster,
-  .avatarVideo,
-  .avatarShade {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-
-  .avatarPoster {
-    background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDdzHwAwTAvUVLRwMGfxmkra0pwSCyt_9MBzo5amWwIOuiJT0YWdMgIfb-dxqXs4qCM4XJbck5TKVEd1jb4fTgALsRsy1fguXSxALC0Z_hr3me3Tvr42VYUF7f9e09fiQagGE6Qjrigk60gkak4EYTVcFN5bm6sgX55vfZD3-6dDKWbpTNDPPDxEN4cJFgwl8BDNDZgUEN1SH-uP_TWcxWiAACNltXBJF036PQzam6cpb75NIg-I2eH0ttoYWNUkRUix26Iy55uN-0g");
-    background-position: center;
-    background-size: cover;
-    opacity: 0.86;
-    transform: scale(1.02);
-  }
-
-  .avatarShade {
-    z-index: 1;
-    background:
-      radial-gradient(circle at 50% 50%, transparent 0 16rem, rgba(7, 13, 31, 0.42) 27rem),
-      linear-gradient(180deg, rgba(7, 13, 31, 0.02) 0%, rgba(7, 13, 31, 0.16) 52%, rgba(7, 13, 31, 0.95) 100%);
-  }
-
-  .avatarAura {
-    position: absolute;
-    z-index: 2;
-    left: 50%;
-    top: 48%;
-    width: 7rem;
-    aspect-ratio: 1;
-    transform: translate(-50%, -50%);
-    border-radius: 999px;
-    background: rgba(58, 223, 250, 0.12);
-    border: 1px solid rgba(58, 223, 250, 0.32);
-    backdrop-filter: blur(8px);
-    box-shadow: 0 0 42px rgba(58, 223, 250, 0.22);
-  }
-
-  .avatarVideo {
-    z-index: 3;
-    object-fit: cover;
-    opacity: 0;
-    transition: opacity 220ms ease;
-  }
-
-  .avatarVideo--ready {
+  50% {
+    height: 2.15rem;
     opacity: 1;
   }
+}
 
-  .avatarCenterBadge {
-    position: absolute;
-    z-index: 4;
-    display: grid;
-    place-items: center;
-    left: 50%;
-    top: 48%;
-    width: 5.6rem;
-    aspect-ratio: 1;
-    transform: translate(-50%, -50%);
-    border-radius: 999px;
-    background: rgba(58, 223, 250, 0.08);
-    border: 1px solid rgba(58, 223, 250, 0.38);
-    color: #3adffa;
-    font-weight: 900;
-    font-size: 2rem;
-    backdrop-filter: blur(12px);
-  }
+.poweredBadge {
+  position: absolute;
+  right: 1.3rem;
+  bottom: 1.1rem;
+  z-index: 5;
+  padding: 0.38rem 0.55rem;
+  border: 1px solid rgba(65, 71, 91, 0.45);
+  border-radius: 0.65rem;
+  background: rgba(28, 37, 62, 0.54);
+  color: #a5aac2;
+  font-size: 0.68rem;
+  font-weight: 700;
+  backdrop-filter: blur(12px);
+}
 
-  .voiceMeter {
-    position: absolute;
-    z-index: 5;
-    left: 50%;
-    top: calc(50% + 4.6rem);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 8.4rem;
-    min-height: 2.95rem;
-    padding: 0 1rem;
-    transform: translate(-50%, -50%);
-    gap: 0.32rem;
-    border: 1px solid rgba(58, 223, 250, 0.24);
-    border-radius: 999px;
-    background: rgba(7, 13, 31, 0.48);
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
-    backdrop-filter: blur(14px);
-  }
+.stageDescription {
+  position: absolute;
+  left: 1.5rem;
+  right: 10rem;
+  bottom: 3.35rem;
+  z-index: 5;
+  margin: 0;
+  color: #dfe4fe;
+  font-weight: 700;
+}
 
-  .voiceMeter span {
-    display: block;
-    width: 0.32rem;
-    height: 0.5rem;
-    border-radius: 999px;
-    background: #3adffa;
-    box-shadow: 0 0 22px rgba(58, 223, 250, 0.8);
-    animation: classroom-wave 1.2s ease-in-out infinite;
-  }
+.stageIntegrityNote {
+  position: absolute;
+  left: 1.5rem;
+  right: 10rem;
+  bottom: 1.55rem;
+  z-index: 5;
+  margin: 0;
+  color: #a5aac2;
+  font-size: 0.82rem;
+}
 
-  .voiceMeter span:nth-child(2), .voiceMeter span:nth-child(4) { animation-delay: 120ms; }
-  .voiceMeter span:nth-child(3) { animation-delay: 240ms; }
+/* Old 8-chip row hidden from view but kept in DOM for structural parity */
+.stateChipRow--hidden {
+  display: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
 
-  @keyframes classroom-wave {
-    0%, 100% { height: 0.45rem; opacity: 0.62; }
-    50% { height: 2.15rem; opacity: 1; }
-  }
+/* Legacy chip styles — kept so active/inactive logic still works if row is ever shown */
+.stateChipRow {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+}
 
-  .poweredBadge {
-    position: absolute;
-    right: 1.3rem;
-    bottom: 1.1rem;
-    z-index: 5;
-    padding: 0.38rem 0.55rem;
-    border: 1px solid rgba(65, 71, 91, 0.45);
-    border-radius: 0.65rem;
-    background: rgba(28, 37, 62, 0.54);
-    color: #a5aac2;
-    font-size: 0.68rem;
-    font-weight: 700;
-    backdrop-filter: blur(12px);
-  }
+.stateChip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 3.35rem;
+  padding: 0.7rem 0.78rem;
+  color: #a5aac2;
+  background: rgba(17, 25, 46, 0.88);
+  border-radius: 1rem;
+}
 
-  .stageDescription {
-    position: absolute;
-    left: 1.5rem;
-    right: 10rem;
-    bottom: 3.35rem;
-    z-index: 5;
-    margin: 0;
-    color: #dfe4fe;
-    font-weight: 700;
-  }
+.stateChip.active {
+  color: #003d46;
+  background: #00cbe6;
+  border-color: rgba(58, 223, 250, 0.9);
+  box-shadow: 0 0 30px rgba(58, 223, 250, 0.18);
+}
 
-  .stageIntegrityNote {
-    position: absolute;
-    left: 1.5rem;
-    right: 10rem;
-    bottom: 1.55rem;
-    z-index: 5;
-    margin: 0;
-    color: #a5aac2;
-    font-size: 0.82rem;
-  }
+/* ── Single tutor status bar ── */
+.tutorStatusBar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 1rem;
+  border: 1px solid rgba(65, 71, 91, 0.55);
+  border-radius: 999px;
+  background: rgba(17, 25, 46, 0.82);
+  backdrop-filter: blur(12px);
+  width: fit-content;
+  max-width: 100%;
+  transition:
+    border-color 220ms ease,
+    background 220ms ease;
+}
 
-  /* Old 8-chip row hidden from view but kept in DOM for structural parity */
-  .stateChipRow--hidden {
-    display: none;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
+.tutorStatusBar--idle,
+.tutorStatusBar--connecting {
+  border-color: rgba(65, 71, 91, 0.55);
+}
 
-  /* Legacy chip styles — kept so active/inactive logic still works if row is ever shown */
-  .stateChipRow {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 0.75rem;
-  }
+.tutorStatusBar--listening {
+  border-color: rgba(58, 223, 250, 0.55);
+  background: rgba(58, 223, 250, 0.06);
+}
 
-  .stateChip {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.45rem;
-    min-height: 3.35rem;
-    padding: 0.7rem 0.78rem;
-    color: #a5aac2;
-    background: rgba(17, 25, 46, 0.88);
-    border-radius: 1rem;
-  }
+.tutorStatusBar--speaking,
+.tutorStatusBar--correcting {
+  border-color: rgba(172, 138, 255, 0.55);
+  background: rgba(172, 138, 255, 0.06);
+}
 
-  .stateChip.active {
-    color: #003d46;
-    background: #00cbe6;
-    border-color: rgba(58, 223, 250, 0.9);
-    box-shadow: 0 0 30px rgba(58, 223, 250, 0.18);
-  }
+.tutorStatusBar--fallback {
+  border-color: rgba(255, 193, 95, 0.5);
+  background: rgba(255, 193, 95, 0.05);
+}
 
-  /* ── Single tutor status bar ── */
-  .tutorStatusBar {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    padding: 0.55rem 1rem;
-    border: 1px solid rgba(65, 71, 91, 0.55);
-    border-radius: 999px;
-    background: rgba(17, 25, 46, 0.82);
-    backdrop-filter: blur(12px);
-    width: fit-content;
-    max-width: 100%;
-    transition: border-color 220ms ease, background 220ms ease;
-  }
+.tutorStatusBar--completed {
+  border-color: rgba(155, 255, 206, 0.55);
+  background: rgba(155, 255, 206, 0.06);
+}
 
-  .tutorStatusBar--idle,
-  .tutorStatusBar--connecting {
-    border-color: rgba(65, 71, 91, 0.55);
-  }
+.tutorStatusDot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: #a5aac2;
+}
 
-  .tutorStatusBar--listening {
-    border-color: rgba(58, 223, 250, 0.55);
-    background: rgba(58, 223, 250, 0.06);
-  }
+.tutorStatusBar--idle .tutorStatusDot {
+  background: #a5aac2;
+}
+.tutorStatusBar--connecting .tutorStatusDot {
+  background: var(--warning);
+  box-shadow: 0 0 8px rgba(247, 192, 101, 0.7);
+}
+.tutorStatusBar--listening .tutorStatusDot {
+  background: #3adffa;
+  box-shadow: 0 0 10px rgba(58, 223, 250, 0.85);
+}
+.tutorStatusBar--speaking .tutorStatusDot,
+.tutorStatusBar--correcting .tutorStatusDot {
+  background: #ac8aff;
+  box-shadow: 0 0 10px rgba(172, 138, 255, 0.8);
+}
+.tutorStatusBar--fallback .tutorStatusDot {
+  background: var(--warning);
+  box-shadow: 0 0 8px rgba(247, 192, 101, 0.6);
+}
+.tutorStatusBar--completed .tutorStatusDot {
+  background: #9bffce;
+  box-shadow: 0 0 10px rgba(155, 255, 206, 0.8);
+}
 
-  .tutorStatusBar--speaking,
-  .tutorStatusBar--correcting {
-    border-color: rgba(172, 138, 255, 0.55);
-    background: rgba(172, 138, 255, 0.06);
-  }
+.tutorStatusIcon {
+  font-size: 0.85rem;
+  color: #dfe4fe;
+  flex-shrink: 0;
+}
 
-  .tutorStatusBar--fallback {
-    border-color: rgba(255, 193, 95, 0.5);
-    background: rgba(255, 193, 95, 0.05);
-  }
+.tutorStatusLabel {
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #dfe4fe;
+  white-space: nowrap;
+}
 
-  .tutorStatusBar--completed {
-    border-color: rgba(155, 255, 206, 0.55);
-    background: rgba(155, 255, 206, 0.06);
-  }
+.tutorStatusDesc {
+  font-size: 0.75rem;
+  color: #a5aac2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
-  .tutorStatusDot {
-    width: 0.45rem;
-    height: 0.45rem;
-    border-radius: 999px;
-    flex-shrink: 0;
-    background: #a5aac2;
-  }
+/* Stage meta ID — de-emphasized */
+.stageMetaId {
+  color: #3f4455;
+  font-size: 0.65rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
 
-  .tutorStatusBar--idle .tutorStatusDot { background: #a5aac2; }
-  .tutorStatusBar--connecting .tutorStatusDot { background: #f7c065; box-shadow: 0 0 8px rgba(247, 192, 101, 0.7); }
-  .tutorStatusBar--listening .tutorStatusDot { background: #3adffa; box-shadow: 0 0 10px rgba(58, 223, 250, 0.85); }
-  .tutorStatusBar--speaking .tutorStatusDot,
-  .tutorStatusBar--correcting .tutorStatusDot { background: #ac8aff; box-shadow: 0 0 10px rgba(172, 138, 255, 0.8); }
-  .tutorStatusBar--fallback .tutorStatusDot { background: #f7c065; box-shadow: 0 0 8px rgba(247, 192, 101, 0.6); }
-  .tutorStatusBar--completed .tutorStatusDot { background: #9bffce; box-shadow: 0 0 10px rgba(155, 255, 206, 0.8); }
+.progressCard,
+.statusCard,
+.feedbackCard,
+.tipCard,
+.rewardCard {
+  padding: 1.35rem;
+}
 
-  .tutorStatusIcon {
-    font-size: 0.85rem;
-    color: #dfe4fe;
-    flex-shrink: 0;
-  }
+.controlDock {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 0.32fr);
+  gap: 1rem;
+  align-items: center;
+  padding: 1.25rem;
+  background: #171f36;
+  scroll-margin-top: 6rem;
+}
 
-  .tutorStatusLabel {
-    font-size: 0.75rem;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: #dfe4fe;
-    white-space: nowrap;
-  }
+/* ── Side-by-side hero layout ── */
+.lessonHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: stretch;
+}
 
-  .tutorStatusDesc {
-    font-size: 0.75rem;
-    color: #a5aac2;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+/* Avatar left column fills the hero height */
+.lessonHero > .avatarStage {
+  /* Override the default min-height so it fills the hero naturally */
+  min-height: clamp(480px, calc(100vh - 7rem), 760px);
+  max-height: calc(100vh - 7rem);
+}
 
-  /* Stage meta ID — de-emphasized */
-  .stageMetaId {
-    color: #3f4455;
-    font-size: 0.65rem;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  }
+/* Right column: phrase, CTA, status stacked */
+.lessonHeroActions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
 
-  .progressCard,
-  .statusCard,
-  .feedbackCard,
-  .tipCard,
-  .rewardCard { padding: 1.35rem; }
+/* controlDock inside the hero right column: single-column layout */
+.lessonHeroActions .controlDock {
+  grid-template-columns: 1fr;
+  flex: 1;
+}
 
-  .controlDock {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(17rem, 0.32fr);
-    gap: 1rem;
-    align-items: center;
-    padding: 1.25rem;
-    background: #171f36;
-    scroll-margin-top: 6rem;
-  }
+/* Status chip in right column: full width */
+.lessonHeroActions .tutorStatusBar {
+  width: 100%;
+  max-width: 100%;
+}
 
-  /* ── Side-by-side hero layout ── */
+/* Hero controlDock: phrase + CTA at top, full-width actions below */
+.controlDock--hero {
+  /* no special order needed; structure is now explicit */
+}
+
+.targetPrompt h1 {
+  margin: 0.28rem 0 0;
+  color: #f8fafc;
+  font-family: var(--font-display), "Space Grotesk", sans-serif;
+  font-size: clamp(1.2rem, 2vw, 1.75rem);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+}
+
+.eyebrow,
+.targetIntro {
+  color: #67e8f9;
+  margin: 0;
+}
+.targetPhrase {
+  margin: 0.35rem 0 0;
+  color: #ffffff;
+  font-family: var(--font-display), "Space Grotesk", sans-serif;
+  font-size: clamp(1.35rem, 2.2vw, 2.05rem);
+  font-weight: 850;
+}
+
+.targetInstruction,
+.targetSupport {
+  margin: 0.55rem 0 0;
+  color: #cbd5e1;
+  line-height: 1.45;
+}
+
+.targetInstruction {
+  color: #9bffce;
+  font-weight: 800;
+}
+
+.startPanel {
+  display: grid;
+  gap: 0.7rem;
+  align-self: stretch;
+  padding: 0.85rem;
+  border: 1px solid rgba(155, 255, 206, 0.18);
+  border-radius: 1.15rem;
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      rgba(155, 255, 206, 0.16),
+      transparent 7rem
+    ),
+    rgba(7, 13, 31, 0.34);
+}
+
+.startPanel > span {
+  color: #9bffce;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.controlActions {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+button {
+  min-height: 3.5rem;
+  border: 0;
+  border-radius: 1rem;
+  font: inherit;
+  font-family: var(--font-display), "Space Grotesk", sans-serif;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+button:focus-visible {
+  outline: 3px solid #f8fafc;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(58, 223, 250, 0.35);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton,
+.ghostButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 0.8rem 1rem;
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.primaryButton {
+  color: #00452d;
+  background: #9bffce;
+  box-shadow: 0 16px 36px rgba(155, 255, 206, 0.12);
+}
+
+.startLessonButton {
+  min-height: 4.1rem;
+  width: 100%;
+  font-size: 1.02rem;
+  box-shadow: 0 18px 48px rgba(155, 255, 206, 0.2);
+}
+
+.secondaryButton,
+.ghostButton {
+  color: #dfe4fe;
+  background: #1c253e;
+  border: 1px solid rgba(65, 71, 91, 0.7);
+}
+
+.dangerButton {
+  color: #ff716c;
+  background: rgba(159, 5, 25, 0.2);
+  border: 1px solid rgba(255, 113, 108, 0.32);
+}
+
+.primaryButton:not(:disabled):hover,
+.secondaryButton:not(:disabled):hover,
+.dangerButton:not(:disabled):hover,
+.ghostButton:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.compact {
+  min-height: 2.5rem;
+  padding-inline: 0.75rem;
+}
+.controlHint {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #a5aac2;
+  font-size: 0.9rem;
+}
+
+.cardTitleRow h2,
+.tipCard h2,
+.feedbackCard h2,
+.rewardCard h2 {
+  margin: 0;
+  color: #f8fafc;
+  font-family: var(--font-display), "Space Grotesk", sans-serif;
+  letter-spacing: -0.03em;
+}
+
+.cardTitleRow span {
+  color: #9bffce;
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.progressCard,
+.statusCard,
+.feedbackGrid {
+  scroll-margin-top: 6rem;
+}
+
+.xpScoreLine {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(65, 71, 91, 0.24);
+  border-radius: 1rem;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.xpScoreLine span,
+.statGrid span,
+.activityList > p {
+  color: #a5aac2;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.xpScoreLine strong {
+  color: #f8fafc;
+  font-family: var(--font-display), "Space Grotesk", sans-serif;
+  font-size: 2rem;
+  line-height: 0.9;
+}
+
+.xpScoreLine small {
+  color: #6f758b;
+  font-size: 1rem;
+}
+
+.progressTrack {
+  height: 0.65rem;
+  margin-top: 0.75rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #1c253e;
+}
+
+.progressTrack span {
+  display: block;
+  height: 100%;
+  min-width: 0.35rem;
+  border-radius: inherit;
+  background: #9bffce;
+  box-shadow: 0 0 18px rgba(155, 255, 206, 0.55);
+}
+
+.evidenceLine {
+  color: #cbd5e1;
+  font-weight: 700;
+}
+
+.statGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+
+.statGrid article {
+  display: grid;
+  gap: 0.45rem;
+  padding: 1rem;
+  border: 1px solid rgba(65, 71, 91, 0.24);
+  border-radius: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.statGrid strong {
+  color: #f8fafc;
+  font-family: var(--font-display), "Space Grotesk", sans-serif;
+  font-size: 1.3rem;
+}
+
+.activityList {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.activityList > p {
+  margin: 0;
+}
+
+.activityList div {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.75rem;
+  padding: 0.8rem;
+  border-left: 2px solid #9bffce;
+  border-radius: 0.85rem;
+  background: rgba(28, 37, 62, 0.52);
+}
+
+.activityList span {
+  grid-row: span 2;
+  color: #9bffce;
+}
+.activityList strong {
+  color: #dfe4fe;
+  font-size: 0.9rem;
+}
+.activityList small {
+  color: #a5aac2;
+  line-height: 1.35;
+}
+
+.statusCard dl {
+  display: grid;
+  gap: 0.8rem;
+  margin: 0;
+}
+.statusCard div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.statusCard dt {
+  color: #94a3b8;
+}
+.statusCard dd {
+  margin: 0;
+  color: #f8fafc;
+  text-align: right;
+}
+
+.tipCard {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 0.75rem;
+  background:
+    radial-gradient(
+      circle at 100% 0%,
+      rgba(58, 223, 250, 0.22),
+      transparent 9rem
+    ),
+    linear-gradient(135deg, rgba(0, 203, 230, 0.16), rgba(85, 22, 190, 0.18));
+  border-color: rgba(58, 223, 250, 0.24);
+}
+
+.tipIcon {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  aspect-ratio: 1;
+  border-radius: 0.7rem;
+  background: rgba(58, 223, 250, 0.16);
+  color: #3adffa;
+  font-weight: 900;
+}
+
+.tipCard p,
+.feedbackCard p,
+.rewardCard p {
+  color: #cbd5e1;
+  line-height: 1.55;
+}
+
+.feedbackGrid {
+  grid-template-columns: 1fr 1fr;
+  margin-top: 1.25rem;
+}
+
+.rewardCard.success {
+  border-color: rgba(155, 255, 206, 0.5);
+  background: rgba(0, 90, 60, 0.28);
+}
+.rewardCard.warning {
+  border-color: rgba(255, 193, 95, 0.45);
+  background: rgba(120, 53, 15, 0.35);
+}
+.alertCard {
+  width: min(1600px, calc(100% - 3rem));
+  margin: 1.25rem auto 0;
+  padding: 1rem;
+  color: #fecaca;
+  border-color: rgba(255, 113, 108, 0.45);
+}
+
+/* Hero collapses to single column on narrow screens */
+@media (max-width: 860px) {
   .lessonHero {
-    display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
-    gap: 1.25rem;
-    align-items: stretch;
-  }
-
-  /* Avatar left column fills the hero height */
-  .lessonHero > .avatarStage {
-    /* Override the default min-height so it fills the hero naturally */
-    min-height: clamp(480px, calc(100vh - 7rem), 760px);
-    max-height: calc(100vh - 7rem);
-  }
-
-  /* Right column: phrase, CTA, status stacked */
-  .lessonHeroActions {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  /* controlDock inside the hero right column: single-column layout */
-  .lessonHeroActions .controlDock {
     grid-template-columns: 1fr;
-    flex: 1;
   }
-
-  /* Status chip in right column: full width */
-  .lessonHeroActions .tutorStatusBar {
-    width: 100%;
-    max-width: 100%;
+  /* Avatar on top, actions below — sensible height so CTA stays reachable */
+  .lessonHero > .avatarStage {
+    min-height: clamp(240px, 40vh, 420px);
+    max-height: 45vh;
   }
+}
 
-  /* Hero controlDock: phrase + CTA at top, full-width actions below */
-  .controlDock--hero {
-    /* no special order needed; structure is now explicit */
+@media (max-width: 1100px) {
+  /* Stack main column + aside vertically; aside goes full-width below */
+  .classroomHero {
+    grid-template-columns: 1fr;
   }
-
-  .targetPrompt h1 {
-    margin: 0.28rem 0 0;
-    color: #f8fafc;
-    font-family: var(--font-display), "Space Grotesk", sans-serif;
-    font-size: clamp(1.2rem, 2vw, 1.75rem);
-    line-height: 1.08;
-    letter-spacing: -0.03em;
-  }
-
-  .eyebrow,
-  .targetIntro { color: #67e8f9; margin: 0; }
-  .targetPhrase {
-    margin: 0.35rem 0 0;
-    color: #ffffff;
-    font-family: var(--font-display), "Space Grotesk", sans-serif;
-    font-size: clamp(1.35rem, 2.2vw, 2.05rem);
-    font-weight: 850;
-  }
-
-  .targetInstruction,
-  .targetSupport {
-    margin: 0.55rem 0 0;
-    color: #cbd5e1;
-    line-height: 1.45;
-  }
-
-  .targetInstruction {
-    color: #9bffce;
-    font-weight: 800;
-  }
-
-  .startPanel {
-    display: grid;
-    gap: 0.7rem;
-    align-self: stretch;
-    padding: 0.85rem;
-    border: 1px solid rgba(155, 255, 206, 0.18);
-    border-radius: 1.15rem;
-    background:
-      radial-gradient(circle at 100% 0%, rgba(155, 255, 206, 0.16), transparent 7rem),
-      rgba(7, 13, 31, 0.34);
-  }
-
-  .startPanel > span {
-    color: #9bffce;
-    font-size: 0.72rem;
-    font-weight: 900;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
+  .feedbackGrid,
+  .controlDock,
   .controlActions {
-    display: grid;
-    grid-column: 1 / -1;
-    grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-    gap: 0.75rem;
-    align-items: stretch;
+    grid-template-columns: 1fr;
   }
-
-  button {
-    min-height: 3.5rem;
-    border: 0;
-    border-radius: 1rem;
-    font: inherit;
-    font-family: var(--font-display), "Space Grotesk", sans-serif;
-    font-weight: 800;
-    cursor: pointer;
+  .startPanel {
+    order: -1;
   }
-
-  button:focus-visible {
-    outline: 3px solid #f8fafc;
-    outline-offset: 3px;
-    box-shadow: 0 0 0 6px rgba(58, 223, 250, 0.35);
+  /* Aside: two side-by-side cards at tablet, readable width */
+  .lessonHud {
+    grid-template-columns: 1fr 1fr;
   }
-
-  button:disabled { cursor: not-allowed; opacity: 0.58; }
-
-  .primaryButton,
-  .secondaryButton,
-  .dangerButton,
-  .ghostButton {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.55rem;
-    padding: 0.8rem 1rem;
-    transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
-  }
-
-  .primaryButton {
-    color: #00452d;
-    background: #9bffce;
-    box-shadow: 0 16px 36px rgba(155, 255, 206, 0.12);
-  }
-
-  .startLessonButton {
-    min-height: 4.1rem;
-    width: 100%;
-    font-size: 1.02rem;
-    box-shadow: 0 18px 48px rgba(155, 255, 206, 0.2);
-  }
-
-  .secondaryButton,
-  .ghostButton {
-    color: #dfe4fe;
-    background: #1c253e;
-    border: 1px solid rgba(65, 71, 91, 0.7);
-  }
-
-  .dangerButton {
-    color: #ff716c;
-    background: rgba(159, 5, 25, 0.2);
-    border: 1px solid rgba(255, 113, 108, 0.32);
-  }
-
-  .primaryButton:not(:disabled):hover,
-  .secondaryButton:not(:disabled):hover,
-  .dangerButton:not(:disabled):hover,
-  .ghostButton:not(:disabled):hover {
-    transform: translateY(-1px);
-  }
-
-  .compact { min-height: 2.5rem; padding-inline: 0.75rem; }
-  .controlHint { grid-column: 1 / -1; margin: 0; color: #a5aac2; font-size: 0.9rem; }
-
-  .cardTitleRow h2,
-  .tipCard h2,
-  .feedbackCard h2,
-  .rewardCard h2 {
-    margin: 0;
-    color: #f8fafc;
-    font-family: var(--font-display), "Space Grotesk", sans-serif;
-    letter-spacing: -0.03em;
-  }
-
-  .cardTitleRow span {
-    color: #9bffce;
-    font-size: 0.75rem;
-    font-weight: 900;
-  }
-
-  .progressCard,
   .statusCard,
-  .feedbackGrid {
-    scroll-margin-top: 6rem;
-  }
-
-  .xpScoreLine {
-    display: flex;
-    align-items: end;
-    justify-content: space-between;
-    margin-top: 1rem;
-    padding: 1rem;
-    border: 1px solid rgba(65, 71, 91, 0.24);
-    border-radius: 1rem;
-    background: rgba(0, 0, 0, 0.18);
-  }
-
-  .xpScoreLine span,
-  .statGrid span,
-  .activityList > p {
-    color: #a5aac2;
-    font-size: 0.68rem;
-    font-weight: 900;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  .xpScoreLine strong {
-    color: #f8fafc;
-    font-family: var(--font-display), "Space Grotesk", sans-serif;
-    font-size: 2rem;
-    line-height: 0.9;
-  }
-
-  .xpScoreLine small {
-    color: #6f758b;
-    font-size: 1rem;
-  }
-
-  .progressTrack {
-    height: 0.65rem;
-    margin-top: 0.75rem;
-    overflow: hidden;
-    border-radius: 999px;
-    background: #1c253e;
-  }
-
-  .progressTrack span {
-    display: block;
-    height: 100%;
-    min-width: 0.35rem;
-    border-radius: inherit;
-    background: #9bffce;
-    box-shadow: 0 0 18px rgba(155, 255, 206, 0.55);
-  }
-
-  .evidenceLine { color: #cbd5e1; font-weight: 700; }
-
-  .statGrid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.85rem;
-    margin-top: 1rem;
-  }
-
-  .statGrid article {
-    display: grid;
-    gap: 0.45rem;
-    padding: 1rem;
-    border: 1px solid rgba(65, 71, 91, 0.24);
-    border-radius: 1rem;
-    background: rgba(0, 0, 0, 0.2);
-  }
-
-  .statGrid strong {
-    color: #f8fafc;
-    font-family: var(--font-display), "Space Grotesk", sans-serif;
-    font-size: 1.3rem;
-  }
-
-  .activityList {
-    display: grid;
-    gap: 0.75rem;
-    margin-top: 1.25rem;
-  }
-
-  .activityList > p { margin: 0; }
-
-  .activityList div {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 0.15rem 0.75rem;
-    padding: 0.8rem;
-    border-left: 2px solid #9bffce;
-    border-radius: 0.85rem;
-    background: rgba(28, 37, 62, 0.52);
-  }
-
-  .activityList span { grid-row: span 2; color: #9bffce; }
-  .activityList strong { color: #dfe4fe; font-size: 0.9rem; }
-  .activityList small { color: #a5aac2; line-height: 1.35; }
-
-  .statusCard dl { display: grid; gap: 0.8rem; margin: 0; }
-  .statusCard div { display: flex; justify-content: space-between; gap: 1rem; }
-  .statusCard dt { color: #94a3b8; }
-  .statusCard dd { margin: 0; color: #f8fafc; text-align: right; }
-
   .tipCard {
-    position: relative;
-    overflow: hidden;
-    display: grid;
+    min-height: 100%;
+  }
+}
+
+@media (max-width: 760px) {
+  .classroomTopbar,
+  .classroomHero,
+  .feedbackGrid,
+  .alertCard {
+    width: calc(100% - 1rem);
+  }
+  .classroomTopbar {
+    border-radius: 0 0 1.25rem 1.25rem;
+    padding-inline: 0.75rem;
     gap: 0.75rem;
-    background:
-      radial-gradient(circle at 100% 0%, rgba(58, 223, 250, 0.22), transparent 9rem),
-      linear-gradient(135deg, rgba(0, 203, 230, 0.16), rgba(85, 22, 190, 0.18));
-    border-color: rgba(58, 223, 250, 0.24);
+    flex-wrap: nowrap;
   }
-
-  .tipIcon {
-    display: grid;
-    place-items: center;
-    width: 2.5rem;
-    aspect-ratio: 1;
-    border-radius: 0.7rem;
-    background: rgba(58, 223, 250, 0.16);
-    color: #3adffa;
-    font-weight: 900;
+  /* On narrow screens: nav scrolls horizontally rather than hiding */
+  .classroomNav {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
-
-  .tipCard p,
-  .feedbackCard p,
-  .rewardCard p { color: #cbd5e1; line-height: 1.55; }
-
-  .feedbackGrid {
+  .classroomNav::-webkit-scrollbar {
+    display: none;
+  }
+  .classroomNav ul {
+    flex-wrap: nowrap;
+    gap: 0.35rem;
+  }
+  .classroomNav a {
+    min-height: 2.75rem;
+    padding: 0 0.65rem;
+    font-size: 0.78rem;
+  }
+  .topbarActions {
+    gap: 0.4rem;
+    flex-shrink: 0;
+  }
+  .streakPill {
+    display: none;
+  }
+  .classroomHero {
+    padding-top: 1rem;
+  }
+  .avatarStage {
+    min-height: 260px;
+  }
+  .lessonHero > .avatarStage {
+    min-height: 220px;
+    max-height: 38vh;
+  }
+  .stageMeta {
+    inset: 1rem 1rem auto;
+  }
+  .stageMeta > span:last-child {
+    display: none;
+  }
+  .stageTitle {
+    left: 1rem;
+    right: 1rem;
+    bottom: 6.1rem;
+    font-size: 1.55rem;
+  }
+  .stageDescription {
+    left: 1rem;
+    right: 1rem;
+    bottom: 3.85rem;
+  }
+  .stageIntegrityNote {
+    left: 1rem;
+    right: 1rem;
+    bottom: 1.35rem;
+  }
+  .voiceMeter {
+    top: 52%;
+  }
+  .poweredBadge {
+    display: none;
+  }
+  .tutorStatusDesc {
+    display: none;
+  }
+  /* Aside cards stack to single column on mobile */
+  .lessonHud,
+  .statGrid {
+    grid-template-columns: 1fr;
+  }
+  /* Control buttons: 2-column grid for comfortable touch targets */
+  .controlActions {
     grid-template-columns: 1fr 1fr;
-    margin-top: 1.25rem;
   }
-
-  .rewardCard.success { border-color: rgba(155, 255, 206, 0.5); background: rgba(0, 90, 60, 0.28); }
-  .rewardCard.warning { border-color: rgba(255, 193, 95, 0.45); background: rgba(120, 53, 15, 0.35); }
-  .alertCard { width: min(1600px, calc(100% - 3rem)); margin: 1.25rem auto 0; padding: 1rem; color: #fecaca; border-color: rgba(255, 113, 108, 0.45); }
-
-  /* Hero collapses to single column on narrow screens */
-  @media (max-width: 860px) {
-    .lessonHero {
-      grid-template-columns: 1fr;
-    }
-    /* Avatar on top, actions below — sensible height so CTA stays reachable */
-    .lessonHero > .avatarStage {
-      min-height: clamp(240px, 40vh, 420px);
-      max-height: 45vh;
-    }
+  /* Danger button spans full width at bottom for prominent placement */
+  .controlActions > .dangerButton {
+    grid-column: 1 / -1;
   }
-
-  @media (max-width: 1100px) {
-    /* Stack main column + aside vertically; aside goes full-width below */
-    .classroomHero {
-      grid-template-columns: 1fr;
-    }
-    .feedbackGrid,
-    .controlDock,
-    .controlActions { grid-template-columns: 1fr; }
-    .startPanel { order: -1; }
-    /* Aside: two side-by-side cards at tablet, readable width */
-    .lessonHud { grid-template-columns: 1fr 1fr; }
-    .statusCard,
-    .tipCard { min-height: 100%; }
+  /* Ensure buttons are tall enough for touch */
+  button {
+    min-height: 2.875rem;
   }
-
-  @media (max-width: 760px) {
-    .classroomTopbar, .classroomHero, .feedbackGrid, .alertCard { width: calc(100% - 1rem); }
-    .classroomTopbar {
-      border-radius: 0 0 1.25rem 1.25rem;
-      padding-inline: 0.75rem;
-      gap: 0.75rem;
-      flex-wrap: nowrap;
-    }
-    /* On narrow screens: nav scrolls horizontally rather than hiding */
-    .classroomNav {
-      flex: 1 1 0;
-      min-width: 0;
-      overflow-x: auto;
-      overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-    }
-    .classroomNav::-webkit-scrollbar { display: none; }
-    .classroomNav ul { flex-wrap: nowrap; gap: 0.35rem; }
-    .classroomNav a { min-height: 2.75rem; padding: 0 0.65rem; font-size: 0.78rem; }
-    .topbarActions { gap: 0.4rem; flex-shrink: 0; }
-    .streakPill { display: none; }
-    .classroomHero { padding-top: 1rem; }
-    .avatarStage { min-height: 260px; }
-    .lessonHero > .avatarStage { min-height: 220px; max-height: 38vh; }
-    .stageMeta { inset: 1rem 1rem auto; }
-    .stageMeta > span:last-child { display: none; }
-    .stageTitle { left: 1rem; right: 1rem; bottom: 6.1rem; font-size: 1.55rem; }
-    .stageDescription { left: 1rem; right: 1rem; bottom: 3.85rem; }
-    .stageIntegrityNote { left: 1rem; right: 1rem; bottom: 1.35rem; }
-    .voiceMeter { top: 52%; }
-    .poweredBadge { display: none; }
-    .tutorStatusDesc { display: none; }
-    /* Aside cards stack to single column on mobile */
-    .lessonHud,
-    .statGrid { grid-template-columns: 1fr; }
-    /* Control buttons: 2-column grid for comfortable touch targets */
-    .controlActions { grid-template-columns: 1fr 1fr; }
-    /* Danger button spans full width at bottom for prominent placement */
-    .controlActions > .dangerButton { grid-column: 1 / -1; }
-    /* Ensure buttons are tall enough for touch */
-    button { min-height: 2.875rem; }
-    /* Status bar: allow description to wrap rather than being hidden only */
-    .tutorStatusBar { flex-wrap: wrap; }
-    /* Status card: allow dd to wrap on very long values */
-    .statusCard div { flex-wrap: wrap; }
-    .statusCard dd { text-align: left; }
+  /* Status bar: allow description to wrap rather than being hidden only */
+  .tutorStatusBar {
+    flex-wrap: wrap;
   }
-
-  /* Extra-narrow guard: 390px phones */
-  @media (max-width: 430px) {
-    .controlActions { grid-template-columns: 1fr; }
-    .controlActions > .dangerButton { grid-column: auto; }
-    .xpPill { display: none; }
-    .brandMark { font-size: 1.05rem; }
+  /* Status card: allow dd to wrap on very long values */
+  .statusCard div {
+    flex-wrap: wrap;
   }
-
-  @media (prefers-reduced-motion: reduce) {
-    .voiceMeter span,
-    .liveBadge span {
-      animation: none;
-    }
+  .statusCard dd {
+    text-align: left;
   }
+}
+
+/* Extra-narrow guard: 390px phones */
+@media (max-width: 430px) {
+  .controlActions {
+    grid-template-columns: 1fr;
+  }
+  .controlActions > .dangerButton {
+    grid-column: auto;
+  }
+  .xpPill {
+    display: none;
+  }
+  .brandMark {
+    font-size: 1.05rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voiceMeter span,
+  .liveBadge span {
+    animation: none;
+  }
+}

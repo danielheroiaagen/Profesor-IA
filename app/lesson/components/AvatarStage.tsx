@@ -49,7 +49,7 @@ export function AvatarStage({
           <span aria-hidden="true" /> Avatar visual · LiveAvatar LITE
         </span>
         {/* Session ID preserved for test assertions - visually de-emphasized */}
-        <span className="stageMetaId">
+        <span className="stageMetaId" aria-hidden="true">
           ID: <code className="identityCode">{stage.avatarId}</code>
         </span>
       </div>
@@ -89,7 +89,9 @@ export function AvatarStage({
       </div>
 
       {/* Model badge preserved for test assertions - visually de-emphasized */}
-      <div className="poweredBadge">Voz principal: {stage.realtimeModel}</div>
+      <div className="poweredBadge" aria-hidden="true">
+        Voz principal: {stage.realtimeModel}
+      </div>
       <h2 id="avatar-stage-title" className="stageTitle">
         {stage.title}
       </h2>
