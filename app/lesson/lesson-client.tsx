@@ -22,6 +22,12 @@ import type {
   AvatarRuntimeStatus,
 } from "@/integrations/avatar/avatar-runtime";
 
+import { AvatarStage } from "./components/AvatarStage";
+import { LessonControls } from "./components/LessonControls";
+import { LessonHeader } from "./components/LessonHeader";
+import { ProgressPanel } from "./components/ProgressPanel";
+import { SessionStatusPanel } from "./components/SessionStatusPanel";
+
 type LessonSession = {
   id: string;
   state: string;
@@ -524,41 +530,7 @@ export default function LessonClient() {
 
   return (
     <main className="classroomShell">
-      <header
-        className="classroomTopbar"
-        aria-label="Profesor IA lesson header"
-      >
-        <p className="brandMark">Profesor IA</p>
-        <nav className="classroomNav" aria-label="Secciones de clase">
-          <ul>
-            <li>
-              <a aria-current="page" href="#lesson-stage">
-                Clase
-              </a>
-            </li>
-            <li>
-              <a href="#practice-controls">Práctica</a>
-            </li>
-            <li>
-              <a href="#progress-panel">Progreso</a>
-            </li>
-            <li>
-              <a href="#session-status">Estado</a>
-            </li>
-          </ul>
-        </nav>
-        <div className="topbarActions" aria-label="Progreso y perfil">
-          <p className="streakPill" aria-label="Racha de 7 días">
-            <span aria-hidden="true">◌</span> 7
-          </p>
-          <p className="xpPill" aria-label={`${totalXp} XP guardados`}>
-            ✦ {totalXp} XP
-          </p>
-          <span className="profileOrb" aria-label="Perfil de estudiante">
-            IA
-          </span>
-        </div>
-      </header>
+      <LessonHeader totalXp={totalXp} />
 
       <section className="classroomHero" aria-labelledby="lesson-title">
         <div className="lessonStageColumn">
@@ -567,155 +539,31 @@ export default function LessonClient() {
           <div className="lessonHero">
 
             {/* LEFT column: avatar — full height, cinematic */}
-            <article
-              id="lesson-stage"
-              className={`avatarStage avatarStage--${stage.motionCue}`}
-              aria-labelledby="avatar-stage-title"
-            >
-              <div className="stageMeta">
-                <span className="liveBadge">
-                  <span aria-hidden="true" /> Avatar visual · LiveAvatar LITE
-                </span>
-                {/* Session ID preserved for test assertions - visually de-emphasized */}
-                <span className="stageMetaId">
-                  ID: <code className="identityCode">{stage.avatarId}</code>
-                </span>
-              </div>
-
-              <div
-                className="avatarPortrait"
-                aria-label={`Escenario del avatar HeyGen configurado ${stage.avatarId}`}
-              >
-                <div className="avatarPoster" aria-hidden="true" />
-                <div className="avatarShade" aria-hidden="true" />
-                <div className="avatarAura" aria-hidden="true" />
-                <video
-                  ref={rememberLiveAvatarVideo}
-                  className={
-                    stage.isLiveAvatar
-                      ? "avatarVideo avatarVideo--ready"
-                      : "avatarVideo"
-                  }
-                  playsInline
-                  autoPlay
-                  muted
-                  onVolumeChange={(event) =>
-                    muteLiveAvatarVideo(event.currentTarget)
-                  }
-                  aria-label={`Video live del avatar HeyGen ${stage.avatarId}`}
-                />
-                {!stage.isLiveAvatar ? (
-                  <div className="avatarCenterBadge" aria-hidden="true">
-                    <span>◇</span>
-                  </div>
-                ) : null}
-                <div className="voiceMeter" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                  <span />
-                  <span />
-                </div>
-              </div>
-
-              {/* Model badge preserved for test assertions - visually de-emphasized */}
-              <div className="poweredBadge">
-                Voz principal: {stage.realtimeModel}
-              </div>
-              <h2 id="avatar-stage-title" className="stageTitle">
-                {stage.title}
-              </h2>
-              <p className="stageDescription" role="status" aria-live="polite">
-                {stage.stateDescription}
-              </p>
-              <p className="stageIntegrityNote">
-                {stage.isLiveAvatar
-                  ? "Avatar visual conectado; voz y micrófono pertenecen solo a Realtime 2."
-                  : "Escenario premium configurado; no afirmamos movimiento live si LiveAvatar no está disponible."}
-              </p>
-            </article>
+            <AvatarStage
+              stage={stage}
+              rememberLiveAvatarVideo={rememberLiveAvatarVideo}
+              onVideoVolumeChange={(event) =>
+                muteLiveAvatarVideo(event.currentTarget)
+              }
+            />
 
             {/* RIGHT column: phrase, CTA, status chip, practice controls */}
-            <div className="lessonHeroActions">
-
-              {/* Practice phrase + start button */}
-              <section
-                id="practice-controls"
-                className="controlDock controlDock--hero"
-                aria-label="Controles de clase"
-              >
-                <div className="targetPrompt">
-                  <p className="targetIntro">Practicá diciendo:</p>
-                  <h1 id="lesson-title">
-                    Clase RAIO A1: escuchá en español, respondé en inglés.
-                  </h1>
-                  <p className="targetInstruction">
-                    {lessonPlan.spanishInstruction}
-                  </p>
-                  <p className="targetPhrase">“{lessonPlan.targetEnglish}”</p>
-                  <p className="targetSupport">{lessonPlan.pronunciationHint}</p>
-                </div>
-                <div className="startPanel">
-                  <span>Clase guiada por voz</span>
-                  <button
-                    className="primaryButton startLessonButton"
-                    type="button"
-                    onClick={startLesson}
-                    disabled={startControlsDisabled}
-                  >
-                    <span aria-hidden="true">▷</span>
-                    {formatStartLessonAction(status)}
-                  </button>
-                </div>
-                <div className="controlActions">
-                  <button
-                    className="secondaryButton"
-                    type="button"
-                    onClick={recordLearnerTurn}
-                    disabled={practiceControlsDisabled}
-                  >
-                    <span aria-hidden="true">🎙</span>
-                    Ya practiqué la frase
-                  </button>
-                  <button
-                    className="secondaryButton"
-                    type="button"
-                    onClick={recordVisibleFeedback}
-                    disabled={practiceControlsDisabled}
-                  >
-                    <span aria-hidden="true">✦</span>
-                    Ver corrección sugerida
-                  </button>
-                  <button
-                    className="dangerButton"
-                    type="button"
-                    onClick={completeLesson}
-                    disabled={!canCompleteLesson}
-                  >
-                    <span aria-hidden="true">×</span>
-                    {formatCompleteLessonAction(
-                      status,
-                      Boolean(lesson),
-                      hasCompletionEvidence,
-                    )}
-                  </button>
-                </div>
-                <p className="controlHint">{completionHint}</p>
-              </section>
-
-              {/* Single status chip - sits below CTA in right column */}
-              <div
-                className={`tutorStatusBar tutorStatusBar--${stage.motionCue}`}
-                aria-label="Estado actual del tutor"
-                aria-live="polite"
-              >
-                <span className="tutorStatusDot" aria-hidden="true" />
-                <span className="tutorStatusIcon" aria-hidden="true">{currentStateIcon}</span>
-                <span className="tutorStatusLabel">{stage.stateLabel}</span>
-                <span className="tutorStatusDesc">{stage.stateDescription}</span>
-              </div>
-
-            </div>{/* /lessonHeroActions */}
+            <LessonControls
+              lessonPlan={lessonPlan}
+              status={status}
+              lesson={lesson}
+              startControlsDisabled={startControlsDisabled}
+              practiceControlsDisabled={practiceControlsDisabled}
+              canCompleteLesson={canCompleteLesson}
+              hasCompletionEvidence={hasCompletionEvidence}
+              completionHint={completionHint}
+              currentStateIcon={currentStateIcon}
+              stage={stage}
+              onStartLesson={startLesson}
+              onRecordLearnerTurn={recordLearnerTurn}
+              onRecordVisibleFeedback={recordVisibleFeedback}
+              onCompleteLesson={completeLesson}
+            />
           </div>{/* /lessonHero */}
 
           {/* State machine data - hidden visually but kept for structural parity */}
@@ -735,97 +583,23 @@ export default function LessonClient() {
         </div>
 
         <aside className="lessonHud" aria-label="Panel de progreso de sesión">
-          <section
-            id="progress-panel"
-            className="progressCard"
-            aria-labelledby="progress-title"
-          >
-            <div className="cardTitleRow">
-              <h2 id="progress-title">Progreso de Sesión</h2>
-              <span>+{xp?.awarded ? xp.xp : 0} XP ganado</span>
-            </div>
-            <div className="xpScoreLine">
-              <span>Total XP</span>
-              <strong>
-                {totalXp}
-                <small>/500</small>
-              </strong>
-            </div>
-            <div className="progressTrack" aria-hidden="true">
-              <span
-                style={{ width: `${Math.min(100, (totalXp / 500) * 100)}%` }}
-              />
-            </div>
-            <div className="statGrid" aria-label="Evidencia de sesión">
-              <article>
-                <span>Turnos</span>
-                <strong>{learnerTurns} / 10</strong>
-              </article>
-              <article>
-                <span>Feedback</span>
-                <strong>{feedbackEvents}</strong>
-              </article>
-            </div>
-            <div className="activityList">
-              <p>Actividad Reciente</p>
-              <div>
-                <span aria-hidden="true">✓</span>
-                <strong>Corrección visible</strong>
-                <small>{feedbackSummary}</small>
-              </div>
-              <div>
-                <span aria-hidden="true">○</span>
-                <strong>Próximo objetivo</strong>
-                <small>{lessonPlan.nextGoal}</small>
-              </div>
-            </div>
-          </section>
-
-          <section
-            id="session-status"
-            className="statusCard"
-            aria-label="Estado protegido de sesión"
-          >
-            <p className="eyebrow">Estado protegido</p>
-            <dl>
-              <div>
-                <dt>Momento</dt>
-                <dd>{lessonStatusLabel}</dd>
-              </div>
-              <div>
-                <dt>Voz</dt>
-                <dd>{voiceStatusLabel}</dd>
-              </div>
-              <div>
-                <dt>Avatar</dt>
-                <dd>
-                  {avatarStatusLabel}
-                  {avatar && !avatar.available ? (
-                    <span>
-                      {" "}
-                      La clase sigue por voz; el avatar no bloquea la práctica.
-                    </span>
-                  ) : null}
-                </dd>
-              </div>
-              {avatarRuntime ? (
-                <div>
-                  <dt>Runtime avatar</dt>
-                  <dd>{formatAvatarRuntimeStatus(avatarRuntime.status)}</dd>
-                </div>
-              ) : null}
-              <div>
-                <dt>Sesión protegida</dt>
-                <dd>{protectedSessionLabel}</dd>
-              </div>
-              <div>
-                <dt>Modelo objetivo</dt>
-                <dd>
-                  <code>{stage.realtimeModel}</code>
-                </dd>
-              </div>
-            </dl>
-          </section>
+          <ProgressPanel
+            xp={xp}
+            totalXp={totalXp}
+            learnerTurns={learnerTurns}
+            feedbackEvents={feedbackEvents}
+            feedbackSummary={feedbackSummary}
+            lessonPlan={lessonPlan}
+          />
+          <SessionStatusPanel
+            lessonStatusLabel={lessonStatusLabel}
+            voiceStatusLabel={voiceStatusLabel}
+            avatarStatusLabel={avatarStatusLabel}
+            avatar={avatar}
+            avatarRuntime={avatarRuntime}
+            protectedSessionLabel={protectedSessionLabel}
+            realtimeModel={stage.realtimeModel}
+          />
           <section className="tipCard" aria-labelledby="teacher-tip-title">
             <span className="tipIcon" aria-hidden="true">
               ?
@@ -1113,27 +887,6 @@ function formatConnectionStatus(status: ConnectionStatus) {
     failed: "no conectada",
   };
   return labels[status];
-}
-
-function formatStartLessonAction(status: LessonStatus) {
-  if (status === "starting") return "Preparando clase...";
-  if (status === "active" || status === "feedback") return "Clase abierta";
-  if (status === "completed") return "Practicar otra vez";
-  if (status === "failed") return "Reintentar clase";
-
-  return "Empezar clase";
-}
-
-function formatCompleteLessonAction(
-  status: LessonStatus,
-  hasLesson: boolean,
-  hasCompletionEvidence: boolean,
-) {
-  if (status === "completed") return "Clase cerrada";
-  if (status === "failed") return "Reintento necesario";
-  if (hasLesson && !hasCompletionEvidence) return "Esperando evidencia de voz";
-
-  return "Finalizar clase";
 }
 
 function formatAvatarStatus(
