@@ -90,8 +90,6 @@ const REQUIRED_FEEDBACK_EVENTS = 1;
 const DEFAULT_HEYGEN_AVATAR_ID = "e29e792a-41e7-4df0-84a8-349e099fb50f";
 const DEFAULT_OPENAI_REALTIME_MODEL = "gpt-realtime-2";
 const API_REQUEST_TIMEOUT_MS = 8_000;
-const STITCH_TUTOR_POSTER_URL =
-  "https://lh3.googleusercontent.com/aida-public/AB6AXuDdzHwAwTAvUVLRwMGfxmkra0pwSCyt_9MBzo5amWwIOuiJT0YWdMgIfb-dxqXs4qCM4XJbck5TKVEd1jb4fTgALsRsy1fguXSxALC0Z_hr3me3Tvr42VYUF7f9e09fiQagGE6Qjrigk60gkak4EYTVcFN5bm6sgX55vfZD3-6dDKWbpTNDPPDxEN4cJFgwl8BDNDZgUEN1SH-uP_TWcxWiAACNltXBJF036PQzam6cpb75NIg-I2eH0ttoYWNUkRUix26Iy55uN-0g";
 const TUTOR_STATE_LABELS = [
   "Ready",
   "Conectando",
@@ -172,12 +170,32 @@ export default function LessonClient() {
       capturedConnectionRef.current = null;
       if (conn) {
         conn.stream?.getTracks().forEach((track) => {
-          try { track.stop(); } catch { /* noop */ }
+          try {
+            track.stop();
+          } catch {
+            /* noop */
+          }
         });
-        try { conn.dataChannel?.close(); } catch { /* noop */ }
-        try { conn.peerConnection?.close(); } catch { /* noop */ }
-        try { conn.audioElement?.pause?.(); } catch { /* noop */ }
-        try { if (conn.audioElement) conn.audioElement.srcObject = null; } catch { /* noop */ }
+        try {
+          conn.dataChannel?.close();
+        } catch {
+          /* noop */
+        }
+        try {
+          conn.peerConnection?.close();
+        } catch {
+          /* noop */
+        }
+        try {
+          conn.audioElement?.pause?.();
+        } catch {
+          /* noop */
+        }
+        try {
+          if (conn.audioElement) conn.audioElement.srcObject = null;
+        } catch {
+          /* noop */
+        }
       }
       const session = capturedAvatarRef.current;
       capturedAvatarRef.current = null;
@@ -471,10 +489,8 @@ export default function LessonClient() {
 
       <section className="classroomHero" aria-labelledby="lesson-title">
         <div className="lessonStageColumn">
-
           {/* SIDE-BY-SIDE HERO: avatar left, phrase+CTA+status right */}
           <div className="lessonHero">
-
             {/* LEFT column: avatar — full height, cinematic */}
             <AvatarStage
               stage={stage}
@@ -501,7 +517,8 @@ export default function LessonClient() {
               onRecordVisibleFeedback={recordVisibleFeedback}
               onCompleteLesson={completeLesson}
             />
-          </div>{/* /lessonHero */}
+          </div>
+          {/* /lessonHero */}
 
           {/* State machine data - hidden visually but kept for structural parity */}
           <dl className="stateChipRow--hidden" aria-hidden="true">

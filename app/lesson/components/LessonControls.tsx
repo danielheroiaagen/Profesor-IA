@@ -1,6 +1,6 @@
 import type { RaioSpeakingLesson } from "@/domain/raio-curriculum";
 
-import type { TutorMotionCue, TutorStageViewModel } from "./AvatarStage";
+import type { TutorStageViewModel } from "./AvatarStage";
 
 type LessonStatus =
   | "idle"
@@ -51,7 +51,10 @@ interface LessonControlsProps {
   hasCompletionEvidence: boolean;
   completionHint: string;
   currentStateIcon: string;
-  stage: Pick<TutorStageViewModel, "motionCue" | "stateLabel" | "stateDescription">;
+  stage: Pick<
+    TutorStageViewModel,
+    "motionCue" | "stateLabel" | "stateDescription"
+  >;
   onStartLesson: () => void;
   onRecordLearnerTurn: () => void;
   onRecordVisibleFeedback: () => void;
@@ -88,7 +91,11 @@ export function LessonControls({
             Clase RAIO A1: escuchá en español, respondé en inglés.
           </h1>
           <p className="targetInstruction">{lessonPlan.spanishInstruction}</p>
-          <p className="targetPhrase">{"“"}{lessonPlan.targetEnglish}{"”"}</p>
+          <p className="targetPhrase">
+            {"“"}
+            {lessonPlan.targetEnglish}
+            {"”"}
+          </p>
           <p className="targetSupport">{lessonPlan.pronunciationHint}</p>
         </div>
         <div className="startPanel">
