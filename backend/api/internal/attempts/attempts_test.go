@@ -2,6 +2,7 @@ package attempts
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -98,6 +99,61 @@ func TestPostgresRepositoryCompletesAnonymousAttempt(t *testing.T) {
 	assertArg(t, store.args[1], "anonymous-1")
 }
 
+func TestPostgresRepositoryRecordsOwnedLessonEvent(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeStore{row: fakeRow{values: []any{int64(42)}}}
+	repository := mustRepository(t, store)
+
+	event, err := repository.RecordEvent(context.Background(), EventRecord{
+		Identity:  Identity{UserID: " user-1 "},
+		AttemptID: " attempt-1 ",
+		EventType: "learner_turn",
+		Payload:   json.RawMessage(`{"transcript":"hello"}`),
+	})
+
+	if err != nil {
+		t.Fatalf("record event: %v", err)
+	}
+	if event.ID != 42 {
+		t.Fatalf("expected event id 42, got %d", event.ID)
+	}
+	if store.query != insertUserEventSQL {
+		t.Fatal("expected user event SQL")
+	}
+	assertArg(t, store.args[0], "attempt-1")
+	assertArg(t, store.args[1], "user-1")
+	assertArg(t, store.args[2], "learner_turn")
+	assertArg(t, string(store.args[3].([]byte)), `{"transcript":"hello"}`)
+}
+
+func TestPostgresRepositoryRecordsOwnedFeedback(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeStore{row: fakeRow{values: []any{"feedback-1"}}}
+	repository := mustRepository(t, store)
+
+	feedback, err := repository.RecordFeedback(context.Background(), FeedbackRecord{
+		Identity:       Identity{AnonymousProgressID: " anonymous-1 "},
+		AttemptID:      "attempt-1",
+		CorrectionText: " Say: It's a book. ",
+		RubricResult:   json.RawMessage(`{"score":1}`),
+	})
+
+	if err != nil {
+		t.Fatalf("record feedback: %v", err)
+	}
+	if feedback.ID != "feedback-1" {
+		t.Fatalf("expected feedback id, got %q", feedback.ID)
+	}
+	if store.query != insertAnonymousFeedbackSQL {
+		t.Fatal("expected anonymous feedback SQL")
+	}
+	assertArg(t, store.args[1], "anonymous-1")
+	assertArg(t, store.args[2], "Say: It's a book.")
+	assertArg(t, string(store.args[3].([]byte)), `{"score":1}`)
+}
+
 func TestPostgresRepositoryRejectsInvalidRecords(t *testing.T) {
 	t.Parallel()
 
@@ -148,6 +204,58 @@ func TestPostgresRepositoryRejectsInvalidCompleteRecords(t *testing.T) {
 	}
 }
 
+func TestPostgresRepositoryRejectsInvalidEvents(t *testing.T) {
+	t.Parallel()
+
+	repository := mustRepository(t, &fakeStore{})
+	cases := []struct {
+		name     string
+		record   EventRecord
+		expected error
+	}{
+		{"missing identity", EventRecord{AttemptID: "attempt-1", EventType: "system"}, ErrInvalidIdentity},
+		{"missing attempt", EventRecord{Identity: Identity{UserID: "user-1"}, EventType: "system"}, ErrMissingAttemptID},
+		{"invalid type", EventRecord{Identity: Identity{UserID: "user-1"}, AttemptID: "attempt-1", EventType: "unknown"}, ErrInvalidEventType},
+		{"invalid payload", EventRecord{Identity: Identity{UserID: "user-1"}, AttemptID: "attempt-1", EventType: "system", Payload: json.RawMessage(`{`)}, ErrInvalidPayload},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := repository.RecordEvent(context.Background(), tc.record)
+			if !errors.Is(err, tc.expected) {
+				t.Fatalf("expected %v, got %v", tc.expected, err)
+			}
+		})
+	}
+}
+
+func TestPostgresRepositoryRejectsInvalidFeedback(t *testing.T) {
+	t.Parallel()
+
+	repository := mustRepository(t, &fakeStore{})
+	cases := []struct {
+		name     string
+		record   FeedbackRecord
+		expected error
+	}{
+		{"missing identity", FeedbackRecord{AttemptID: "attempt-1", CorrectionText: "fix"}, ErrInvalidIdentity},
+		{"missing attempt", FeedbackRecord{Identity: Identity{UserID: "user-1"}, CorrectionText: "fix"}, ErrMissingAttemptID},
+		{"missing correction", FeedbackRecord{Identity: Identity{UserID: "user-1"}, AttemptID: "attempt-1"}, ErrMissingCorrectionText},
+		{"invalid rubric", FeedbackRecord{Identity: Identity{UserID: "user-1"}, AttemptID: "attempt-1", CorrectionText: "fix", RubricResult: json.RawMessage(`{`)}, ErrInvalidPayload},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := repository.RecordFeedback(context.Background(), tc.record)
+			if !errors.Is(err, tc.expected) {
+				t.Fatalf("expected %v, got %v", tc.expected, err)
+			}
+		})
+	}
+}
+
 func TestPostgresRepositoryReturnsAttemptNotFound(t *testing.T) {
 	t.Parallel()
 
@@ -157,6 +265,18 @@ func TestPostgresRepositoryReturnsAttemptNotFound(t *testing.T) {
 		Identity:  Identity{UserID: "user-1"},
 		AttemptID: "attempt-1",
 	})
+
+	if !errors.Is(err, ErrAttemptNotFound) {
+		t.Fatalf("expected ErrAttemptNotFound, got %v", err)
+	}
+}
+
+func TestPostgresRepositoryReturnsAttemptNotFoundForOwnedEventWrites(t *testing.T) {
+	t.Parallel()
+
+	repository := mustRepository(t, &fakeStore{row: fakeRow{err: pgx.ErrNoRows}})
+
+	_, err := repository.RecordEvent(context.Background(), EventRecord{Identity: Identity{UserID: "user-1"}, AttemptID: "attempt-1", EventType: "system"})
 
 	if !errors.Is(err, ErrAttemptNotFound) {
 		t.Fatalf("expected ErrAttemptNotFound, got %v", err)
@@ -215,8 +335,16 @@ func (r fakeRow) Scan(dest ...any) error {
 	if r.err != nil {
 		return r.err
 	}
-	*(dest[0].(*string)) = r.values[0].(string)
-	*(dest[1].(*string)) = r.values[1].(string)
+	for index, value := range r.values {
+		switch target := dest[index].(type) {
+		case *string:
+			*target = value.(string)
+		case *int64:
+			*target = value.(int64)
+		default:
+			panic("unsupported scan target")
+		}
+	}
 	return nil
 }
 
