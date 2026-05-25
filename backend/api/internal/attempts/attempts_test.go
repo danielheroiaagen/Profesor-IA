@@ -54,6 +54,50 @@ func TestPostgresRepositoryStartsAnonymousLessonPlanAttempt(t *testing.T) {
 	assertArg(t, store.args[4], "custom-realtime")
 }
 
+func TestPostgresRepositoryCompletesUserAttempt(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeStore{row: fakeRow{values: []any{"attempt-1", "completed"}}}
+	repository := mustRepository(t, store)
+
+	attempt, err := repository.CompleteAttempt(context.Background(), CompleteRecord{
+		Identity:  Identity{UserID: " user-1 "},
+		AttemptID: " attempt-1 ",
+	})
+
+	if err != nil {
+		t.Fatalf("complete attempt: %v", err)
+	}
+	if attempt.ID != "attempt-1" || attempt.Status != "completed" {
+		t.Fatalf("unexpected attempt: %+v", attempt)
+	}
+	if store.query != completeUserAttemptSQL {
+		t.Fatal("expected user complete SQL")
+	}
+	assertArg(t, store.args[0], "attempt-1")
+	assertArg(t, store.args[1], "user-1")
+}
+
+func TestPostgresRepositoryCompletesAnonymousAttempt(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeStore{row: fakeRow{values: []any{"attempt-1", "completed"}}}
+	repository := mustRepository(t, store)
+
+	_, err := repository.CompleteAttempt(context.Background(), CompleteRecord{
+		Identity:  Identity{AnonymousProgressID: " anonymous-1 "},
+		AttemptID: "attempt-1",
+	})
+
+	if err != nil {
+		t.Fatalf("complete attempt: %v", err)
+	}
+	if store.query != completeAnonymousAttemptSQL {
+		t.Fatal("expected anonymous complete SQL")
+	}
+	assertArg(t, store.args[1], "anonymous-1")
+}
+
 func TestPostgresRepositoryRejectsInvalidRecords(t *testing.T) {
 	t.Parallel()
 
@@ -76,6 +120,46 @@ func TestPostgresRepositoryRejectsInvalidRecords(t *testing.T) {
 				t.Fatalf("expected %v, got %v", tc.expected, err)
 			}
 		})
+	}
+}
+
+func TestPostgresRepositoryRejectsInvalidCompleteRecords(t *testing.T) {
+	t.Parallel()
+
+	repository := mustRepository(t, &fakeStore{})
+	cases := []struct {
+		name     string
+		record   CompleteRecord
+		expected error
+	}{
+		{"missing identity", CompleteRecord{AttemptID: "attempt-1"}, ErrInvalidIdentity},
+		{"ambiguous identity", CompleteRecord{Identity: Identity{UserID: "user-1", AnonymousProgressID: "anonymous-1"}, AttemptID: "attempt-1"}, ErrInvalidIdentity},
+		{"missing attempt", CompleteRecord{Identity: Identity{UserID: "user-1"}}, ErrMissingAttemptID},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := repository.CompleteAttempt(context.Background(), tc.record)
+			if !errors.Is(err, tc.expected) {
+				t.Fatalf("expected %v, got %v", tc.expected, err)
+			}
+		})
+	}
+}
+
+func TestPostgresRepositoryReturnsAttemptNotFound(t *testing.T) {
+	t.Parallel()
+
+	repository := mustRepository(t, &fakeStore{row: fakeRow{err: pgx.ErrNoRows}})
+
+	_, err := repository.CompleteAttempt(context.Background(), CompleteRecord{
+		Identity:  Identity{UserID: "user-1"},
+		AttemptID: "attempt-1",
+	})
+
+	if !errors.Is(err, ErrAttemptNotFound) {
+		t.Fatalf("expected ErrAttemptNotFound, got %v", err)
 	}
 }
 
@@ -111,11 +195,13 @@ func mustRepository(t *testing.T, store Store) *PostgresRepository {
 }
 
 type fakeStore struct {
-	args []any
-	row  fakeRow
+	query string
+	args  []any
+	row   fakeRow
 }
 
-func (s *fakeStore) QueryRow(_ context.Context, _ string, args ...any) pgx.Row {
+func (s *fakeStore) QueryRow(_ context.Context, query string, args ...any) pgx.Row {
+	s.query = query
 	s.args = args
 	return s.row
 }
