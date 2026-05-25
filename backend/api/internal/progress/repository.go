@@ -135,7 +135,20 @@ INSERT INTO progress_awards (
 )
 SELECT user_id, NULL, id, $3, $4
 FROM lesson_attempts
-WHERE id = $1 AND user_id = $2 AND status = 'completed'
+WHERE
+  id = $1
+  AND user_id = $2
+  AND status = 'completed'
+  AND EXISTS (
+    SELECT 1
+    FROM lesson_events
+    WHERE attempt_id = lesson_attempts.id AND event_type = 'learner_turn'
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM feedback_events
+    WHERE attempt_id = lesson_attempts.id
+  )
 ON CONFLICT (attempt_id) DO NOTHING
 `
 
@@ -149,7 +162,20 @@ INSERT INTO progress_awards (
 )
 SELECT NULL, anonymous_progress_id, id, $3, $4
 FROM lesson_attempts
-WHERE id = $1 AND anonymous_progress_id = $2 AND status = 'completed'
+WHERE
+  id = $1
+  AND anonymous_progress_id = $2
+  AND status = 'completed'
+  AND EXISTS (
+    SELECT 1
+    FROM lesson_events
+    WHERE attempt_id = lesson_attempts.id AND event_type = 'learner_turn'
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM feedback_events
+    WHERE attempt_id = lesson_attempts.id
+  )
 ON CONFLICT (attempt_id) DO NOTHING
 `
 
