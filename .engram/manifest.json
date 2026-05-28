@@ -24,6 +24,14 @@
       "sessions": 81,
       "memories": 338,
       "prompts": 91
+    },
+    {
+      "id": "51754950",
+      "created_by": "danielgonzalezjunco",
+      "created_at": "2026-05-28T02:06:33Z",
+      "sessions": 0,
+      "memories": 1,
+      "prompts": 0
     }
   ]
 }
